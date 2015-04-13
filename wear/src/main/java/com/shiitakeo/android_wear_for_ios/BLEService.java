@@ -31,18 +31,51 @@ import android.os.PowerManager;
 import android.os.Vibrator;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
-import android.support.v4.content.LocalBroadcastManager;
 import android.support.wearable.activity.ConfirmationActivity;
 import android.util.Log;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
 /**
  * Created by shiitakeo on 15/03/15.
  */
-public class BLEService extends Service{
+public class BLEService extends Service {
+
+    private enum EventID {
+        NotificationAdded,
+        NotificationModified,
+        NotificationRemoved
+    }
+
+    private enum CommandID {
+        GetNotificationAttributes,
+        GetAppAttributes,
+        PerformNotificationAction
+    }
+
+    private enum NotificationAttributeID {
+        AppIdentifier,
+        Title,
+        Subtitle,
+        Message,
+        MessageSize,
+        Date,
+        PositiveActionLabel,
+        NegativeActionLabel
+    }
+
+    private enum ActionID {
+        Positive,
+        Negative
+    }
+
+    private static final String TAG_LOG = "BLE_wear";
+    private static final String INTENT_EXTRA_UID = "INTENT_EXTRA_UID";
+    private static final String INTENT_EXTRA_NOTIFICATION_ID = "INTENT_EXTRA_NOTIFICATION_ID";
+
     private int api_level = Build.VERSION.SDK_INT;
 
     private BluetoothAdapter bluetooth_adapter;
@@ -50,7 +83,6 @@ public class BLEService extends Service{
     private static Boolean is_connect = false;
 
 
-    private static final String TAG_LOG = "BLE_wear";
     //ANCS Profile
     private static final String service_ancs = "7905f431-b5ce-4e99-a40f-4b1e122d00d0";
     private static final String characteristics_notification_source = "9fbf120d-6301-42d9-8c58-25e699a21dbd";
@@ -76,11 +108,10 @@ public class BLEService extends Service{
 
     private PacketProcessor packet_processor;
 
-    private IconImageManager icon_image_manager;
 
     private BroadcastReceiver message_receiver = new MessageReceiver();
 
-    private byte[] uid = new byte[4];
+    //private byte[] uid = new byte[4];
 
     // intent action
     String action_positive = "com.shiitakeo.perform_notification_action_positive";
@@ -116,7 +147,6 @@ public class BLEService extends Service{
         vib = (Vibrator)getSystemService(VIBRATOR_SERVICE);
         notificationManager = NotificationManagerCompat.from(getApplicationContext());
         packet_processor = new PacketProcessor();
-        icon_image_manager = new IconImageManager();
 
         if(bluetooth_gatt != null) {
             bluetooth_gatt.disconnect();
@@ -425,12 +455,11 @@ public class BLEService extends Service{
         }
 
         @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt,
-                                            BluetoothGattCharacteristic characteristic) {
+        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             Log.d(TAG_LOG, "onCharacteristicChanged:: " + characteristic.getUuid().toString());
             //notify from data source characteristic
             //process get notitification packet from iphone.
-            if (characteristics_data_source.toString().equals(characteristic.getUuid().toString())) {
+            if (characteristics_data_source.equals(characteristic.getUuid().toString())) {
                 byte[] get_data = characteristic.getValue();
 //                if(DEBUG){
 //                StringBuilder stringBuilder = new StringBuilder();
@@ -441,38 +470,70 @@ public class BLEService extends Service{
 //                Log.d(TAG_LOG, "notify value:: " + stringBuilder.toString());
 //                }
 
-                packet_processor.processing(get_data);
+                packet_processor.process(get_data);
 
-                if(packet_processor.is_finish_processing()){
-                    int app_logo = icon_image_manager.get_image_index(packet_processor.get_ds_app_id());
+                if (packet_processor.hasFinishedProcessing()) {
+                    NotificationData notificationData = new NotificationData(
+                            packet_processor.getUID(),
+                            packet_processor.getAppId(),
+                            packet_processor.getTitle(),
+                            packet_processor.getMessage(),
+                            packet_processor.getPositiveAction(),
+                            packet_processor.getNegativeAction()
+                    );
 
-                    Bitmap large_icon = BitmapFactory.decodeResource(getResources(), app_logo);
+                    NotificationDataManager.updateData(notificationData);
+
+                    Bitmap largeIcon;
+                    if (notificationData.getBackground() != -1) {
+                        largeIcon = BitmapFactory.decodeResource(getResources(), notificationData.getBackground());
+                    }
+                    else {
+                        largeIcon = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+                        largeIcon.eraseColor(notificationData.getBackgroundColor());
+                    }
                     Log.d(TAG_LOG, "in title: notification");
 
                     //create perform notification action pending_intent
-                    Intent _intent_positive = new Intent();
-                    _intent_positive.setAction(action_positive);
-                    PendingIntent _positive_action = PendingIntent.getBroadcast(getApplicationContext(), 0, _intent_positive, PendingIntent.FLAG_CANCEL_CURRENT);
 
-                    Intent _intent_negative = new Intent();
-                    _intent_negative.setAction(action_negative);
-                    PendingIntent _negative_action = PendingIntent.getBroadcast(getApplicationContext(), 0, _intent_negative, PendingIntent.FLAG_CANCEL_CURRENT);
 
                     Intent _intent_delete = new Intent();
                     _intent_delete.setAction(action_delete);
+                    _intent_delete.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
                     PendingIntent _delete_action = PendingIntent.getBroadcast(getApplicationContext(), 0, _intent_delete, PendingIntent.FLAG_CANCEL_CURRENT);
 
-                    Notification notification = new NotificationCompat.Builder(getApplicationContext())
-                            .setContentTitle(packet_processor.get_ds_title())
-                            .setContentText(packet_processor.get_ds_message())
-                            .setSmallIcon(app_logo)
-                            .setLargeIcon(large_icon)
-                            .setGroup(packet_processor.get_ds_app_id())
-                            .addAction(R.drawable.ic_accept, "Accept", _positive_action)
-                            .addAction(R.drawable.ic_decline, "Decline", _negative_action)
+                    NotificationCompat.WearableExtender wearableExtender =
+                            new NotificationCompat.WearableExtender()
+                                    .setBackground(largeIcon);
+
+                    NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext())
+                            .setContentTitle(notificationData.getTitle())
+                            .setContentText(notificationData.getMessage())
+                            .setSmallIcon(notificationData.getAppIcon())
+                            .setGroup(notificationData.getGroup())
                             .setDeleteIntent(_delete_action)
-                            .build();
-                    notificationManager.notify(notification_id, notification);
+                            .extend(wearableExtender);
+
+                    if (notificationData.getPositiveAction() != null) {
+                        Intent _intent_positive = new Intent();
+                        _intent_positive.setAction(action_positive);
+                        _intent_positive.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
+                        PendingIntent _positive_action = PendingIntent.getBroadcast(getApplicationContext(), 0, _intent_positive, PendingIntent.FLAG_CANCEL_CURRENT);
+
+                        notificationBuilder.addAction(R.drawable.ic_action_accept, notificationData.getPositiveAction(), _positive_action);
+                    }
+                    if (notificationData.getNegativeAction() != null) {
+                        Intent _intent_negative = new Intent();
+                        _intent_negative.setAction(action_negative);
+                        _intent_negative.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
+                        PendingIntent _negative_action = PendingIntent.getBroadcast(getApplicationContext(), 0, _intent_negative, PendingIntent.FLAG_CANCEL_CURRENT);
+
+                        notificationBuilder.addAction(R.drawable.ic_action_remove, notificationData.getNegativeAction(), _negative_action);
+                    }
+
+                    Notification notification = notificationBuilder.build();
+
+                    notificationManager.notify(notificationData.getUIDString(), 1000, notification);
                     notification_id++;
                     vib.vibrate(pattern, -1);
 
@@ -487,14 +548,14 @@ public class BLEService extends Service{
             }
 
             //notify from characteristic notification characteristic
-            if (characteristics_notification_source.toString().equals(characteristic.getUuid().toString())) {
+            if (characteristics_notification_source.equals(characteristic.getUuid().toString())) {
                 Log.d(TAG_LOG, "get notify from notification source chara");
 
                 //init  packet processing flag;
                 packet_processor.init();
 
                 byte[] data = characteristic.getValue();
-                if(data != null && data.length > 0) {
+                if (data != null && data.length > 0) {
 //                    if(DEBUG) {
 //                        Log.d(TAG_LOG, "*******");
 //                        String type = String.format("%02X", data[0]);
@@ -514,42 +575,61 @@ public class BLEService extends Service{
 //                    }
 
                     try {
-                        if (String.format("%02X", data[0]).equals("00")) {
-                            Log.d(TAG_LOG, "get notify");
-                            // notification value setting.
-                            //current, hard coding
-                            uid[0] = data[4];
-                            uid[1] = data[5];
-                            uid[2] = data[6];
-                            uid[3] = data[7];
-                            byte[] get_notification_attribute = {
-                                    (byte)0x00,
-                                    //UID
-                                    data[4], data[5], data[6], data[7],
-                                    //app id
-                                    (byte)0x00,
-                                    //title
-                                    (byte)0x01, (byte)0xff, (byte)0xff,
-                                    //message
-                                    (byte)0x03, (byte)0xff, (byte)0xff
-                            };
+                        switch (data[0]) {
+                            case (byte) 0x00:
+                                Log.d(TAG_LOG, "get notify");
+                                // notification value setting.
 
-                            BluetoothGattService service = gatt.getService(UUID.fromString(service_ancs));
-                            if (service == null) {
-                                Log.d(TAG_LOG, "cant find service");
-                            } else {
-                                Log.d(TAG_LOG, "find service");
-                                characteristic = service.getCharacteristic(UUID.fromString(characteristics_control_point));
-                                if (characteristic == null) {
-                                    Log.d(TAG_LOG, "cant find chara");
+                                byte[] get_notification_attribute = {
+                                        (byte) CommandID.GetNotificationAttributes.ordinal(),
+
+                                        // UID
+                                        data[4], data[5], data[6], data[7],
+
+                                        // App Identifier - NotificationAttributeIDAppIdentifier
+                                        (byte) NotificationAttributeID.AppIdentifier.ordinal(),
+
+                                        // Title - NotificationAttributeIDTitle
+                                        // Followed by a 2-bytes max length parameter
+                                        (byte) NotificationAttributeID.Title.ordinal(),
+                                        (byte) 0xff,
+                                        (byte) 0xff,
+
+                                        // Message - NotificationAttributeIDMessage
+                                        // Followed by a 2-bytes max length parameter
+                                        (byte) NotificationAttributeID.Message.ordinal(),
+                                        (byte) 0xff,
+                                        (byte) 0xff,
+
+                                        // Positive Action Label - NotificationAttributeIDPositiveActionLabel
+                                        (byte) NotificationAttributeID.PositiveActionLabel.ordinal(),
+
+                                        // Negative Action Label - NotificationAttributeIDNegativeActionLabel
+                                        (byte) NotificationAttributeID.NegativeActionLabel.ordinal()
+                                };
+
+                                BluetoothGattService service = gatt.getService(UUID.fromString(service_ancs));
+                                if (service == null) {
+                                    Log.d(TAG_LOG, "cant find service");
                                 } else {
-                                    Log.d(TAG_LOG, "find chara");
-                                    characteristic.setValue(get_notification_attribute);
-                                    gatt.writeCharacteristic(characteristic);
+                                    Log.d(TAG_LOG, "find service");
+                                    characteristic = service.getCharacteristic(UUID.fromString(characteristics_control_point));
+                                    if (characteristic == null) {
+                                        Log.d(TAG_LOG, "cant find chara");
+                                    } else {
+                                        Log.d(TAG_LOG, "find chara");
+                                        characteristic.setValue(get_notification_attribute);
+                                        gatt.writeCharacteristic(characteristic);
+                                    }
                                 }
-                            }
+                                break;
+                            case (byte) 0x02:
+                                String notificationId = new String(Arrays.copyOfRange(data, 4, 8));
+
+                                notificationManager.cancel(notificationId, 1000);
+                                break;
                         }
-                    }catch(ArrayIndexOutOfBoundsException e){
+                    } catch(ArrayIndexOutOfBoundsException e){
                         Log.d(TAG_LOG, "error");
                         e.printStackTrace();
                     }
@@ -564,28 +644,36 @@ public class BLEService extends Service{
         public void onReceive(Context context, Intent intent) {
             Log.d(TAG_LOG, "onReceive");
             String action = intent.getAction();
+            byte[] UID = intent.getByteArrayExtra(INTENT_EXTRA_UID);
+            String notificationId = new String(UID);
 
             // perform notification action: immediately
             // delete intent: after 7~8sec.
             if (action.equals(action_positive) | action.equals(action_negative) | action.equals(action_delete)){
                 Log.d(TAG_LOG, "get action: " + action);
 
+                // Dismiss notification
+                notificationManager.cancel(notificationId, 1000);
+
                 // set action id
-                byte _action_id = 0x00;
+                byte _action_id = (byte) ActionID.Positive.ordinal();
                 if(action.equals(action_negative) | action.equals(action_delete)) {
-                    _action_id = (byte) 0x01;
+                    _action_id = (byte) ActionID.Negative.ordinal();
                 }
 
                 try {
                     Log.d(TAG_LOG, "get notify");
                     // perform notification action value setting.
                     byte[] get_notification_attribute = {
-                            (byte)0x02,
+                            (byte) CommandID.PerformNotificationAction.ordinal(),
+
                             //UID
-                            uid[0], uid[1], uid[2], uid[3],
+                            UID[0], UID[1], UID[2], UID[3],
+
                             //action
                             _action_id
                     };
+
 
                     BluetoothGattService service = bluetooth_gatt.getService(UUID.fromString(service_ancs));
                     if (service == null) {
@@ -601,7 +689,7 @@ public class BLEService extends Service{
                             bluetooth_gatt.writeCharacteristic(characteristic);
                         }
                     }
-                }catch(ArrayIndexOutOfBoundsException e){
+                } catch(ArrayIndexOutOfBoundsException e){
                     Log.d(TAG_LOG, "error");
                     e.printStackTrace();
                 }
