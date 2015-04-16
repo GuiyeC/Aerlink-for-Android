@@ -1,6 +1,7 @@
 package com.shiitakeo.android_wear_for_ios;
 
 import android.annotation.TargetApi;
+import android.app.KeyguardManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.app.Notification;
@@ -44,19 +45,19 @@ import java.util.UUID;
  */
 public class BLEService extends Service {
 
-    private enum EventID {
+    private static enum EventID {
         NotificationAdded,
         NotificationModified,
         NotificationRemoved
     }
 
-    private enum CommandID {
+    private static enum CommandID {
         GetNotificationAttributes,
         GetAppAttributes,
         PerformNotificationAction
     }
 
-    private enum NotificationAttributeID {
+    private static enum NotificationAttributeID {
         AppIdentifier,
         Title,
         Subtitle,
@@ -67,62 +68,80 @@ public class BLEService extends Service {
         NegativeActionLabel
     }
 
-    private enum ActionID {
+    private static enum ActionID {
         Positive,
         Negative
     }
 
-    private static final String TAG_LOG = "BLE_wear";
-    private static final String INTENT_EXTRA_UID = "INTENT_EXTRA_UID";
-    private static final String INTENT_EXTRA_NOTIFICATION_ID = "INTENT_EXTRA_NOTIFICATION_ID";
+    private static enum RemoteCommandID {
+        Play,
+        Pause,
+        TogglePlayPause,
+        NextTrack,
+        PreviousTrack,
+        VolumeUp,
+        VolumeDown,
+        AdvanceRepeatMode,
+        AdvanceShuffleMode,
+        SkipForward,
+        SkipBackward
+    }
 
-    private int api_level = Build.VERSION.SDK_INT;
+    // ANCS Profile
+    private static final String UUID_ANCS = "7905f431-b5ce-4e99-a40f-4b1e122d00d0";
+    private static final String CHARACTERISTIC_NOTIFICATION_SOURCE = "9fbf120d-6301-42d9-8c58-25e699a21dbd";
+    private static final String CHARACTERISTIC_DATA_SOURCE =         "22eac6e9-24d6-4bb5-be44-b36ace7c7bfb";
+    private static final String CHARACTERISTIC_CONTROL_POINT =       "69d1d8f3-45e1-49a8-9821-9bbdfdaad9d9";
 
-    private BluetoothAdapter bluetooth_adapter;
-    private BluetoothGatt bluetooth_gatt;
-    private static Boolean is_connect = false;
-
-
-    //ANCS Profile
-    private static final String service_ancs = "7905f431-b5ce-4e99-a40f-4b1e122d00d0";
-    private static final String characteristics_notification_source = "9fbf120d-6301-42d9-8c58-25e699a21dbd";
-    private static final String characteristics_data_source =         "22eac6e9-24d6-4bb5-be44-b36ace7c7bfb";
-    private static final String characteristics_control_point =       "69d1d8f3-45e1-49a8-9821-9bbdfdaad9d9";
-
-    private static final String descriptor_config = "00002902-0000-1000-8000-00805f9b34fb";
-    private static final String service_blank = "00001111-0000-1000-8000-00805f9b34fb";
-
-
-    private Boolean is_subscribed_characteristics = false;
-
-    private Vibrator vib;
-    private long pattern[] = {200, 100, 200, 100};
-
-
-    private BluetoothLeScanner le_scanner;
-
-    private NotificationManagerCompat notificationManager;
-    private int notification_id = 0;
-
-    private PowerManager.WakeLock wake_lock;
-
-    private PacketProcessor packet_processor;
+    // AMS - Apple Media Service Profile
+    private static final String UUID_AMS = "89D3502B-0F36-433A-8EF4-C502AD55F8DC";
+    private static final String CHARACTERISTIC_REMOTE_COMMAND =   "9B3C81D8-57B1-4A8A-B8DF-0E56F7CA51C2";
+    private static final String CHARACTERISTIC_ENTITY_UPDATE =    "2F7CABCE-808D-411F-9A0C-BB92BA96C102";
+    private static final String CHARACTERISTIC_ENTITY_ATTRIBUTE = "C6B2F38C-23AB-46D8-A6AB-A3A870BBD5D7";
 
 
-    private BroadcastReceiver message_receiver = new MessageReceiver();
 
-    //private byte[] uid = new byte[4];
+    // Battery Service
+    private static final String UUID_BAS = "0000180F-0000-1000-8000-00805f9b34fb";
+
+    private static final String DESCRIPTOR_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
+    private static final String SERVICE_BLANK = "00001111-0000-1000-8000-00805f9b34fb";
 
     // intent action
-    String action_positive = "com.shiitakeo.perform_notification_action_positive";
-    String action_negative = "com.shiitakeo.perform_notification_action_negative";
-    String action_delete = "com.shiitakeo.delete";
+    public static final String INTENT_ACTION_POSITIVE = "com.shiitakeo.INTENT_ACTION_POSITIVE";
+    public static final String INTENT_ACTION_NEGATIVE = "com.shiitakeo.INTENT_ACTION_NEGATIVE";
+    public static final String INTENT_ACTION_DELETE = "com.shiitakeo.INTENT_ACTION_DELETE";
 
-    private static final long screen_time_out = 1000;
-    private Boolean is_reconnect = false;
-    private int skip_count = 0;
-    BLEScanCallback scan_callback = new BLEScanCallback();
+    private static final long SCREEN_TIME_OUT = 1000;
+    private static final long VIBRATION_PATTERN[] = { 200, 100, 200, 100 };
+    private static final long SILENT_VIBRATION_PATTERN[] = { 200, 110 };
+    
+    private static final String TAG_LOG = "BLE_wear";
+    public static final String INTENT_EXTRA_UID = "INTENT_EXTRA_UID";
 
+    private static final int API_LEVEL = Build.VERSION.SDK_INT;
+
+
+    private NotificationManagerCompat notificationManager;
+    private int notificationId = 0;
+    private PacketProcessor packetProcessor;
+
+    private Vibrator vibrator;
+    private PowerManager powerManager;
+    private PowerManager.WakeLock wakeLock;
+    
+    private BluetoothAdapter bluetoothAdapter;
+    private BluetoothGatt bluetoothGatt;
+    private static boolean connected = false;
+    private boolean reconnect = false;
+    private int skipCount = 0;
+    BLEScanCallback scanCallback = new BLEScanCallback();
+
+    private boolean is_subscribed_characteristics = false;
+
+    private BluetoothLeScanner bluetoothLeScanner;
+
+    private BroadcastReceiver messageReceiver = new MessageReceiver();
 
 
     @Override
@@ -135,178 +154,319 @@ public class BLEService extends Service {
     }
 
     @Override
-    public void onStart(Intent intent, int startID) {
+    public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d("Service", "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
-        IntentFilter intent_filter = new IntentFilter();
-        intent_filter.addAction(action_positive);
-        intent_filter.addAction(action_negative);
-        intent_filter.addAction(action_delete);
-        registerReceiver(message_receiver, intent_filter);
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(INTENT_ACTION_POSITIVE);
+        intentFilter.addAction(INTENT_ACTION_NEGATIVE);
+        intentFilter.addAction(INTENT_ACTION_DELETE);
+        registerReceiver(messageReceiver, intentFilter);
 
-        vib = (Vibrator)getSystemService(VIBRATOR_SERVICE);
         notificationManager = NotificationManagerCompat.from(getApplicationContext());
-        packet_processor = new PacketProcessor();
 
-        if(bluetooth_gatt != null) {
-            bluetooth_gatt.disconnect();
-            bluetooth_gatt.close();
-            bluetooth_gatt = null;
+        if (bluetoothGatt != null) {
+            bluetoothGatt.disconnect();
+            bluetoothGatt.close();
+            bluetoothGatt = null;
         }
-        if(bluetooth_adapter != null) {
-            bluetooth_adapter = null;
+        
+        if (bluetoothAdapter != null) {
+            bluetoothAdapter = null;
         }
-        if(api_level >= 21) {
-            if (le_scanner != null) {
-                Log.d(TAG_LOG, "status: ble reset");
-                stop_le_scanner();
-            }
+        
+        if (API_LEVEL >= 21 && bluetoothLeScanner != null) {
+            Log.d(TAG_LOG, "status: ble reset");
+            stopBLEScanner();
         }
-        is_connect = false;
+        
+        connected = false;
         is_subscribed_characteristics = false;
 
 
         // Initializes a Bluetooth adapter.  For API level 18 and above, get a reference to
         // BluetoothAdapter through BluetoothManager.
-        final BluetoothManager bluetoothManager =
-                (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        bluetooth_adapter = bluetoothManager.getAdapter();
+        final BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+        bluetoothAdapter = bluetoothManager.getAdapter();
 
         // Checks if Bluetooth is supported on the device.
-        if (bluetooth_adapter == null) {
+        if (bluetoothAdapter == null) {
             Log.d(TAG_LOG, "ble adapter is null");
-            return;
+            return super.onStartCommand(intent, flags, startId);
         }
 
-        if(api_level >= 21) {
+        startBLEScanner();
+
+        return super.onStartCommand(intent, flags, startId);
+    }
+
+    @TargetApi(21)
+    private void startBLEScanner() {
+        if (API_LEVEL >= 21) {
             Log.d(TAG_LOG, "start BLE scan @ lescan");
-            start_le_scanner();
-        }else {
+
+            bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
+            ScanSettings settings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED).build();
+            bluetoothLeScanner.startScan(scanFilters(), settings, scanCallback);
+        }
+        else {
             Log.d(TAG_LOG, "start BLE scan @ BluetoothAdapter");
-            bluetooth_adapter.startLeScan(le_scan_callback);
+            bluetoothAdapter.startLeScan(le_scanCallback);
         }
     }
 
     @TargetApi(21)
-    private void start_le_scanner(){
-        le_scanner = bluetooth_adapter.getBluetoothLeScanner();
-        ScanSettings settings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED).build();
-        le_scanner.startScan(scan_fillters(), settings, scan_callback);
-    }
-
-    @TargetApi(21)
-    private void stop_le_scanner(){
-        le_scanner.stopScan(scan_callback);
+    private void stopBLEScanner() {
+        if (API_LEVEL >= 21) {
+            bluetoothLeScanner.stopScan(scanCallback);
+        }
+        else {
+            bluetoothAdapter.stopLeScan(le_scanCallback);
+        }
     }
 
     @Override
     public void onDestroy() {
         Log.d(TAG_LOG, "~~~~~~~~ service onDestroy");
-        if(api_level >= 21) {
-            stop_le_scanner();
-        }else {
-            bluetooth_adapter.stopLeScan(le_scan_callback);
-        }
-        is_connect =false;
+
+        stopBLEScanner();
+        
+        connected =false;
         is_subscribed_characteristics = false;
 
-        if(null != bluetooth_gatt){
-            bluetooth_gatt.disconnect();
-            bluetooth_gatt.close();
-            bluetooth_gatt = null;
+        if (null != bluetoothGatt){
+            bluetoothGatt.disconnect();
+            bluetoothGatt.close();
+            bluetoothGatt = null;
         }
-        bluetooth_adapter = null;
+        
+        bluetoothAdapter = null;
+        
         super.onDestroy();
     }
+    
+    private Vibrator getVibrator() {
+        if (vibrator == null) {
+            vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+        }
+        
+        return vibrator;
+    }
 
-    private List<ScanFilter> scan_fillters() {
+    private PowerManager getPowerManager() {
+        if (powerManager == null) {
+            powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        }
+
+        return powerManager;
+    }
+
+    private PowerManager.WakeLock getWakeLock() {
+        if (wakeLock == null) {
+            wakeLock = getPowerManager().newWakeLock((PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.FULL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP), "iOS_WEAR_TAG");
+        }
+
+        return wakeLock;
+    }
+
+    public PacketProcessor getPacketProcessor() {
+        if (packetProcessor == null) {
+            packetProcessor = new PacketProcessor();
+        }
+
+        return packetProcessor;
+    }
+
+    private void wakeScreen() {
+        if (!getWakeLock().isHeld()) {
+            Log.d(TAG_LOG, "Waking Screen");
+            getWakeLock().acquire(SCREEN_TIME_OUT);
+        }
+    }
+
+    private void sendCommand(String serviceUUID, String characteristic, byte[] command) throws Exception {
+        BluetoothGattService service = bluetoothGatt.getService(UUID.fromString(serviceUUID));
+
+        if (service != null) {
+            Log.d(TAG_LOG, "find service @ BR");
+            BluetoothGattCharacteristic bluetoothGattCharacteristic = service.getCharacteristic(UUID.fromString(characteristic));
+
+            if (bluetoothGattCharacteristic != null) {
+                Log.d(TAG_LOG, "find chara @ BR");
+                bluetoothGattCharacteristic.setValue(command);
+                bluetoothGatt.writeCharacteristic(bluetoothGattCharacteristic);
+            }
+            else {
+                Log.d(TAG_LOG, "cant find chara @ BR");
+            }
+        }
+        else {
+            Log.d(TAG_LOG, "cant find service @ BR");
+        }
+    }
+    
+    private void buildNotification(NotificationData notificationData) {
+        Bitmap background;
+        if (notificationData.getBackground() != -1) {
+            background = BitmapFactory.decodeResource(getResources(), notificationData.getBackground());
+        }
+        else {
+            background = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+            background.eraseColor(notificationData.getBackgroundColor());
+        }
+
+        
+        // Build pending intent for when the user swipes the card away
+        Intent deleteIntent = new Intent(INTENT_ACTION_DELETE);
+        deleteIntent.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
+        PendingIntent deleteAction = PendingIntent.getBroadcast(getApplicationContext(), notificationId, deleteIntent, PendingIntent.FLAG_ONE_SHOT);
+
+        NotificationCompat.WearableExtender wearableExtender = new NotificationCompat.WearableExtender()
+                .setBackground(background);
+
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext())
+                .setContentTitle(notificationData.getTitle())
+                .setContentText(notificationData.getMessage())
+                .setSmallIcon(notificationData.getAppIcon())
+                .setContentInfo("7PM")
+                .setSubText("test.hugo2@gmail.com")
+                .setGroup(notificationData.getAppId())
+                .setDeleteIntent(deleteAction)
+                .extend(wearableExtender);
+        
+        // Build positive action intent only if available
+        if (notificationData.getPositiveAction() != null) {
+            Intent positiveIntent = new Intent(INTENT_ACTION_POSITIVE);
+            positiveIntent.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
+            PendingIntent positiveAction = PendingIntent.getBroadcast(getApplicationContext(), notificationId, positiveIntent, PendingIntent.FLAG_ONE_SHOT);
+
+            notificationBuilder.addAction(R.drawable.ic_action_accept, notificationData.getPositiveAction(), positiveAction);
+        }
+        // Build negative action intent only if available
+        if (notificationData.getNegativeAction() != null) {
+            Intent negativeIntent = new Intent(INTENT_ACTION_NEGATIVE);
+            negativeIntent.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
+            PendingIntent negativeAction = PendingIntent.getBroadcast(getApplicationContext(), notificationId, negativeIntent, PendingIntent.FLAG_ONE_SHOT);
+
+            notificationBuilder.addAction(R.drawable.ic_action_remove, notificationData.getNegativeAction(), negativeAction);
+        }
+
+        // Build and notify
+        Notification notification = notificationBuilder.build();
+        notificationManager.notify(notificationData.getUIDString(), 1000, notification);
+
+        notificationId++;
+
+        if (!notificationData.isSilent()) {
+            getVibrator().vibrate(VIBRATION_PATTERN, -1);
+            wakeScreen();
+        }
+        else {
+            getVibrator().vibrate(SILENT_VIBRATION_PATTERN, -1);
+        }
+    }
+
+    private void startCall(NotificationData notificationData) {
+        Intent phoneIntent = new Intent(this, PhoneActivity.class);
+        phoneIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        phoneIntent.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
+        phoneIntent.putExtra(PhoneActivity.EXTRA_TITLE, notificationData.getTitle());
+        phoneIntent.putExtra(PhoneActivity.EXTRA_MESSAGE, notificationData.getMessage());
+
+        startActivity(phoneIntent);
+    }
+
+    private List<ScanFilter> scanFilters() {
         // can't find ancs service
-        return create_scan_filter();
+        return createScanFilter();
     }
 
     @TargetApi(21)
-    private List<ScanFilter> create_scan_filter(){
-//        ScanFilter filter = new ScanFilter.Builder().setServiceUuid(ParcelUuid.fromString(service_ancs)).build();
-        ScanFilter filter = new ScanFilter.Builder().setServiceUuid(ParcelUuid.fromString(service_blank)).build();
-        List<ScanFilter> list = new ArrayList<ScanFilter>(1);
+    private List<ScanFilter> createScanFilter() {
+//        ScanFilter filter = new ScanFilter.Builder().setServiceUuid(ParcelUuid.fromString(UUID_ANCS)).build();
+        ScanFilter filter = new ScanFilter.Builder().setServiceUuid(ParcelUuid.fromString(SERVICE_BLANK)).build();
+        List<ScanFilter> list = new ArrayList<>(1);
         list.add(filter);
+
         return list;
     }
-
-
-//    ScanCallback scan_callback = new ScanCallback() {
+    
 
     @TargetApi(21)
     private class BLEScanCallback extends ScanCallback {
+        
         @Override
         public void onScanResult(int callbackType, android.bluetooth.le.ScanResult result) {
-            Log.i(TAG_LOG, "scan result" + result.toString());
+            Log.i(TAG_LOG, "Scan Result: " + result.toString());
             BluetoothDevice device = result.getDevice();
-            if (!is_connect) {
+            if (!connected) {
                 Log.d(TAG_LOG, "is connect");
                 if (device != null) {
                     Log.d(TAG_LOG, "device ");
-                    if (!is_reconnect && device.getName() != null) {
+                    if (!reconnect && device.getName() != null) {
                         Log.d(TAG_LOG, "getname ");
-                        is_connect = true;
-                        bluetooth_gatt = result.getDevice().connectGatt(getApplicationContext(), false, bluetooth_gattCallback);
-                    } else if (is_reconnect && skip_count > 5 && device.getName() != null) {
+                        connected = true;
+                        bluetoothGatt = result.getDevice().connectGatt(getApplicationContext(), false, bluetoothGattCallback);
+                    } 
+                    else if (reconnect && skipCount > 5 && device.getName() != null) {
                         Log.d(TAG_LOG, "reconnect:: ");
-                        is_connect = true;
-                        is_reconnect = false;
-                        bluetooth_gatt = result.getDevice().connectGatt(getApplicationContext(), false, bluetooth_gattCallback);
-                    } else {
+                        connected = true;
+                        reconnect = false;
+                        bluetoothGatt = result.getDevice().connectGatt(getApplicationContext(), false, bluetoothGattCallback);
+                    } 
+                    else {
                         Log.d(TAG_LOG, "skip:: ");
-                        skip_count++;
+                        skipCount++;
                     }
                 }
             }
         }
 
-        ;
-
         @Override
         public void onBatchScanResults(List<ScanResult> results) {
-            Log.i(TAG_LOG, "batchscan result" + results.toString());
+            Log.i(TAG_LOG, "Batch Scan Results: " + results.toString());
         }
 
         @Override
         public void onScanFailed(int errorCode) {
             super.onScanFailed(errorCode);
-            Log.d(TAG_LOG, "onScanFailed" + errorCode);
+            Log.d(TAG_LOG, "Scan Failed: " + errorCode);
         }
+        
     }
-//    };
 
-    private BluetoothAdapter.LeScanCallback le_scan_callback = new BluetoothAdapter.LeScanCallback(){
+    private BluetoothAdapter.LeScanCallback le_scanCallback = new BluetoothAdapter.LeScanCallback() {
+        
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
             Log.i(TAG_LOG, "onLeScan");
-            if(!is_connect) {
+            if (!connected) {
                 Log.d(TAG_LOG, "is connect");
                 if (device != null) {
                     Log.d(TAG_LOG, "device ");
-                    if (!is_reconnect && device.getName() != null) {
+                    if (!reconnect && device.getName() != null) {
                         Log.d(TAG_LOG, "getname ");
-                        is_connect = true;
-                        bluetooth_gatt = device.connectGatt(getApplicationContext(), false, bluetooth_gattCallback);
-                    }else if(is_reconnect && skip_count > 5 && device.getName() != null){
+                        connected = true;
+                        bluetoothGatt = device.connectGatt(getApplicationContext(), false, bluetoothGattCallback);
+                    }
+                    else if (reconnect && skipCount > 5 && device.getName() != null) {
                         Log.d(TAG_LOG, "reconnect:: ");
-                        is_connect = true;
-                        is_reconnect = false;
-                        bluetooth_gatt = device.connectGatt(getApplicationContext(), false, bluetooth_gattCallback);
-                    }else {
+                        connected = true;
+                        reconnect = false;
+                        bluetoothGatt = device.connectGatt(getApplicationContext(), false, bluetoothGattCallback);
+                    }
+                    else {
                         Log.d(TAG_LOG, "skip:: ");
-                        skip_count++;
+                        skipCount++;
                     }
                 }
             }
-
-
         }
+
     };
 
-    private final BluetoothGattCallback bluetooth_gattCallback = new BluetoothGattCallback() {
+    private final BluetoothGattCallback bluetoothGattCallback = new BluetoothGattCallback() {
+        
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             Log.d(TAG_LOG, "onConnectionStateChange: " + status + " -> " + newState);
@@ -314,47 +474,45 @@ public class BLEService extends Service {
                 // success, connect to gatt.
                 // find service
                 gatt.discoverServices();
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+            }
+            else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.d(TAG_LOG, "onDisconnect: ");
 
-                if(api_level >= 21) {
-                    if (le_scanner != null) {
-                        Log.d(TAG_LOG, "status: ble reset");
-                        stop_le_scanner();
-                    }
+                if (API_LEVEL >= 21 && bluetoothLeScanner != null) {
+                    Log.d(TAG_LOG, "status: ble reset");
+                    stopBLEScanner();
                 }
-                if(bluetooth_gatt != null) {
-                    bluetooth_gatt.disconnect();
-                    bluetooth_gatt.close();
-                    bluetooth_gatt = null;
+
+                if (bluetoothGatt != null) {
+                    bluetoothGatt.disconnect();
+                    bluetoothGatt.close();
+                    bluetoothGatt = null;
                 }
-                if(bluetooth_adapter != null) {
-                    bluetooth_adapter = null;
+                if (bluetoothAdapter != null) {
+                    bluetoothAdapter = null;
                 }
-                is_connect = false;
+
+                connected = false;
                 is_subscribed_characteristics = false;
-                skip_count = 0;
+                skipCount = 0;
 
 
                 // Initializes a Bluetooth adapter.  For API level 18 and above, get a reference to
                 // BluetoothAdapter through BluetoothManager.
                 final BluetoothManager bluetoothManager =
                         (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-                bluetooth_adapter = bluetoothManager.getAdapter();
+                bluetoothAdapter = bluetoothManager.getAdapter();
 
                 // Checks if Bluetooth is supported on the device.
-                if (bluetooth_adapter == null) {
+                if (bluetoothAdapter == null) {
                     Log.d(TAG_LOG, "ble adapter is null");
                     return;
                 }
 
-                is_reconnect = true;
+                reconnect = true;
+
                 Log.d(TAG_LOG, "start BLE scan");
-                if(api_level >= 21) {
-                    start_le_scanner();
-                }else {
-                    bluetooth_adapter.startLeScan(le_scan_callback);
-                }
+                startBLEScanner();
 
                 //execute success animation
                 Intent intent = new Intent(getApplicationContext(), ConfirmationActivity.class);
@@ -369,35 +527,68 @@ public class BLEService extends Service {
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             Log.d(TAG_LOG, "onServicesDiscovered received: " + status);
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                BluetoothGattService service = gatt.getService(UUID.fromString(service_ancs));
+                BluetoothGattService service = gatt.getService(UUID.fromString(UUID_ANCS));
                 if (service == null) {
                     Log.d(TAG_LOG, "cant find service");
-                } else {
+                }
+                else {
                     Log.d(TAG_LOG, "find service");
-                    Log.d(TAG_LOG, String.valueOf(bluetooth_gatt.getServices()));
+                    Log.d(TAG_LOG, String.valueOf(bluetoothGatt.getServices()));
 
                     // subscribe data source characteristic
-                    BluetoothGattCharacteristic data_characteristic = service.getCharacteristic(UUID.fromString(characteristics_data_source));
+                    BluetoothGattCharacteristic data_characteristic = service.getCharacteristic(UUID.fromString(CHARACTERISTIC_DATA_SOURCE));
 
                     if (data_characteristic == null) {
                         Log.d(TAG_LOG, "cant find data source chara");
-                    } else {
+                    }
+                    else {
                         Log.d(TAG_LOG, "find data source chara :: " + data_characteristic.getUuid());
                         Log.d(TAG_LOG, "set notify:: " + data_characteristic.getUuid());
-                        bluetooth_gatt.setCharacteristicNotification(data_characteristic, true);
-                        BluetoothGattDescriptor descriptor = data_characteristic.getDescriptor(
-                                UUID.fromString(descriptor_config));
-                        if(descriptor == null){
+                        bluetoothGatt.setCharacteristicNotification(data_characteristic, true);
+
+                        BluetoothGattDescriptor descriptor = data_characteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
+
+                        if (descriptor == null) {
                             Log.d(TAG_LOG, " ** cant find desc :: " + descriptor.getUuid());
-                        }else{
+                        }
+                        else {
                             Log.d(TAG_LOG, " ** find desc :: " + descriptor.getUuid());
                             descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                            bluetooth_gatt.writeDescriptor(descriptor);
-                            if(api_level >= 21) {
-                                stop_le_scanner();
-                            }else {
-                                bluetooth_adapter.stopLeScan(le_scan_callback);
-                            }
+                            bluetoothGatt.writeDescriptor(descriptor);
+
+                            stopBLEScanner();
+                        }
+                    }
+                }
+
+
+                BluetoothGattService amsService = gatt.getService(UUID.fromString(UUID_AMS));
+                if (amsService != null) {
+                    BluetoothGattCharacteristic remoteCommandCharacteristic = amsService.getCharacteristic(UUID.fromString(CHARACTERISTIC_REMOTE_COMMAND));
+
+                    if (remoteCommandCharacteristic != null) {
+                        bluetoothGatt.setCharacteristicNotification(remoteCommandCharacteristic, true);
+
+                        BluetoothGattDescriptor descriptor = remoteCommandCharacteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
+
+                        if (descriptor != null) {
+                            Log.d(TAG_LOG, " ** find desc :: " + descriptor.getUuid());
+                            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                            bluetoothGatt.writeDescriptor(descriptor);
+                        }
+                    }
+
+                    BluetoothGattCharacteristic entityUpdateCharacteristic = amsService.getCharacteristic(UUID.fromString(CHARACTERISTIC_ENTITY_UPDATE));
+
+                    if (entityUpdateCharacteristic != null) {
+                        bluetoothGatt.setCharacteristicNotification(entityUpdateCharacteristic, true);
+
+                        BluetoothGattDescriptor descriptor = entityUpdateCharacteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
+
+                        if (descriptor != null) {
+                            Log.d(TAG_LOG, " ** find desc :: " + descriptor.getUuid());
+                            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                            bluetoothGatt.writeDescriptor(descriptor);
                         }
                     }
                 }
@@ -412,29 +603,64 @@ public class BLEService extends Service {
                 Log.d(TAG_LOG, "status: write success ");
                 if (!is_subscribed_characteristics) {
                     //subscribe characteristic notification characteristic
-                    BluetoothGattService service = gatt.getService(UUID.fromString(service_ancs));
-                    BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID.fromString(characteristics_notification_source));
+                    BluetoothGattService service = gatt.getService(UUID.fromString(UUID_ANCS));
+                    BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID.fromString(CHARACTERISTIC_NOTIFICATION_SOURCE));
 //
                     if (characteristic == null) {
                         Log.d(TAG_LOG, " cant find chara");
-                    } else {
+                    }
+                    else {
                         Log.d(TAG_LOG, " ** find chara :: " + characteristic.getUuid());
-                        if (characteristics_notification_source.equals(characteristic.getUuid().toString())) {
+                        if (CHARACTERISTIC_NOTIFICATION_SOURCE.equals(characteristic.getUuid().toString())) {
                             Log.d(TAG_LOG, " set notify:: " + characteristic.getUuid());
-                            bluetooth_gatt.setCharacteristicNotification(characteristic, true);
+                            bluetoothGatt.setCharacteristicNotification(characteristic, true);
+
                             BluetoothGattDescriptor notify_descriptor = characteristic.getDescriptor(
-                                    UUID.fromString(descriptor_config));
+                                    UUID.fromString(DESCRIPTOR_CONFIG));
                             if (descriptor == null) {
                                 Log.d(TAG_LOG, " ** not find desc :: " + notify_descriptor.getUuid());
-                            } else {
+                            }
+                            else {
                                 Log.d(TAG_LOG, " ** find desc :: " + notify_descriptor.getUuid());
                                 notify_descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                                bluetooth_gatt.writeDescriptor(notify_descriptor);
+                                bluetoothGatt.writeDescriptor(notify_descriptor);
                                 is_subscribed_characteristics = true;
                             }
                         }
                     }
-                }else {
+
+                    BluetoothGattService amsService = gatt.getService(UUID.fromString(UUID_AMS));
+                    if (amsService != null) {
+                        BluetoothGattCharacteristic remoteCommandCharacteristic = amsService.getCharacteristic(UUID.fromString(CHARACTERISTIC_REMOTE_COMMAND));
+
+                        if (remoteCommandCharacteristic != null) {
+                            bluetoothGatt.setCharacteristicNotification(remoteCommandCharacteristic, true);
+
+                            BluetoothGattDescriptor remoteCommandDescriptor = remoteCommandCharacteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
+
+                            if (descriptor != null) {
+                                Log.d(TAG_LOG, " ** find desc :: " + remoteCommandDescriptor.getUuid());
+                                remoteCommandDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                                bluetoothGatt.writeDescriptor(remoteCommandDescriptor);
+                            }
+                        }
+
+                        BluetoothGattCharacteristic entityUpdateCharacteristic = amsService.getCharacteristic(UUID.fromString(CHARACTERISTIC_ENTITY_UPDATE));
+
+                        if (entityUpdateCharacteristic != null) {
+                            bluetoothGatt.setCharacteristicNotification(entityUpdateCharacteristic, true);
+
+                            BluetoothGattDescriptor entityUpdateDescriptor = entityUpdateCharacteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
+
+                            if (descriptor != null) {
+                                Log.d(TAG_LOG, " ** find desc :: " + entityUpdateDescriptor.getUuid());
+                                entityUpdateDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                                bluetoothGatt.writeDescriptor(entityUpdateDescriptor);
+                            }
+                        }
+                    }
+                }
+                else {
                     //execute success animation
                     Intent intent = new Intent(getApplicationContext(), ConfirmationActivity.class);
                     intent.putExtra(ConfirmationActivity.EXTRA_ANIMATION_TYPE, ConfirmationActivity.SUCCESS_ANIMATION);
@@ -442,7 +668,8 @@ public class BLEService extends Service {
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     startActivity(intent);
                 }
-            }else if(status == BluetoothGatt.GATT_WRITE_NOT_PERMITTED) {
+            }
+            else if (status == BluetoothGatt.GATT_WRITE_NOT_PERMITTED) {
                 Log.d(TAG_LOG, "status: write not permitted");
                 //execute not permission animation
                 Intent intent = new Intent(getApplicationContext(), ConfirmationActivity.class);
@@ -457,134 +684,58 @@ public class BLEService extends Service {
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             Log.d(TAG_LOG, "onCharacteristicChanged:: " + characteristic.getUuid().toString());
-            //notify from data source characteristic
-            //process get notitification packet from iphone.
-            if (characteristics_data_source.equals(characteristic.getUuid().toString())) {
-                byte[] get_data = characteristic.getValue();
-//                if(DEBUG){
-//                StringBuilder stringBuilder = new StringBuilder();
-//                for (byte byteChar : get_data) {
-//                    stringBuilder.append(String.format("%02X", byteChar));
-//                }
-//
-//                Log.d(TAG_LOG, "notify value:: " + stringBuilder.toString());
-//                }
 
-                packet_processor.process(get_data);
+            // Get notification packet from iOS
+            byte[] packet = characteristic.getValue();
 
-                if (packet_processor.hasFinishedProcessing()) {
-                    NotificationData notificationData = new NotificationData(
-                            packet_processor.getUID(),
-                            packet_processor.getAppId(),
-                            packet_processor.getTitle(),
-                            packet_processor.getMessage(),
-                            packet_processor.getPositiveAction(),
-                            packet_processor.getNegativeAction()
-                    );
+            switch (characteristic.getUuid().toString()) {
+                case CHARACTERISTIC_ENTITY_UPDATE:
+                case CHARACTERISTIC_REMOTE_COMMAND:
+                case CHARACTERISTIC_ENTITY_ATTRIBUTE:
+                    Log.d(TAG_LOG, "AMS    CHARACTERISTIC_ENTITY_UPDATE::");
+                    break;
+                case CHARACTERISTIC_DATA_SOURCE:
+                    getPacketProcessor().process(packet);
 
-                    NotificationDataManager.updateData(notificationData);
+                    if (packetProcessor.hasFinishedProcessing()) {
+                        NotificationData notificationData = packetProcessor.getNotificationData();
 
-                    Bitmap largeIcon;
-                    if (notificationData.getBackground() != -1) {
-                        largeIcon = BitmapFactory.decodeResource(getResources(), notificationData.getBackground());
+                        NotificationDataManager.updateData(notificationData);
+
+                        if (notificationData.isIncomingCall()) {
+                            startCall(notificationData);
+                        }
+                        else {
+                            buildNotification(notificationData);
+                        }
                     }
-                    else {
-                        largeIcon = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
-                        largeIcon.eraseColor(notificationData.getBackgroundColor());
-                    }
-                    Log.d(TAG_LOG, "in title: notification");
-
-                    //create perform notification action pending_intent
-
-
-                    Intent _intent_delete = new Intent();
-                    _intent_delete.setAction(action_delete);
-                    _intent_delete.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
-                    PendingIntent _delete_action = PendingIntent.getBroadcast(getApplicationContext(), 0, _intent_delete, PendingIntent.FLAG_CANCEL_CURRENT);
-
-                    NotificationCompat.WearableExtender wearableExtender =
-                            new NotificationCompat.WearableExtender()
-                                    .setBackground(largeIcon);
-
-                    NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext())
-                            .setContentTitle(notificationData.getTitle())
-                            .setContentText(notificationData.getMessage())
-                            .setSmallIcon(notificationData.getAppIcon())
-                            .setGroup(notificationData.getGroup())
-                            .setDeleteIntent(_delete_action)
-                            .extend(wearableExtender);
-
-                    if (notificationData.getPositiveAction() != null) {
-                        Intent _intent_positive = new Intent();
-                        _intent_positive.setAction(action_positive);
-                        _intent_positive.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
-                        PendingIntent _positive_action = PendingIntent.getBroadcast(getApplicationContext(), 0, _intent_positive, PendingIntent.FLAG_CANCEL_CURRENT);
-
-                        notificationBuilder.addAction(R.drawable.ic_action_accept, notificationData.getPositiveAction(), _positive_action);
-                    }
-                    if (notificationData.getNegativeAction() != null) {
-                        Intent _intent_negative = new Intent();
-                        _intent_negative.setAction(action_negative);
-                        _intent_negative.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
-                        PendingIntent _negative_action = PendingIntent.getBroadcast(getApplicationContext(), 0, _intent_negative, PendingIntent.FLAG_CANCEL_CURRENT);
-
-                        notificationBuilder.addAction(R.drawable.ic_action_remove, notificationData.getNegativeAction(), _negative_action);
-                    }
-
-                    Notification notification = notificationBuilder.build();
-
-                    notificationManager.notify(notificationData.getUIDString(), 1000, notification);
-                    notification_id++;
-                    vib.vibrate(pattern, -1);
-
-                    // awake screen.
-                    PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-                    wake_lock = powerManager.newWakeLock((PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.FULL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP), "MyWakelockTag");
-                    if (!wake_lock.isHeld()) {
-                        Log.d(TAG_LOG, "acquire()");
-                        wake_lock.acquire(screen_time_out);
-                    }
-                }
-            }
-
-            //notify from characteristic notification characteristic
-            if (characteristics_notification_source.equals(characteristic.getUuid().toString())) {
-                Log.d(TAG_LOG, "get notify from notification source chara");
-
-                //init  packet processing flag;
-                packet_processor.init();
-
-                byte[] data = characteristic.getValue();
-                if (data != null && data.length > 0) {
-//                    if(DEBUG) {
-//                        Log.d(TAG_LOG, "*******");
-//                        String type = String.format("%02X", data[0]);
-//                        Log.d(TAG_LOG, "type: " + type);
-//                        String priority = String.format("%02X", data[1]);
-//                        Log.d(TAG_LOG, "priority: " + priority);
-//                        String category = String.format("%02X", data[2]);
-//                        Log.d(TAG_LOG, "category: " + category);
-//                        String count = String.format("%02X", data[3]);
-//                        Log.d(TAG_LOG, "category count: " + count);
-//
-//                        StringBuilder stringBuilder = new StringBuilder();
-//                        for(byte byteChar: data){
-//                            stringBuilder.append(String.format("%02X", byteChar));
-//                        }
-//                        Log.d(TAG_LOG, "notify value:: " + stringBuilder.toString());
-//                    }
-
+                    
+                    break;
+                case CHARACTERISTIC_NOTIFICATION_SOURCE:
                     try {
-                        switch (data[0]) {
-                            case (byte) 0x00:
-                                Log.d(TAG_LOG, "get notify");
-                                // notification value setting.
+                        switch (packet[0]) {
+                            case (byte) 0x00: // NotificationAdded
+                                int eventFlags = packet[1];
+                                // boolean silent = (eventFlags & 1) != 0; // EventFlagSilent
+                                // boolean important = (eventFlags & 2) != 0; // EventFlagImportant
+                                boolean preExisting = (eventFlags & 4) != 0; // EventFlagPreExisting
+                                // boolean bit3 = (eventFlags & 8) != 0; // EventFlagPositiveAction
+                                // boolean bit4 = (eventFlags & 16) != 0; // EventFlagNegativeAction
 
-                                byte[] get_notification_attribute = {
+                                // Don't show pre existing notifications
+                                if (preExisting) {
+                                    break;
+                                }
+                            case (byte) 0x01: // NotificationModified
+                                // Prepare packet processor for new notification
+                                getPacketProcessor().init(packet);
+
+                                // Request attributes for the new notification
+                                byte[] getAttributesCommand = {
                                         (byte) CommandID.GetNotificationAttributes.ordinal(),
 
                                         // UID
-                                        data[4], data[5], data[6], data[7],
+                                        packet[4], packet[5], packet[6], packet[7],
 
                                         // App Identifier - NotificationAttributeIDAppIdentifier
                                         (byte) NotificationAttributeID.AppIdentifier.ordinal(),
@@ -608,93 +759,77 @@ public class BLEService extends Service {
                                         (byte) NotificationAttributeID.NegativeActionLabel.ordinal()
                                 };
 
-                                BluetoothGattService service = gatt.getService(UUID.fromString(service_ancs));
-                                if (service == null) {
-                                    Log.d(TAG_LOG, "cant find service");
-                                } else {
-                                    Log.d(TAG_LOG, "find service");
-                                    characteristic = service.getCharacteristic(UUID.fromString(characteristics_control_point));
-                                    if (characteristic == null) {
-                                        Log.d(TAG_LOG, "cant find chara");
-                                    } else {
-                                        Log.d(TAG_LOG, "find chara");
-                                        characteristic.setValue(get_notification_attribute);
-                                        gatt.writeCharacteristic(characteristic);
-                                    }
-                                }
-                                break;
-                            case (byte) 0x02:
-                                String notificationId = new String(Arrays.copyOfRange(data, 4, 8));
+                                sendCommand(UUID_ANCS, CHARACTERISTIC_CONTROL_POINT, getAttributesCommand);
 
-                                notificationManager.cancel(notificationId, 1000);
+                                break;
+                            case (byte) 0x02: // NotificationRemoved
+
+                                if (packet[2] == 1) {
+                                    // Call ended
+                                    sendBroadcast(new Intent(PhoneActivity.ACTION_END_CALL));
+                                }
+                                else {
+                                    // Cancel notification in watch
+                                    String notificationId = new String(Arrays.copyOfRange(packet, 4, 8));
+                                    notificationManager.cancel(notificationId, 1000);
+                                }
+
                                 break;
                         }
-                    } catch(ArrayIndexOutOfBoundsException e){
+                    }
+                    catch(Exception e){
                         Log.d(TAG_LOG, "error");
                         e.printStackTrace();
                     }
-                }
+
+                    break;
             }
         }
     };
 
-    public class MessageReceiver extends BroadcastReceiver{
-        private static final String TAG_LOG = "BLE_wear";
+    public class MessageReceiver extends BroadcastReceiver {
+        
         @Override
         public void onReceive(Context context, Intent intent) {
-            Log.d(TAG_LOG, "onReceive");
             String action = intent.getAction();
-            byte[] UID = intent.getByteArrayExtra(INTENT_EXTRA_UID);
-            String notificationId = new String(UID);
 
             // perform notification action: immediately
             // delete intent: after 7~8sec.
-            if (action.equals(action_positive) | action.equals(action_negative) | action.equals(action_delete)){
-                Log.d(TAG_LOG, "get action: " + action);
-
-                // Dismiss notification
-                notificationManager.cancel(notificationId, 1000);
-
-                // set action id
-                byte _action_id = (byte) ActionID.Positive.ordinal();
-                if(action.equals(action_negative) | action.equals(action_delete)) {
-                    _action_id = (byte) ActionID.Negative.ordinal();
-                }
-
+            if (action.equals(INTENT_ACTION_POSITIVE) | action.equals(INTENT_ACTION_NEGATIVE) | action.equals(INTENT_ACTION_DELETE)) {
                 try {
-                    Log.d(TAG_LOG, "get notify");
-                    // perform notification action value setting.
-                    byte[] get_notification_attribute = {
+                    byte[] UID = intent.getByteArrayExtra(INTENT_EXTRA_UID);
+                    String notificationId = new String(UID);
+
+                    if (!action.equals(INTENT_ACTION_DELETE)) {
+                        // Dismiss notification
+                        notificationManager.cancel(notificationId, 1000);
+                    }
+                    
+                    byte actionId = (byte) ActionID.Positive.ordinal();
+                    if (action.equals(INTENT_ACTION_NEGATIVE) | action.equals(INTENT_ACTION_DELETE)) {
+                        actionId = (byte) ActionID.Negative.ordinal();
+                    }
+                    
+                    // Perform user selected action
+                    byte[] performActionCommand = {
                             (byte) CommandID.PerformNotificationAction.ordinal(),
 
-                            //UID
+                            // Notification UID
                             UID[0], UID[1], UID[2], UID[3],
 
-                            //action
-                            _action_id
+                            // Action Id
+                            actionId
                     };
 
-
-                    BluetoothGattService service = bluetooth_gatt.getService(UUID.fromString(service_ancs));
-                    if (service == null) {
-                        Log.d(TAG_LOG, "cant find service @ BR");
-                    } else {
-                        Log.d(TAG_LOG, "find service @ BR");
-                        BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID.fromString(characteristics_control_point));
-                        if (characteristic == null) {
-                            Log.d(TAG_LOG, "cant find chara @ BR");
-                        } else {
-                            Log.d(TAG_LOG, "find chara @ BR");
-                            characteristic.setValue(get_notification_attribute);
-                            bluetooth_gatt.writeCharacteristic(characteristic);
-                        }
-                    }
-                } catch(ArrayIndexOutOfBoundsException e){
+                    sendCommand(UUID_AMS, CHARACTERISTIC_REMOTE_COMMAND, new byte[] { 0x2 } );
+                    //sendCommand(UUID_ANCS, CHARACTERISTIC_CONTROL_POINT, performActionCommand);
+                } 
+                catch (Exception e) {
                     Log.d(TAG_LOG, "error");
                     e.printStackTrace();
                 }
-                Log.d(TAG_LOG, "onReceive");
             }
         }
+        
     }
 }

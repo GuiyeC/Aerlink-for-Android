@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:tools="http://schemas.android.com/tools"
+              android:background="@color/black"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:gravity="center"
+              tools:context="com.shiitakeo.android_wear_for_ios.PhoneActivity"
+              tools:deviceIds="wear_square">
+
+    <TextView
+            android:id="@+id/callerIdTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="6dp"
+            android:textAlignment="center"
+            android:gravity="center"
+            android:textSize="20sp"
+            tools:text="Chris wilson"/>
+
+    <TextView
+            android:id="@+id/messageTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="6dp"
+            android:textAlignment="center"
+            android:gravity="center"
+            android:textSize="14sp"
+            android:textColor="#4dd964"
+            android:textAllCaps="true"
+            tools:text="Incoming call"/>
+    
+    <LinearLayout 
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="30dp">
+
+        <ImageButton
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:background="@drawable/button_decline"
+                android:src="@drawable/ic_action_hang_up"
+                android:onClick="hangUp"/>
+
+        <ImageButton
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:layout_marginLeft="30dp"
+                android:background="@drawable/button_answer"
+                android:src="@drawable/ic_action_answer"
+                android:onClick="answer"/>
+        
+    </LinearLayout>
+
+</LinearLayout>

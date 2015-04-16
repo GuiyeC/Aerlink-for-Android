@@ -12,7 +12,7 @@ import java.util.Arrays;
  */
 public class PacketProcessor {
 
-    private enum PacketProcessingStatus {
+    private static enum PacketProcessingStatus {
         init,
         app_id,
         title,
@@ -24,12 +24,7 @@ public class PacketProcessor {
 
     private static final String TAG_LOG = "BLE_wear";
 
-    private byte[] UID;
-    private String appId;
-    private String title;
-    private String message;
-    private String positiveAction;
-    private String negativeAction;
+    private NotificationData notificationData;
     private ByteArrayOutputStream processingAttribute;
 
     private byte[] bytesFromPreviousPacket;
@@ -40,50 +35,32 @@ public class PacketProcessor {
 
     PacketProcessor() {
         processingAttribute = new ByteArrayOutputStream();
-        init();
+        init(null);
     }
 
-    public void init() {
+    public void init(byte[] packet) {
         processingStatus = PacketProcessingStatus.init;
 
         bytesLeftToProcess = 0;
         attributeBytesInNextPacket = 0;
         bytesFromPreviousPacket = new byte[] {};
 
-        appId = null;
-        title = null;
-        message = null;
-        positiveAction = null;
-        negativeAction = null;
         processingAttribute.reset();
+
+        if (packet != null) {
+            notificationData = new NotificationData(packet);
+        }
+        else {
+            notificationData = null;
+        }
     }
 
-    public byte[] getUID() {
-        return UID;
-    }
-
-    public String getAppId() {
-        return appId;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public String getPositiveAction() {
-        return positiveAction;
-    }
-
-    public String getNegativeAction() {
-        return negativeAction;
+    public NotificationData getNotificationData() {
+        return notificationData;
     }
 
     public boolean hasFinishedProcessing() {
-        return processingStatus == PacketProcessingStatus.finish;
+        return processingStatus == PacketProcessingStatus.finish && notificationData != null;
     }
 
     private int getAttributeLength(byte[] packet, int lengthIndex){
@@ -112,9 +89,9 @@ public class PacketProcessor {
                 Log.d(TAG_LOG, "$$$ finish app id reading.");
                 processingStatus = PacketProcessingStatus.title;
                 try {
-                    appId = new String(processingAttribute.toByteArray(), "UTF-8");
+                    notificationData.setAppId(new String(processingAttribute.toByteArray(), "UTF-8"));
                     processingAttribute.reset();
-                    Log.d(TAG_LOG, "$$$ app_id : " + appId);
+                    Log.d(TAG_LOG, "$$$ app_id : " + notificationData.getAppId());
                 } catch (UnsupportedEncodingException e) {
                     e.printStackTrace();
                 }
@@ -123,42 +100,42 @@ public class PacketProcessor {
                 Log.d(TAG_LOG, "$$$ finish title  reading.");
                 processingStatus = PacketProcessingStatus.message;
                 try {
-                    title = new String(processingAttribute.toByteArray(), "UTF-8");
+                    notificationData.setTitle(new String(processingAttribute.toByteArray(), "UTF-8"));
                     processingAttribute.reset();
-                    Log.d(TAG_LOG, "$$$ title : " + title);
+                    Log.d(TAG_LOG, "$$$ title : " + notificationData.getTitle());
                 } catch (UnsupportedEncodingException e) {
                     e.printStackTrace();
                 }
                 break;
             case message:
-                Log.d(TAG_LOG, "$$ finish messgage  reading.");
+                Log.d(TAG_LOG, "$$ finish message  reading.");
                 processingStatus = PacketProcessingStatus.positiveAction;
                 try {
-                    message = new String(processingAttribute.toByteArray(), "UTF-8");
+                    notificationData.setMessage(new String(processingAttribute.toByteArray(), "UTF-8"));
                     processingAttribute.reset();
-                    Log.d(TAG_LOG, "$$ message : " + message);
+                    Log.d(TAG_LOG, "$$ message : " + notificationData.getMessage());
                 } catch (UnsupportedEncodingException e) {
                     e.printStackTrace();
                 }
                 break;
             case positiveAction:
-                Log.d(TAG_LOG, "$$ finish messgage  reading.");
+                Log.d(TAG_LOG, "$$ finish positiveAction  reading.");
                 processingStatus = PacketProcessingStatus.negativeAction;
                 try {
-                    positiveAction = new String(processingAttribute.toByteArray(), "UTF-8");
+                    notificationData.setPositiveAction(new String(processingAttribute.toByteArray(), "UTF-8"));
                     processingAttribute.reset();
-                    Log.d(TAG_LOG, "$$ positiveAction : " + positiveAction);
+                    Log.d(TAG_LOG, "$$ positiveAction : " + notificationData.getPositiveAction());
                 } catch (UnsupportedEncodingException e) {
                     e.printStackTrace();
                 }
                 break;
             case negativeAction:
-                Log.d(TAG_LOG, "$$ finish messgage  reading.");
+                Log.d(TAG_LOG, "$$ finish negativeAction  reading.");
                 processingStatus = PacketProcessingStatus.finish;
                 try {
-                    negativeAction = new String(processingAttribute.toByteArray(), "UTF-8");
+                    notificationData.setNegativeAction(new String(processingAttribute.toByteArray(), "UTF-8"));
                     processingAttribute.reset();
-                    Log.d(TAG_LOG, "$$ message : " + negativeAction);
+                    Log.d(TAG_LOG, "$$ negativeAction : " + notificationData.getNegativeAction());
                 } catch (UnsupportedEncodingException e) {
                     e.printStackTrace();
                 }
@@ -219,10 +196,7 @@ public class PacketProcessor {
             else if (bytesLeftToProcess > 0) {
                 // Attribute index
                 if (processingStatus == PacketProcessingStatus.init) {
-                    // Get Notification UID
-
-                    UID = Arrays.copyOfRange(packet, 1, 5);
-
+                    // Previous bytes' data is already known
                     attributeIndex = 5;
                 }
                 else {

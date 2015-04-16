@@ -30,17 +30,17 @@ public class NotificationDataManager {
         switch (notificationData.getAppId()) {
             case "com.apple.mobilephone":
                 notificationData.setAppIcon(IC_PHONE);
-                notificationData.setBackgroundColor(Color.rgb(228, 240, 249));
+                //notificationData.setBackgroundColor(Color.rgb(228, 240, 249));
 
                 break;
             case "com.apple.MobileSMS":
                 notificationData.setAppIcon(IC_IMESSAGE);
-                notificationData.setBackgroundColor(Color.rgb(228, 240, 249));
+                //notificationData.setBackgroundColor(Color.rgb(228, 240, 249));
 
                 break;
             case "com.apple.AppStore":
                 notificationData.setAppIcon(IC_APPSTORE);
-                notificationData.setBackgroundColor(Color.rgb(228, 240, 249));
+                //notificationData.setBackgroundColor(Color.rgb(228, 240, 249));
 
                 break;
             case "com.apple.mobilemail":
@@ -61,7 +61,7 @@ public class NotificationDataManager {
                 break;
             case "com.facebook.Facebook":
                 notificationData.setAppIcon(IC_FACEBOOK);
-                notificationData.setBackgroundColor(Color.rgb(48, 77, 139));
+                //notificationData.setBackgroundColor(Color.rgb(48, 77, 139));
 
                 break;
             case "com.tapbots.Tweetbot":
@@ -74,41 +74,41 @@ public class NotificationDataManager {
                 break;
             case "com.google.hangouts":
                 notificationData.setAppIcon(IC_HANGOUTS);
-                notificationData.setBackgroundColor(Color.rgb(117, 180, 235));
+                //notificationData.setBackgroundColor(Color.rgb(117, 180, 235));
 
                 break;
             case "ph.telegra.Telegraph":
                 notificationData.setAppIcon(IC_TELEGRAM);
-                notificationData.setBackgroundColor(Color.rgb(41, 161, 218));
+                //notificationData.setBackgroundColor(Color.rgb(41, 161, 218));
 
                 messageApp = true;
 
                 break;
             case "net.whatsapp.WhatsApp":
                 notificationData.setAppIcon(IC_WHATSAPP);
-                notificationData.setBackgroundColor(Color.rgb(67, 195, 84));
+                //notificationData.setBackgroundColor(Color.rgb(67, 195, 84));
 
                 messageApp = true;
 
                 break;
             case "com.google.inbox":
                 notificationData.setAppIcon(IC_INBOX);
-                notificationData.setBackgroundColor(Color.rgb(66, 133, 244));
+                //notificationData.setBackgroundColor(Color.rgb(66, 133, 244));
 
                 break;
             case "com.crazyapps.TeeVee2":
                 notificationData.setAppIcon(IC_TEEVEE);
-                notificationData.setBackgroundColor(Color.rgb(246, 173, 2));
+                //notificationData.setBackgroundColor(Color.rgb(246, 173, 2));
 
                 break;
             case "com.linkedin.LinkedIn":
                 notificationData.setAppIcon(IC_LINKEDIN);
-                notificationData.setBackgroundColor(Color.rgb(1, 83, 128));
+                //notificationData.setBackgroundColor(Color.rgb(1, 83, 128));
 
                 break;
             case "com.facebook.Messenger":
                 notificationData.setAppIcon(IC_MESSENGER);
-                notificationData.setBackgroundColor(Color.rgb(0, 155, 255));
+                //notificationData.setBackgroundColor(Color.rgb(0, 155, 255));
 
                 break;
             default:

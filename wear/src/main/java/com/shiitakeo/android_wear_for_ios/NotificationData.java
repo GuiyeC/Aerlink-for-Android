@@ -3,6 +3,8 @@ package com.shiitakeo.android_wear_for_ios;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 
+import java.util.Arrays;
+
 /**
  * Created by Guiye on 13/4/15.
  */
@@ -10,13 +12,33 @@ public class NotificationData {
 
     private int appIcon = R.drawable.ic_launcher;
     private int background = -1;
-    private int backgroundColor = Color.rgb(140, 140, 145);
+//    private int backgroundColor = Color.rgb(140, 140, 145);
+    private int backgroundColor = Color.rgb(0, 0, 0);
     private byte[] UID;
     private String appId;
     private String title;
     private String message;
     private String positiveAction;
     private String negativeAction;
+    boolean silent;
+    boolean incomingCall;
+
+    public NotificationData(byte[] packet) {
+        int eventFlags = packet[1];
+        boolean silent = (eventFlags & 1) != 0; // EventFlagSilent
+        // boolean important = (eventFlags & 2) != 0; // EventFlagImportant
+        // boolean preExisting = (eventFlags & 4) != 0; // EventFlagPreExisting
+        // boolean positiveAction = (eventFlags & 8) != 0; // EventFlagPositiveAction
+        // boolean negativeAction = (eventFlags & 16) != 0; // EventFlagNegativeAction
+
+        this.silent = silent;
+
+        if (packet[2] == 1) {
+            this.incomingCall = true;
+        }
+
+        this.UID = Arrays.copyOfRange(packet, 4, 8);
+    }
 
     public NotificationData(byte[] UID, String appId, String title, String message, String positiveAction, String negativeAction) {
         this.UID = UID;
@@ -92,11 +114,33 @@ public class NotificationData {
         return positiveAction;
     }
 
+    public void setPositiveAction(String positiveAction) {
+        if (positiveAction != null && positiveAction.length() > 0) {
+            this.positiveAction = positiveAction;
+        }
+        else {
+            this.positiveAction = null;
+        }
+    }
+
     public String getNegativeAction() {
         return negativeAction;
     }
 
-    public String getGroup() {
-        return appId + title;
+    public void setNegativeAction(String negativeAction) {
+        if (negativeAction != null && negativeAction.length() > 0) {
+            this.negativeAction = negativeAction;
+        }
+        else {
+            this.negativeAction = null;
+        }
+    }
+
+    public boolean isSilent() {
+        return silent;
+    }
+
+    public boolean isIncomingCall() {
+        return incomingCall;
     }
 }
