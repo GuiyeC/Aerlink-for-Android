@@ -1,40 +1,29 @@
 package com.shiitakeo.android_wear_for_ios;
 
 import android.annotation.TargetApi;
-import android.app.KeyguardManager;
+import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.app.Notification;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattDescriptor;
-import android.bluetooth.BluetoothGattService;
-import android.bluetooth.BluetoothManager;
-import android.bluetooth.BluetoothProfile;
-import android.bluetooth.le.BluetoothLeScanner;
-import android.bluetooth.le.ScanCallback;
-import android.bluetooth.le.ScanFilter;
-import android.bluetooth.le.ScanResult;
-import android.bluetooth.le.ScanSettings;
+import android.bluetooth.*;
+import android.bluetooth.le.*;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.os.Build;
-import android.os.IBinder;
-import android.os.ParcelUuid;
-import android.os.PowerManager;
-import android.os.Vibrator;
+import android.media.MediaMetadata;
+import android.media.VolumeProvider;
+import android.media.session.MediaSession;
+import android.media.session.PlaybackState;
+import android.os.*;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
+import android.support.v4.media.session.MediaSessionCompat;
 import android.support.wearable.activity.ConfirmationActivity;
 import android.util.Log;
 
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -87,22 +76,44 @@ public class BLEService extends Service {
         SkipBackward
     }
 
+    private static enum EntityID {
+        Player,
+        Queue,
+        Track
+    }
+
+    private static enum TrackAttributeID {
+        Artist,
+        Album,
+        Title,
+        Duration
+    }
+
+    private static enum PlayerAttributeID {
+        Name,
+        PlaybackInfo,
+        Volume
+    }
+
+
     // ANCS Profile
-    private static final String UUID_ANCS = "7905f431-b5ce-4e99-a40f-4b1e122d00d0";
+    private static final UUID UUID_ANCS = UUID.fromString("7905f431-b5ce-4e99-a40f-4b1e122d00d0");
     private static final String CHARACTERISTIC_NOTIFICATION_SOURCE = "9fbf120d-6301-42d9-8c58-25e699a21dbd";
     private static final String CHARACTERISTIC_DATA_SOURCE =         "22eac6e9-24d6-4bb5-be44-b36ace7c7bfb";
     private static final String CHARACTERISTIC_CONTROL_POINT =       "69d1d8f3-45e1-49a8-9821-9bbdfdaad9d9";
 
     // AMS - Apple Media Service Profile
-    private static final String UUID_AMS = "89D3502B-0F36-433A-8EF4-C502AD55F8DC";
-    private static final String CHARACTERISTIC_REMOTE_COMMAND =   "9B3C81D8-57B1-4A8A-B8DF-0E56F7CA51C2";
-    private static final String CHARACTERISTIC_ENTITY_UPDATE =    "2F7CABCE-808D-411F-9A0C-BB92BA96C102";
-    private static final String CHARACTERISTIC_ENTITY_ATTRIBUTE = "C6B2F38C-23AB-46D8-A6AB-A3A870BBD5D7";
+    private static final UUID UUID_AMS = UUID.fromString("89d3502b-0f36-433a-8ef4-c502ad55f8dc");
+    private static final String CHARACTERISTIC_REMOTE_COMMAND =   "9b3c81d8-57b1-4a8a-b8df-0e56f7ca51c2";
+    private static final String CHARACTERISTIC_ENTITY_UPDATE =    "2f7cabce-808d-411f-9a0c-bb92ba96c102";
+    private static final String CHARACTERISTIC_ENTITY_ATTRIBUTE = "c6b2f38c-23ab-46d8-a6ab-a3a870bbd5d7";
 
 
 
     // Battery Service
-    private static final String UUID_BAS = "0000180F-0000-1000-8000-00805f9b34fb";
+    private static final UUID UUID_BAS = UUID.fromString("0000180F-0000-1000-8000-00805f9b34fb");
+    private static final String CHARACTERISTIC_BATTERY_LEVEL = "00002a19-0000-1000-8000-00805f9b34fb";
+
 
     private static final String DESCRIPTOR_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
     private static final String SERVICE_BLANK = "00001111-0000-1000-8000-00805f9b34fb";
@@ -112,6 +123,12 @@ public class BLEService extends Service {
     public static final String INTENT_ACTION_NEGATIVE = "com.shiitakeo.INTENT_ACTION_NEGATIVE";
     public static final String INTENT_ACTION_DELETE = "com.shiitakeo.INTENT_ACTION_DELETE";
 
+    public static final String INTENT_ACTION_HIDE_MEDIA = "INTENT_ACTION_HIDE_MEDIA";
+
+    public static final int NOTIFICATION_REGULAR = 1000;
+    public static final int NOTIFICATION_MEDIA = 1001;
+    public static final int NOTIFICATION_BATTERY = 1002;
+
     private static final long SCREEN_TIME_OUT = 1000;
     private static final long VIBRATION_PATTERN[] = { 200, 100, 200, 100 };
     private static final long SILENT_VIBRATION_PATTERN[] = { 200, 110 };
@@ -120,6 +137,7 @@ public class BLEService extends Service {
     public static final String INTENT_EXTRA_UID = "INTENT_EXTRA_UID";
 
     private static final int API_LEVEL = Build.VERSION.SDK_INT;
+
 
 
     private NotificationManagerCompat notificationManager;
@@ -137,20 +155,26 @@ public class BLEService extends Service {
     private int skipCount = 0;
     BLEScanCallback scanCallback = new BLEScanCallback();
 
-    private boolean is_subscribed_characteristics = false;
+    private List<String> characteristicsSubscribed = new ArrayList<>();
+    private List<Command> pendingCommands = new ArrayList<>();
+    private boolean writingCommand = false;
 
     private BluetoothLeScanner bluetoothLeScanner;
 
     private BroadcastReceiver messageReceiver = new MessageReceiver();
 
+    private MediaSession mSession;
+    private boolean mediaPlaying;
+    private boolean mediaHidden = true;
+    private String mediaTitle;
+    private String mediaArtist;
+
+    private int batteryLevel;
+
 
     @Override
     public IBinder onBind(Intent intent) {
         return null;
-    }
-
-    @Override
-    public void onCreate() {
     }
 
     @Override
@@ -161,27 +185,14 @@ public class BLEService extends Service {
         intentFilter.addAction(INTENT_ACTION_POSITIVE);
         intentFilter.addAction(INTENT_ACTION_NEGATIVE);
         intentFilter.addAction(INTENT_ACTION_DELETE);
+        intentFilter.addAction(INTENT_ACTION_HIDE_MEDIA);
         registerReceiver(messageReceiver, intentFilter);
 
         notificationManager = NotificationManagerCompat.from(getApplicationContext());
 
-        if (bluetoothGatt != null) {
-            bluetoothGatt.disconnect();
-            bluetoothGatt.close();
-            bluetoothGatt = null;
+        if (API_LEVEL >= 21) {
+            initMediaSessions();
         }
-        
-        if (bluetoothAdapter != null) {
-            bluetoothAdapter = null;
-        }
-        
-        if (API_LEVEL >= 21 && bluetoothLeScanner != null) {
-            Log.d(TAG_LOG, "status: ble reset");
-            stopBLEScanner();
-        }
-        
-        connected = false;
-        is_subscribed_characteristics = false;
 
 
         // Initializes a Bluetooth adapter.  For API level 18 and above, get a reference to
@@ -225,22 +236,41 @@ public class BLEService extends Service {
         }
     }
 
+
+    @TargetApi(21)
     @Override
     public void onDestroy() {
         Log.d(TAG_LOG, "~~~~~~~~ service onDestroy");
 
-        stopBLEScanner();
-        
-        connected =false;
-        is_subscribed_characteristics = false;
+        try {
+            stopBLEScanner();
 
-        if (null != bluetoothGatt){
-            bluetoothGatt.disconnect();
-            bluetoothGatt.close();
-            bluetoothGatt = null;
+            connected = false;
+
+            writingCommand = false;
+            pendingCommands = null;
+            characteristicsSubscribed = null;
+            mediaPlaying = false;
+            mediaHidden = true;
+            mediaArtist = null;
+            mediaTitle = null;
+            batteryLevel = -1;
+
+            if (null != bluetoothGatt) {
+                bluetoothGatt.disconnect();
+                bluetoothGatt.close();
+                bluetoothGatt = null;
+            }
+
+            bluetoothAdapter = null;
+
+            if (mSession != null) {
+                mSession.release();
+            }
         }
-        
-        bluetoothAdapter = null;
+        catch (Exception e) {
+            e.printStackTrace();
+        }
         
         super.onDestroy();
     }
@@ -284,24 +314,58 @@ public class BLEService extends Service {
         }
     }
 
-    private void sendCommand(String serviceUUID, String characteristic, byte[] command) throws Exception {
-        BluetoothGattService service = bluetoothGatt.getService(UUID.fromString(serviceUUID));
+    private void sendCommand() {
+        if (!connected || writingCommand || pendingCommands.size() == 0) {
+            return;
+        }
 
-        if (service != null) {
-            Log.d(TAG_LOG, "find service @ BR");
-            BluetoothGattCharacteristic bluetoothGattCharacteristic = service.getCharacteristic(UUID.fromString(characteristic));
+        Command command = pendingCommands.get(0);
 
-            if (bluetoothGattCharacteristic != null) {
-                Log.d(TAG_LOG, "find chara @ BR");
-                bluetoothGattCharacteristic.setValue(command);
-                bluetoothGatt.writeCharacteristic(bluetoothGattCharacteristic);
-            }
-            else {
-                Log.d(TAG_LOG, "cant find chara @ BR");
+        try {
+            BluetoothGattService service = bluetoothGatt.getService(command.getServiceUUID());
+
+            if (service != null) {
+                Log.d(TAG_LOG, "find service @ BR");
+                BluetoothGattCharacteristic bluetoothGattCharacteristic = service.getCharacteristic(UUID.fromString(command.getCharacteristic()));
+
+                if (bluetoothGattCharacteristic != null) {
+                    bluetoothGattCharacteristic.setValue(command.getPacket());
+                    writingCommand = bluetoothGatt.writeCharacteristic(bluetoothGattCharacteristic);
+                    Log.d(TAG_LOG, "find chara @ BR " + writingCommand);
+                    if (!writingCommand) {
+                        if (command.getCharacteristic().equals(CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
+                            pendingCommands.remove(command);
+                        }
+                    }
+                }
+                else {
+                    Log.d(TAG_LOG, "cant find chara @ BR");
+                    if (pendingCommands.size() > 1) {
+                        pendingCommands.remove(command);
+                        pendingCommands.add(command);
+
+                        sendCommand();
+                    }
+                }
+            } else {
+                Log.d(TAG_LOG, "cant find service @ BR");
+                if (pendingCommands.size() > 1) {
+                    pendingCommands.remove(command);
+                    pendingCommands.add(command);
+
+                    sendCommand();
+                }
             }
         }
-        else {
-            Log.d(TAG_LOG, "cant find service @ BR");
+        catch (Exception e) {
+            e.printStackTrace();
+            writingCommand = false;
+            if (pendingCommands.size() > 1) {
+                pendingCommands.remove(command);
+                pendingCommands.add(command);
+
+                sendCommand();
+            }
         }
     }
     
@@ -328,10 +392,9 @@ public class BLEService extends Service {
                 .setContentTitle(notificationData.getTitle())
                 .setContentText(notificationData.getMessage())
                 .setSmallIcon(notificationData.getAppIcon())
-                .setContentInfo("7PM")
-                .setSubText("test.hugo2@gmail.com")
                 .setGroup(notificationData.getAppId())
                 .setDeleteIntent(deleteAction)
+                .setPriority(Notification.PRIORITY_MAX)
                 .extend(wearableExtender);
         
         // Build positive action intent only if available
@@ -353,16 +416,19 @@ public class BLEService extends Service {
 
         // Build and notify
         Notification notification = notificationBuilder.build();
-        notificationManager.notify(notificationData.getUIDString(), 1000, notification);
+        notificationManager.notify(notificationData.getUIDString(), NOTIFICATION_REGULAR, notification);
 
         notificationId++;
 
-        if (!notificationData.isSilent()) {
-            getVibrator().vibrate(VIBRATION_PATTERN, -1);
-            wakeScreen();
-        }
-        else {
-            getVibrator().vibrate(SILENT_VIBRATION_PATTERN, -1);
+
+        if (!notificationData.isPreExisting()) {
+            if (!notificationData.isSilent()) {
+                getVibrator().vibrate(VIBRATION_PATTERN, -1);
+                wakeScreen();
+            }
+            else {
+                getVibrator().vibrate(SILENT_VIBRATION_PATTERN, -1);
+            }
         }
     }
 
@@ -376,6 +442,30 @@ public class BLEService extends Service {
         startActivity(phoneIntent);
     }
 
+    private void requestMediaUpdates() {
+        try {
+            Command trackCommand = new Command(UUID_AMS, CHARACTERISTIC_ENTITY_UPDATE, new byte[] {
+                    (byte) EntityID.Track.ordinal(),
+                    (byte) TrackAttributeID.Title.ordinal(),
+                    (byte) TrackAttributeID.Artist.ordinal()
+            });
+
+            pendingCommands.add(trackCommand);
+
+            Command playerCommand = new Command(UUID_AMS, CHARACTERISTIC_ENTITY_UPDATE, new byte[] {
+                    (byte) EntityID.Player.ordinal(),
+                    (byte) PlayerAttributeID.PlaybackInfo.ordinal()
+            });
+
+            pendingCommands.add(playerCommand);
+
+            sendCommand();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private List<ScanFilter> scanFilters() {
         // can't find ancs service
         return createScanFilter();
@@ -383,14 +473,39 @@ public class BLEService extends Service {
 
     @TargetApi(21)
     private List<ScanFilter> createScanFilter() {
-//        ScanFilter filter = new ScanFilter.Builder().setServiceUuid(ParcelUuid.fromString(UUID_ANCS)).build();
         ScanFilter filter = new ScanFilter.Builder().setServiceUuid(ParcelUuid.fromString(SERVICE_BLANK)).build();
         List<ScanFilter> list = new ArrayList<>(1);
         list.add(filter);
 
         return list;
     }
-    
+
+    private void processCallBack(BluetoothDevice device) {
+        if (!connected) {
+            Log.d(TAG_LOG, "is connect");
+            if (device != null) {
+                Log.d(TAG_LOG, "device ");
+                if (!reconnect && device.getName() != null) {
+                    Log.d(TAG_LOG, "getname ");
+                    connected = true;
+                    bluetoothGatt = device.connectGatt(getApplicationContext(), false, bluetoothGattCallback);
+                }
+                else if (reconnect && skipCount > 5 && device.getName() != null) {
+                    Log.d(TAG_LOG, "reconnect:: ");
+                    connected = true;
+                    reconnect = false;
+                    bluetoothGatt = device.connectGatt(getApplicationContext(), false, bluetoothGattCallback);
+                }
+                else {
+                    Log.d(TAG_LOG, "skip:: ");
+                    skipCount++;
+                }
+            }
+        }
+        else {
+            stopBLEScanner();
+        }
+    }
 
     @TargetApi(21)
     private class BLEScanCallback extends ScanCallback {
@@ -398,28 +513,14 @@ public class BLEService extends Service {
         @Override
         public void onScanResult(int callbackType, android.bluetooth.le.ScanResult result) {
             Log.i(TAG_LOG, "Scan Result: " + result.toString());
-            BluetoothDevice device = result.getDevice();
-            if (!connected) {
-                Log.d(TAG_LOG, "is connect");
-                if (device != null) {
-                    Log.d(TAG_LOG, "device ");
-                    if (!reconnect && device.getName() != null) {
-                        Log.d(TAG_LOG, "getname ");
-                        connected = true;
-                        bluetoothGatt = result.getDevice().connectGatt(getApplicationContext(), false, bluetoothGattCallback);
-                    } 
-                    else if (reconnect && skipCount > 5 && device.getName() != null) {
-                        Log.d(TAG_LOG, "reconnect:: ");
-                        connected = true;
-                        reconnect = false;
-                        bluetoothGatt = result.getDevice().connectGatt(getApplicationContext(), false, bluetoothGattCallback);
-                    } 
-                    else {
-                        Log.d(TAG_LOG, "skip:: ");
-                        skipCount++;
-                    }
+            if (result.getDevice() != null && result.getDevice().getUuids() != null) {
+                for (ParcelUuid uuid : result.getDevice().getUuids()) {
+                    Log.i(TAG_LOG, "UUID String: " + uuid.toString());
+                    Log.i(TAG_LOG, "UUID String: " + uuid.getUuid().toString());
                 }
             }
+            BluetoothDevice device = result.getDevice();
+            processCallBack(device);
         }
 
         @Override
@@ -440,27 +541,7 @@ public class BLEService extends Service {
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
             Log.i(TAG_LOG, "onLeScan");
-            if (!connected) {
-                Log.d(TAG_LOG, "is connect");
-                if (device != null) {
-                    Log.d(TAG_LOG, "device ");
-                    if (!reconnect && device.getName() != null) {
-                        Log.d(TAG_LOG, "getname ");
-                        connected = true;
-                        bluetoothGatt = device.connectGatt(getApplicationContext(), false, bluetoothGattCallback);
-                    }
-                    else if (reconnect && skipCount > 5 && device.getName() != null) {
-                        Log.d(TAG_LOG, "reconnect:: ");
-                        connected = true;
-                        reconnect = false;
-                        bluetoothGatt = device.connectGatt(getApplicationContext(), false, bluetoothGattCallback);
-                    }
-                    else {
-                        Log.d(TAG_LOG, "skip:: ");
-                        skipCount++;
-                    }
-                }
-            }
+            processCallBack(device);
         }
 
     };
@@ -478,6 +559,8 @@ public class BLEService extends Service {
             else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.d(TAG_LOG, "onDisconnect: ");
 
+                notificationManager.cancelAll();
+
                 if (API_LEVEL >= 21 && bluetoothLeScanner != null) {
                     Log.d(TAG_LOG, "status: ble reset");
                     stopBLEScanner();
@@ -493,14 +576,21 @@ public class BLEService extends Service {
                 }
 
                 connected = false;
-                is_subscribed_characteristics = false;
+
+                writingCommand = false;
+                pendingCommands.clear();
+                characteristicsSubscribed.clear();
                 skipCount = 0;
+                mediaPlaying = false;
+                mediaHidden = true;
+                mediaArtist = null;
+                mediaTitle = null;
+                batteryLevel = -1;
 
 
                 // Initializes a Bluetooth adapter.  For API level 18 and above, get a reference to
                 // BluetoothAdapter through BluetoothManager.
-                final BluetoothManager bluetoothManager =
-                        (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+                final BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
                 bluetoothAdapter = bluetoothManager.getAdapter();
 
                 // Checks if Bluetooth is supported on the device.
@@ -527,71 +617,8 @@ public class BLEService extends Service {
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             Log.d(TAG_LOG, "onServicesDiscovered received: " + status);
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                BluetoothGattService service = gatt.getService(UUID.fromString(UUID_ANCS));
-                if (service == null) {
-                    Log.d(TAG_LOG, "cant find service");
-                }
-                else {
-                    Log.d(TAG_LOG, "find service");
-                    Log.d(TAG_LOG, String.valueOf(bluetoothGatt.getServices()));
-
-                    // subscribe data source characteristic
-                    BluetoothGattCharacteristic data_characteristic = service.getCharacteristic(UUID.fromString(CHARACTERISTIC_DATA_SOURCE));
-
-                    if (data_characteristic == null) {
-                        Log.d(TAG_LOG, "cant find data source chara");
-                    }
-                    else {
-                        Log.d(TAG_LOG, "find data source chara :: " + data_characteristic.getUuid());
-                        Log.d(TAG_LOG, "set notify:: " + data_characteristic.getUuid());
-                        bluetoothGatt.setCharacteristicNotification(data_characteristic, true);
-
-                        BluetoothGattDescriptor descriptor = data_characteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
-
-                        if (descriptor == null) {
-                            Log.d(TAG_LOG, " ** cant find desc :: " + descriptor.getUuid());
-                        }
-                        else {
-                            Log.d(TAG_LOG, " ** find desc :: " + descriptor.getUuid());
-                            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                            bluetoothGatt.writeDescriptor(descriptor);
-
-                            stopBLEScanner();
-                        }
-                    }
-                }
-
-
-                BluetoothGattService amsService = gatt.getService(UUID.fromString(UUID_AMS));
-                if (amsService != null) {
-                    BluetoothGattCharacteristic remoteCommandCharacteristic = amsService.getCharacteristic(UUID.fromString(CHARACTERISTIC_REMOTE_COMMAND));
-
-                    if (remoteCommandCharacteristic != null) {
-                        bluetoothGatt.setCharacteristicNotification(remoteCommandCharacteristic, true);
-
-                        BluetoothGattDescriptor descriptor = remoteCommandCharacteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
-
-                        if (descriptor != null) {
-                            Log.d(TAG_LOG, " ** find desc :: " + descriptor.getUuid());
-                            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                            bluetoothGatt.writeDescriptor(descriptor);
-                        }
-                    }
-
-                    BluetoothGattCharacteristic entityUpdateCharacteristic = amsService.getCharacteristic(UUID.fromString(CHARACTERISTIC_ENTITY_UPDATE));
-
-                    if (entityUpdateCharacteristic != null) {
-                        bluetoothGatt.setCharacteristicNotification(entityUpdateCharacteristic, true);
-
-                        BluetoothGattDescriptor descriptor = entityUpdateCharacteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
-
-                        if (descriptor != null) {
-                            Log.d(TAG_LOG, " ** find desc :: " + descriptor.getUuid());
-                            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                            bluetoothGatt.writeDescriptor(descriptor);
-                        }
-                    }
-                }
+                //subscribeToCharacteristics(gatt);
+                subscribeCharacteristic(gatt.getService(UUID_ANCS), CHARACTERISTIC_DATA_SOURCE);
             }
         }
 
@@ -600,74 +627,34 @@ public class BLEService extends Service {
             Log.d(TAG_LOG, " onDescriptorWrite:: " + status);
             // Notification source
             if (status == BluetoothGatt.GATT_SUCCESS){
-                Log.d(TAG_LOG, "status: write success ");
-                if (!is_subscribed_characteristics) {
-                    //subscribe characteristic notification characteristic
-                    BluetoothGattService service = gatt.getService(UUID.fromString(UUID_ANCS));
-                    BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID.fromString(CHARACTERISTIC_NOTIFICATION_SOURCE));
-//
-                    if (characteristic == null) {
-                        Log.d(TAG_LOG, " cant find chara");
+                Log.d(TAG_LOG, "status: write success: " + descriptor.getCharacteristic().getUuid().toString());
+                characteristicsSubscribed.add(descriptor.getCharacteristic().getUuid().toString());
+                    switch (descriptor.getCharacteristic().getUuid().toString()) {
+                        case CHARACTERISTIC_DATA_SOURCE:
+                            subscribeCharacteristic(gatt.getService(UUID_ANCS), CHARACTERISTIC_NOTIFICATION_SOURCE);
+                            break;
+                        case CHARACTERISTIC_NOTIFICATION_SOURCE:
+                            subscribeCharacteristic(gatt.getService(UUID_AMS), CHARACTERISTIC_REMOTE_COMMAND);
+                            break;
+                        case CHARACTERISTIC_REMOTE_COMMAND:
+                            subscribeCharacteristic(gatt.getService(UUID_AMS), CHARACTERISTIC_ENTITY_UPDATE);
+                            break;
+                        case CHARACTERISTIC_ENTITY_UPDATE:
+                            subscribeCharacteristic(gatt.getService(UUID_BAS), CHARACTERISTIC_BATTERY_LEVEL);
+                            break;
+                        case CHARACTERISTIC_BATTERY_LEVEL:
+                            stopBLEScanner();
+                            requestMediaUpdates();
+
+                            //execute success animation
+                            Intent intent = new Intent(getApplicationContext(), ConfirmationActivity.class);
+                            intent.putExtra(ConfirmationActivity.EXTRA_ANIMATION_TYPE, ConfirmationActivity.SUCCESS_ANIMATION);
+                            intent.putExtra(ConfirmationActivity.EXTRA_MESSAGE, "success");
+                            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(intent);
+
+                            break;
                     }
-                    else {
-                        Log.d(TAG_LOG, " ** find chara :: " + characteristic.getUuid());
-                        if (CHARACTERISTIC_NOTIFICATION_SOURCE.equals(characteristic.getUuid().toString())) {
-                            Log.d(TAG_LOG, " set notify:: " + characteristic.getUuid());
-                            bluetoothGatt.setCharacteristicNotification(characteristic, true);
-
-                            BluetoothGattDescriptor notify_descriptor = characteristic.getDescriptor(
-                                    UUID.fromString(DESCRIPTOR_CONFIG));
-                            if (descriptor == null) {
-                                Log.d(TAG_LOG, " ** not find desc :: " + notify_descriptor.getUuid());
-                            }
-                            else {
-                                Log.d(TAG_LOG, " ** find desc :: " + notify_descriptor.getUuid());
-                                notify_descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                                bluetoothGatt.writeDescriptor(notify_descriptor);
-                                is_subscribed_characteristics = true;
-                            }
-                        }
-                    }
-
-                    BluetoothGattService amsService = gatt.getService(UUID.fromString(UUID_AMS));
-                    if (amsService != null) {
-                        BluetoothGattCharacteristic remoteCommandCharacteristic = amsService.getCharacteristic(UUID.fromString(CHARACTERISTIC_REMOTE_COMMAND));
-
-                        if (remoteCommandCharacteristic != null) {
-                            bluetoothGatt.setCharacteristicNotification(remoteCommandCharacteristic, true);
-
-                            BluetoothGattDescriptor remoteCommandDescriptor = remoteCommandCharacteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
-
-                            if (descriptor != null) {
-                                Log.d(TAG_LOG, " ** find desc :: " + remoteCommandDescriptor.getUuid());
-                                remoteCommandDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                                bluetoothGatt.writeDescriptor(remoteCommandDescriptor);
-                            }
-                        }
-
-                        BluetoothGattCharacteristic entityUpdateCharacteristic = amsService.getCharacteristic(UUID.fromString(CHARACTERISTIC_ENTITY_UPDATE));
-
-                        if (entityUpdateCharacteristic != null) {
-                            bluetoothGatt.setCharacteristicNotification(entityUpdateCharacteristic, true);
-
-                            BluetoothGattDescriptor entityUpdateDescriptor = entityUpdateCharacteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
-
-                            if (descriptor != null) {
-                                Log.d(TAG_LOG, " ** find desc :: " + entityUpdateDescriptor.getUuid());
-                                entityUpdateDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                                bluetoothGatt.writeDescriptor(entityUpdateDescriptor);
-                            }
-                        }
-                    }
-                }
-                else {
-                    //execute success animation
-                    Intent intent = new Intent(getApplicationContext(), ConfirmationActivity.class);
-                    intent.putExtra(ConfirmationActivity.EXTRA_ANIMATION_TYPE, ConfirmationActivity.SUCCESS_ANIMATION);
-                    intent.putExtra(ConfirmationActivity.EXTRA_MESSAGE, "success");
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(intent);
-                }
             }
             else if (status == BluetoothGatt.GATT_WRITE_NOT_PERMITTED) {
                 Log.d(TAG_LOG, "status: write not permitted");
@@ -677,7 +664,71 @@ public class BLEService extends Service {
                 intent.putExtra(ConfirmationActivity.EXTRA_MESSAGE, "please re-authorization paring");
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(intent);
+            }
+        }
 
+        @Override
+        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            super.onCharacteristicWrite(gatt, characteristic, status);
+            Log.d(TAG_LOG, "onCharacteristicWrite:: " + characteristic.getUuid().toString());
+
+            writingCommand = false;
+            Command lastCommand = pendingCommands.get(0);
+
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                /*
+                if (lastCommand.getCharacteristic().equals(CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
+                    gatt.readCharacteristic(characteristic);
+                }
+                */
+
+                // If battery is still unknown try to get its value
+                if (batteryLevel == -1) {
+                    try {
+                        gatt.readCharacteristic(gatt.getService(UUID_BAS).getCharacteristic(UUID.fromString(CHARACTERISTIC_BATTERY_LEVEL)));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                pendingCommands.remove(0);
+            }
+            else if (!lastCommand.getCharacteristic().equals(CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
+                pendingCommands.remove(0);
+                pendingCommands.add(lastCommand);
+            }
+
+            sendCommand();
+        }
+
+        @Override
+        public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            super.onCharacteristicRead(gatt, characteristic, status);
+            Log.d(TAG_LOG, "onCharacteristicRead status:: " + status);
+
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                /*
+                String newAttribute = characteristic.getStringValue(0);
+                Log.d(TAG_LOG, "onCharacteristicRead value:: " + newAttribute);
+                boolean containsOldTitle = newAttribute.indexOf(mediaTitle) == 0;
+                boolean containsOldArtist = newAttribute.indexOf(mediaArtist) == 0;
+
+                if (containsOldTitle && !containsOldArtist) {
+                    mediaTitle = characteristic.getStringValue(0);
+
+                    updateMetadata();
+                }
+                else if (!containsOldTitle && containsOldArtist) {
+                    mediaArtist = characteristic.getStringValue(0);
+
+                    updateMetadata();
+                }
+                */
+                if (characteristic.getUuid().toString().equals(CHARACTERISTIC_BATTERY_LEVEL)) {
+                    batteryLevel = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+                    Log.d(TAG_LOG, "BAS    CHARACTERISTIC_BATTERY_LEVEL:: " + batteryLevel);
+                    buildBatteryNotification();
+                }
             }
         }
 
@@ -688,11 +739,17 @@ public class BLEService extends Service {
             // Get notification packet from iOS
             byte[] packet = characteristic.getValue();
 
-            switch (characteristic.getUuid().toString()) {
+            switch (characteristic.getUuid().toString().toLowerCase()) {
+                case CHARACTERISTIC_BATTERY_LEVEL:
+                    batteryLevel = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+                    Log.d(TAG_LOG, "BAS    CHARACTERISTIC_BATTERY_LEVEL:: " + batteryLevel);
+                    buildBatteryNotification();
+
+                    break;
                 case CHARACTERISTIC_ENTITY_UPDATE:
-                case CHARACTERISTIC_REMOTE_COMMAND:
                 case CHARACTERISTIC_ENTITY_ATTRIBUTE:
                     Log.d(TAG_LOG, "AMS    CHARACTERISTIC_ENTITY_UPDATE::");
+                    processMediaPacket(packet, characteristic.getStringValue(3));
                     break;
                 case CHARACTERISTIC_DATA_SOURCE:
                     getPacketProcessor().process(packet);
@@ -715,23 +772,12 @@ public class BLEService extends Service {
                     try {
                         switch (packet[0]) {
                             case (byte) 0x00: // NotificationAdded
-                                int eventFlags = packet[1];
-                                // boolean silent = (eventFlags & 1) != 0; // EventFlagSilent
-                                // boolean important = (eventFlags & 2) != 0; // EventFlagImportant
-                                boolean preExisting = (eventFlags & 4) != 0; // EventFlagPreExisting
-                                // boolean bit3 = (eventFlags & 8) != 0; // EventFlagPositiveAction
-                                // boolean bit4 = (eventFlags & 16) != 0; // EventFlagNegativeAction
-
-                                // Don't show pre existing notifications
-                                if (preExisting) {
-                                    break;
-                                }
                             case (byte) 0x01: // NotificationModified
                                 // Prepare packet processor for new notification
                                 getPacketProcessor().init(packet);
 
                                 // Request attributes for the new notification
-                                byte[] getAttributesCommand = {
+                                byte[] getAttributesPacket = {
                                         (byte) CommandID.GetNotificationAttributes.ordinal(),
 
                                         // UID
@@ -759,7 +805,10 @@ public class BLEService extends Service {
                                         (byte) NotificationAttributeID.NegativeActionLabel.ordinal()
                                 };
 
-                                sendCommand(UUID_ANCS, CHARACTERISTIC_CONTROL_POINT, getAttributesCommand);
+                                Command getAttributesCommand = new Command(UUID_ANCS, CHARACTERISTIC_CONTROL_POINT, getAttributesPacket);
+                                pendingCommands.add(getAttributesCommand);
+
+                                sendCommand();
 
                                 break;
                             case (byte) 0x02: // NotificationRemoved
@@ -771,7 +820,7 @@ public class BLEService extends Service {
                                 else {
                                     // Cancel notification in watch
                                     String notificationId = new String(Arrays.copyOfRange(packet, 4, 8));
-                                    notificationManager.cancel(notificationId, 1000);
+                                    notificationManager.cancel(notificationId, NOTIFICATION_REGULAR);
                                 }
 
                                 break;
@@ -785,6 +834,32 @@ public class BLEService extends Service {
                     break;
             }
         }
+
+        private void subscribeCharacteristic(BluetoothGattService service, String uuidString) {
+            if (service == null || uuidString == null || characteristicsSubscribed.contains(uuidString)) {
+                return;
+            }
+
+            try {
+                BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID.fromString(uuidString));
+
+                if (characteristic != null) {
+                    bluetoothGatt.setCharacteristicNotification(characteristic, true);
+
+                    BluetoothGattDescriptor descriptor = characteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
+
+                    if (descriptor != null) {
+                        Log.d(TAG_LOG, " ** find desc :: " + descriptor.getUuid());
+                        descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                        bluetoothGatt.writeDescriptor(descriptor);
+                    }
+                }
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
     };
 
     public class MessageReceiver extends BroadcastReceiver {
@@ -802,7 +877,7 @@ public class BLEService extends Service {
 
                     if (!action.equals(INTENT_ACTION_DELETE)) {
                         // Dismiss notification
-                        notificationManager.cancel(notificationId, 1000);
+                        notificationManager.cancel(notificationId, NOTIFICATION_REGULAR);
                     }
                     
                     byte actionId = (byte) ActionID.Positive.ordinal();
@@ -811,7 +886,7 @@ public class BLEService extends Service {
                     }
                     
                     // Perform user selected action
-                    byte[] performActionCommand = {
+                    byte[] performActionPacket = {
                             (byte) CommandID.PerformNotificationAction.ordinal(),
 
                             // Notification UID
@@ -821,15 +896,303 @@ public class BLEService extends Service {
                             actionId
                     };
 
-                    sendCommand(UUID_AMS, CHARACTERISTIC_REMOTE_COMMAND, new byte[] { 0x2 } );
-                    //sendCommand(UUID_ANCS, CHARACTERISTIC_CONTROL_POINT, performActionCommand);
+                    Command performActionCommand = new Command(UUID_ANCS, CHARACTERISTIC_CONTROL_POINT, performActionPacket);
+                    pendingCommands.add(performActionCommand);
+
+                    sendCommand();
                 } 
                 catch (Exception e) {
                     Log.d(TAG_LOG, "error");
                     e.printStackTrace();
                 }
             }
+            else if (action.equals(INTENT_ACTION_HIDE_MEDIA)) {
+                mediaHidden = true;
+
+                if (mediaPlaying) {
+                    buildMediaNotification();
+                }
+            }
         }
         
+    }
+
+    @TargetApi(21)
+    private void buildBatteryNotification() {
+        if (batteryLevel == -1) {
+            return;
+        }
+
+        Bitmap background = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+        background.eraseColor(0);
+
+        int batteryIcon;
+
+        if (batteryLevel > 85) {
+            batteryIcon = R.drawable.ic_battery_5;
+        }
+        else if (batteryLevel > 65) {
+            batteryIcon = R.drawable.ic_battery_4;
+        }
+        else if (batteryLevel > 45) {
+            batteryIcon = R.drawable.ic_battery_3;
+        }
+        else if (batteryLevel > 25) {
+            batteryIcon = R.drawable.ic_battery_2;
+        }
+        else {
+            batteryIcon = R.drawable.ic_battery_1;
+        }
+
+
+        Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
+                .setBackground(background);
+
+        Notification.Builder builder = new Notification.Builder( this )
+                .setSmallIcon(batteryIcon)
+                .setContentTitle("Battery level")
+                .setContentText(batteryLevel + "%")
+                .extend(wearableExtender)
+                .setPriority(Notification.PRIORITY_MIN);
+
+        notificationManager.notify(NOTIFICATION_BATTERY, builder.build());
+    }
+
+    @TargetApi(21)
+    private void buildMediaNotification() {
+        mediaHidden = false;
+
+        Bitmap background = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+        background.eraseColor(0);
+
+        // Build pending intent for when the user swipes the card away
+        Intent deleteIntent = new Intent(INTENT_ACTION_HIDE_MEDIA);
+        PendingIntent deleteAction = PendingIntent.getBroadcast(getApplicationContext(), 0, deleteIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        Notification.MediaStyle style = new Notification.MediaStyle()
+                .setMediaSession(mSession.getSessionToken());
+
+        Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
+                .setBackground(background)
+                .setHintHideIcon(true);
+
+        Notification.Builder builder = new Notification.Builder( this )
+                .setSmallIcon(R.drawable.ic_music)
+                 .setDeleteIntent(deleteAction)
+                .setStyle(style)
+                .extend(wearableExtender)
+                .setPriority(Notification.PRIORITY_LOW);
+
+        notificationManager.notify(NOTIFICATION_MEDIA, builder.build());
+
+        boolean result = bluetoothGatt.readCharacteristic(bluetoothGatt.getService(UUID_BAS).getCharacteristic(UUID.fromString(CHARACTERISTIC_BATTERY_LEVEL)));
+        Log.d(TAG_LOG, "Read battery: " + result);
+    }
+
+    @TargetApi(21)
+    private void initMediaSessions() {
+        mSession = new MediaSession(getApplicationContext(), "iOS_Wear_session");
+        mSession.setActive(true);
+        mSession.setFlags(MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS | MediaSession.FLAG_HANDLES_MEDIA_BUTTONS);
+        mSession.setPlaybackToRemote(new VolumeProvider(VolumeProvider.VOLUME_CONTROL_RELATIVE, 50, 100) {
+
+            @Override
+            public void onAdjustVolume(int direction) {
+                super.onAdjustVolume(direction);
+
+                try {
+                    Command volumeCommand;
+                    if (direction == 1) {
+                        volumeCommand = new Command(UUID_AMS, CHARACTERISTIC_REMOTE_COMMAND, new byte[] {
+                                (byte) RemoteCommandID.VolumeUp.ordinal()
+                        });
+                    }
+                    else {
+                        volumeCommand = new Command(UUID_AMS, CHARACTERISTIC_REMOTE_COMMAND, new byte[] {
+                                (byte) RemoteCommandID.VolumeDown.ordinal()
+                        });
+                    }
+                    pendingCommands.add(volumeCommand);
+
+                    sendCommand();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
+        });
+
+        mSession.setCallback(new MediaSession.Callback() {
+            @Override
+            public void onPlay() {
+                super.onPlay();
+                Log.e(TAG_LOG, "onPlay");
+
+                Command remoteCommand = new Command(UUID_AMS, CHARACTERISTIC_REMOTE_COMMAND, new byte[] {
+                        (byte) RemoteCommandID.TogglePlayPause.ordinal()
+                });
+                pendingCommands.add(remoteCommand);
+
+                sendCommand();
+            }
+
+            @Override
+            public void onPause() {
+                super.onPause();
+                Log.e(TAG_LOG, "onPause");
+
+                Command remoteCommand = new Command(UUID_AMS, CHARACTERISTIC_REMOTE_COMMAND, new byte[] {
+                        (byte) RemoteCommandID.TogglePlayPause.ordinal()
+                });
+                pendingCommands.add(remoteCommand);
+
+                sendCommand();
+            }
+
+            @Override
+            public void onSkipToNext() {
+                super.onSkipToNext();
+                Log.e(TAG_LOG, "onSkipToNext");
+
+                Command remoteCommand = new Command(UUID_AMS, CHARACTERISTIC_REMOTE_COMMAND, new byte[] {
+                        (byte) RemoteCommandID.NextTrack.ordinal()
+                });
+                pendingCommands.add(remoteCommand);
+
+                sendCommand();
+            }
+
+            @Override
+            public void onSkipToPrevious() {
+                super.onSkipToPrevious();
+                Log.e(TAG_LOG, "onSkipToPrevious");
+
+                Command remoteCommand = new Command(UUID_AMS, CHARACTERISTIC_REMOTE_COMMAND, new byte[] {
+                        (byte) RemoteCommandID.PreviousTrack.ordinal()
+                });
+                pendingCommands.add(remoteCommand);
+
+                sendCommand();
+            }
+
+            @Override
+            public boolean onMediaButtonEvent(Intent mediaButtonIntent) {
+                return super.onMediaButtonEvent(mediaButtonIntent);
+            }
+
+        });
+
+        long position = PlaybackState.PLAYBACK_POSITION_UNKNOWN;
+        PlaybackState.Builder stateBuilder = new PlaybackState.Builder()
+                .setActions(getAvailableActions());
+        stateBuilder.setState(mediaPlaying ? PlaybackState.STATE_PLAYING : PlaybackState.STATE_PAUSED, position, 1.0f);
+        mSession.setPlaybackState(stateBuilder.build());
+    }
+
+    @TargetApi(21)
+    private long getAvailableActions() {
+        long actions = PlaybackState.ACTION_PLAY_PAUSE
+                | PlaybackState.ACTION_SKIP_TO_PREVIOUS
+                | PlaybackState.ACTION_SKIP_TO_NEXT;
+
+        /*
+        if (mCurrentIndexOnQueue > 0) {
+            actions |= PlaybackState.ACTION_SKIP_TO_PREVIOUS;
+        }
+        if (mCurrentIndexOnQueue < mPlayingQueue.size() - 1) {
+            actions |= PlaybackState.ACTION_SKIP_TO_NEXT;
+        }
+        */
+
+        return actions;
+    }
+
+    @TargetApi(21)
+    private void processMediaPacket(byte[] packet, String attribute) {
+        try {
+            if (packet != null) {
+                Log.d(TAG_LOG, "AMS ATTRIBUTE: " + attribute);
+
+                switch (packet[0]) {
+                    case 0:
+                        switch (packet[1]) {
+                            case 1:
+                                mediaPlaying = !attribute.substring(0, 1).equals("0");
+                                break;
+                        }
+
+                        long position = PlaybackState.PLAYBACK_POSITION_UNKNOWN;
+                        PlaybackState.Builder stateBuilder = new PlaybackState.Builder()
+                                .setActions(getAvailableActions());
+                        stateBuilder.setState(mediaPlaying ? PlaybackState.STATE_PLAYING : PlaybackState.STATE_PAUSED, position, 1.0f);
+                        mSession.setPlaybackState(stateBuilder.build());
+
+                        if (mediaPlaying || !mediaHidden) {
+                            buildMediaNotification();
+                        }
+                        break;
+                    case 2:
+                        boolean truncated = (packet[2] & 1) != 0;
+
+                        switch (packet[1]) {
+                            case 0:
+                                mediaArtist = attribute;
+
+                                if (truncated) {
+                                    mediaArtist += "...";
+                                    /*
+                                    Command attributeCommand = new Command(UUID_AMS, CHARACTERISTIC_ENTITY_ATTRIBUTE, new byte[] {
+                                            (byte) EntityID.Track.ordinal(),
+                                            (byte) TrackAttributeID.Artist.ordinal()
+                                    });
+                                    pendingCommands.add(attributeCommand);
+
+                                    sendCommand();
+                                    */
+                                }
+                                break;
+                            case 2:
+                                mediaTitle = attribute;
+
+                                if (truncated) {
+                                    mediaTitle += "...";
+                                    /*
+                                    Command attributeCommand = new Command(UUID_AMS, CHARACTERISTIC_ENTITY_ATTRIBUTE, new byte[] {
+                                            (byte) EntityID.Track.ordinal(),
+                                            (byte) TrackAttributeID.Title.ordinal()
+                                    });
+                                    pendingCommands.add(attributeCommand);
+
+                                    sendCommand();
+                                    */
+                                }
+                                break;
+                        }
+
+                        updateMetadata();
+                        break;
+                }
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @TargetApi(21)
+    private void updateMetadata() {
+        MediaMetadata.Builder metadataBuilder = new MediaMetadata.Builder();
+
+        // And at minimum the title and artist for legacy support
+        metadataBuilder.putString(MediaMetadata.METADATA_KEY_TITLE,
+                mediaTitle);
+        metadataBuilder.putString(MediaMetadata.METADATA_KEY_ARTIST,
+                mediaArtist);
+        // Add any other fields you have for your data as well
+        mSession.setMetadata(metadataBuilder.build());
+
+        if (mediaPlaying || !mediaHidden) {
+            buildMediaNotification();
+        }
     }
 }

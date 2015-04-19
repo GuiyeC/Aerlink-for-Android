@@ -21,17 +21,16 @@ public class NotificationData {
     private String positiveAction;
     private String negativeAction;
     boolean silent;
+    boolean preExisting;
     boolean incomingCall;
 
     public NotificationData(byte[] packet) {
         int eventFlags = packet[1];
-        boolean silent = (eventFlags & 1) != 0; // EventFlagSilent
+        this.silent = (eventFlags & 1) != 0; // EventFlagSilent
         // boolean important = (eventFlags & 2) != 0; // EventFlagImportant
-        // boolean preExisting = (eventFlags & 4) != 0; // EventFlagPreExisting
+        this.preExisting = (eventFlags & 4) != 0; // EventFlagPreExisting
         // boolean positiveAction = (eventFlags & 8) != 0; // EventFlagPositiveAction
         // boolean negativeAction = (eventFlags & 16) != 0; // EventFlagNegativeAction
-
-        this.silent = silent;
 
         if (packet[2] == 1) {
             this.incomingCall = true;
@@ -138,6 +137,10 @@ public class NotificationData {
 
     public boolean isSilent() {
         return silent;
+    }
+
+    public boolean isPreExisting() {
+        return preExisting;
     }
 
     public boolean isIncomingCall() {
