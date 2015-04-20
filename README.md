@@ -11,23 +11,15 @@ This project was inspired by [@MohammadAG](https://twitter.com/MohammadAG) and b
 
 Change log
 --------------
-- v1.0
++ v1.0
+ - Manage notifications, notifications should always be on sync with the iOS device's. You can also swipe block of notifications, delete single notifications and ANCS positive and negative actions are supported.
+ - Answer or hang up calls straight from the watch, I could not get the official "incoming call screen" on the watch to work so I created one inspired by the Apple Watch.
+ - Control media, this should work with any app that shows up on the Control Center.
+ - Get battery updates.
+ - When "Not Disturb" is enabled on the iOS Device the screen on the watch doesn't light up and the vibration is more subtle.
+ - Support for messaging apps, Telegram and WhatsApp. This will show the sender's name instead of the apps name as the title of the notification.
+ - All notifications backgrounds are black, I set it up to had a different color matching the app of the notification but I ended going with a more "Apple Watchy" style.
 
-```
-1. Manage notifications, notifications should always be on sync with the iOS device's.\n
-You can also swipe block of notifications, delete single notifications and ANCS positive\n
-and negative actions are supported.
-2. Answer or hang up calls straight from the watch, I could not get the official\n
-"incoming call screen" on the watch to work so I created one inspired by the Apple Watch.
-3. Control media, this should work with any app that shows up on the Control Center.
-4. Get battery updates.
-5. When "Not Disturb" is enabled on the iOS Device the screen on the watch doesn't light\n
-up and the vibration is more subtle.
-6. Support for messaging apps, Telegram and WhatsApp. This will show the sender's name\n
-instead of the apps name as the title of the notification.
-7. All notifications backgrounds are black, I set it up to had a different color\n
-matching the app of the notification but I ended going with a more "Apple Watchy" style.
-```
 
 ### Possible updates
 ```
