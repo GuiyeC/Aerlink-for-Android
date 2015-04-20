@@ -6,7 +6,7 @@
               android:layout_height="match_parent"
               android:orientation="vertical"
               android:gravity="center"
-              tools:context="com.shiitakeo.android_wear_for_ios.PhoneActivity"
+              tools:context="com.codegy.ioswearconnect.PhoneActivity"
               tools:deviceIds="wear_square">
 
     <TextView

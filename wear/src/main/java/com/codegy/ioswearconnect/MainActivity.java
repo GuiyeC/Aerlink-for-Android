@@ -1,12 +1,10 @@
-package com.shiitakeo.android_wear_for_ios;
+package com.codegy.ioswearconnect;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.support.wearable.view.WatchViewStub;
 import android.util.Log;
-import android.widget.TextView;
 
 public class MainActivity extends Activity {
 

@@ -1,4 +1,4 @@
-package com.shiitakeo.android_wear_for_ios;
+package com.codegy.ioswearconnect;
 
 import android.annotation.TargetApi;
 import android.app.Notification;
@@ -23,30 +23,29 @@ import android.support.v4.media.session.MediaSessionCompat;
 import android.support.wearable.activity.ConfirmationActivity;
 import android.util.Log;
 
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * Created by shiitakeo on 15/03/15.
+ * Created by codegy on 15/03/15.
  */
 public class BLEService extends Service {
 
-    private static enum EventID {
+    private enum EventID {
         NotificationAdded,
         NotificationModified,
         NotificationRemoved
     }
 
-    private static enum CommandID {
+    private enum CommandID {
         GetNotificationAttributes,
         GetAppAttributes,
         PerformNotificationAction
     }
 
-    private static enum NotificationAttributeID {
+    private enum NotificationAttributeID {
         AppIdentifier,
         Title,
         Subtitle,
@@ -57,12 +56,12 @@ public class BLEService extends Service {
         NegativeActionLabel
     }
 
-    private static enum ActionID {
+    private enum ActionID {
         Positive,
         Negative
     }
 
-    private static enum RemoteCommandID {
+    private enum RemoteCommandID {
         Play,
         Pause,
         TogglePlayPause,
@@ -76,20 +75,20 @@ public class BLEService extends Service {
         SkipBackward
     }
 
-    private static enum EntityID {
+    private enum EntityID {
         Player,
         Queue,
         Track
     }
 
-    private static enum TrackAttributeID {
+    private enum TrackAttributeID {
         Artist,
         Album,
         Title,
         Duration
     }
 
-    private static enum PlayerAttributeID {
+    private enum PlayerAttributeID {
         Name,
         PlaybackInfo,
         Volume
@@ -108,8 +107,6 @@ public class BLEService extends Service {
     private static final String CHARACTERISTIC_ENTITY_UPDATE =    "2f7cabce-808d-411f-9a0c-bb92ba96c102";
     private static final String CHARACTERISTIC_ENTITY_ATTRIBUTE = "c6b2f38c-23ab-46d8-a6ab-a3a870bbd5d7";
 
-
-
     // Battery Service
     private static final UUID UUID_BAS = UUID.fromString("0000180F-0000-1000-8000-00805f9b34fb");
     private static final String CHARACTERISTIC_BATTERY_LEVEL = "00002a19-0000-1000-8000-00805f9b34fb";
@@ -119,11 +116,10 @@ public class BLEService extends Service {
     private static final String SERVICE_BLANK = "00001111-0000-1000-8000-00805f9b34fb";
 
     // intent action
-    public static final String INTENT_ACTION_POSITIVE = "com.shiitakeo.INTENT_ACTION_POSITIVE";
-    public static final String INTENT_ACTION_NEGATIVE = "com.shiitakeo.INTENT_ACTION_NEGATIVE";
-    public static final String INTENT_ACTION_DELETE = "com.shiitakeo.INTENT_ACTION_DELETE";
-
-    public static final String INTENT_ACTION_HIDE_MEDIA = "INTENT_ACTION_HIDE_MEDIA";
+    public static final String INTENT_ACTION_POSITIVE = "com.codegy.INTENT_ACTION_POSITIVE";
+    public static final String INTENT_ACTION_NEGATIVE = "com.codegy.INTENT_ACTION_NEGATIVE";
+    public static final String INTENT_ACTION_DELETE = "com.codegy.INTENT_ACTION_DELETE";
+    public static final String INTENT_ACTION_HIDE_MEDIA = "com.codegy.INTENT_ACTION_HIDE_MEDIA";
 
     public static final int NOTIFICATION_REGULAR = 1000;
     public static final int NOTIFICATION_MEDIA = 1001;
@@ -256,6 +252,12 @@ public class BLEService extends Service {
             mediaTitle = null;
             batteryLevel = -1;
 
+            unregisterReceiver(messageReceiver);
+
+            if (mSession != null) {
+                mSession.release();
+            }
+
             if (null != bluetoothGatt) {
                 bluetoothGatt.disconnect();
                 bluetoothGatt.close();
@@ -263,10 +265,6 @@ public class BLEService extends Service {
             }
 
             bluetoothAdapter = null;
-
-            if (mSession != null) {
-                mSession.release();
-            }
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -950,7 +948,7 @@ public class BLEService extends Service {
 
         Notification.Builder builder = new Notification.Builder( this )
                 .setSmallIcon(batteryIcon)
-                .setContentTitle("Battery level")
+                .setContentTitle(getString(R.string.battery_level))
                 .setContentText(batteryLevel + "%")
                 .extend(wearableExtender)
                 .setPriority(Notification.PRIORITY_MIN);

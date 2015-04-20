@@ -14,7 +14,5 @@
  limitations under the License.
 -->
 <resources>
-    <string name="app_name">iOS Wear Connect</string>
-    <string name="title_activity_phone">Phone call</string>
-    <string name="battery_level">Battery level</string>
+    <string name="battery_level">Batería</string>
 </resources>

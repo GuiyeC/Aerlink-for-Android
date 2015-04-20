@@ -78,8 +78,8 @@ apk install
 you can install from paly store.  
 need 4.4<= android handheld.
 
-- [free version](https://play.google.com/store/apps/details?id=com.shiitakeo.android_wear_for_ios)
-- [donation version](https://play.google.com/store/apps/details?id=com.shiitakeo.android_wear_for_ios.donation)
+- [free version](https://play.google.com/store/apps/details?id=codegy.android_wear_for_ios)
+- [donation version](https://play.google.com/store/apps/details?id=codegy.android_wear_for_ios.donation)
 
 ### 2. install github's apk with android handheld(adb over Bluetooth).
 get apk from [release page](https://github.com/shiitakeo/android_wear_for_ios/releases).  

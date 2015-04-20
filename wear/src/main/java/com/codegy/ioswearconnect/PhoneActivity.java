@@ -1,8 +1,6 @@
-package com.shiitakeo.android_wear_for_ios;
+package com.codegy.ioswearconnect;
 
 import android.app.Activity;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;

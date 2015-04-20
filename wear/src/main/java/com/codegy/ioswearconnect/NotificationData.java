@@ -1,6 +1,5 @@
-package com.shiitakeo.android_wear_for_ios;
+package com.codegy.ioswearconnect;
 
-import android.graphics.Bitmap;
 import android.graphics.Color;
 
 import java.util.Arrays;

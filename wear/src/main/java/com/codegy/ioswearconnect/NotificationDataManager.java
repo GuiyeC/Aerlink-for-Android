@@ -1,6 +1,4 @@
-package com.shiitakeo.android_wear_for_ios;
-
-import android.graphics.Color;
+package com.codegy.ioswearconnect;
 
 /**
  * Created by kusabuka on 15/03/15.
@@ -109,6 +107,8 @@ public class NotificationDataManager {
             case "com.facebook.Messenger":
                 notificationData.setAppIcon(IC_MESSENGER);
                 //notificationData.setBackgroundColor(Color.rgb(0, 155, 255));
+
+                messageApp = true;
 
                 break;
             default:

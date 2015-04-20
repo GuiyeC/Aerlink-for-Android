@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.shiitakeo.android_wear_for_ios" >
+    package="com.codegy.ioswearconnect" >
 
     <uses-feature android:name="android.hardware.type.watch" />
 
@@ -12,11 +12,11 @@
 
     <application
         android:allowBackup="true"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
         <activity
-            android:name=".MainActivity"
+            android:name="com.codegy.ioswearconnect.MainActivity"
             android:label="@string/app_name"
             android:launchMode="singleInstance" >
             <intent-filter>
@@ -26,14 +26,14 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".BLEService" />
+        <service android:name="com.codegy.ioswearconnect.BLEService" />
 
-        <receiver android:name=".BLEService$MessageReceiver" />
+        <receiver android:name="com.codegy.ioswearconnect.BLEService$MessageReceiver" />
 
         <activity android:name="android.support.wearable.activity.ConfirmationActivity" />
 
         <activity
-            android:name=".PhoneActivity"
+            android:name="com.codegy.ioswearconnect.PhoneActivity"
             android:label="@string/title_activity_phone"
             android:launchMode="singleInstance"
             android:theme="@style/NoAnimTheme" >
