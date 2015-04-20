@@ -1,103 +1,82 @@
-Android Wear works with iPhone/iOS
+iOS Wear Connect
 ===================================
 
-Android wear can get iphon's notification.  
-This app get notification using ANCS from iphone.  
-so, don't need jail break iphone and rooted wear.  
-I developed this app inspired by @MohammadAG's video.
+This app uses BLE services available on iOS devices to manage notifications, control music playback and check the iOS device battery level, without jailbreaking the iOS device or rooting the Android Wear device. This app is not a hack and has zero risks on either device.
 
-Latest version
+- [Apple Notification Center Service (ANCS)](https://developer.apple.com/library/ios/documentation/CoreBluetooth/Reference/AppleNotificationCenterServiceSpecification/Introduction/Introduction.html)
+- [Apple Media Service (AMS)](https://developer.apple.com/library/ios/documentation/CoreBluetooth/Reference/AppleMediaService_Reference/Introduction/Introduction.html)
+- [Battery Service (BAS)](https://developer.bluetooth.org/TechnologyOverview/Pages/BAS.aspx)
+
+This project was inspired by [@MohammadAG](https://twitter.com/MohammadAG) and built upon [@shiitakeo](https://twitter.com/shiitakeo)'s ["android_wear_for_ios"](https://github.com/shiitakeo/android_wear_for_ios/). You can contact me on my twitter [@GuiyeC](https://twitter.com/GuiyeC).
+
+Change log
 --------------
-- v0.3(same as play store version '15/03/30)
-update
+- v1.0
 
 ```
-1. install from android handheld. don't need adb.   
-  use 4.4<= android handheld.
-  
-2. implement prototype of auto-reconnect
-[check tutorial video on youtube](https://youtu.be/aPZ7UM6_aLw)
+1. Manage notifications, notifications should always be on sync with the iOS device's. You can also swipe block of notifications, delete single notifications and ANCS positive and negative actions are supported.
+2. Answer or hang up calls straight from the watch, I could not get the official "incoming call screen" on the watch to work so I created one inspired by the Apple Watch.
+3. Control media, this should work with any app that shows up on the Control Center.
+4. Get battery updates.
+5. When "Not Disturb" is enabled on the iOS Device the screen on the watch doesn't light up and the vibration is more subtle.
+6. Support for messaging apps, Telegram and WhatsApp. This will show the sender's name instead of the apps name as the title of the notification.
+7. All notifications backgrounds are black, I set it up to had a different color matching the app of the notification but I ended going with a more "Apple Watchy" style.
 ```
 
-- v0.2.2
-update
-
+### Possible updates
 ```
-1. install from android handheld. don't need adb.   
-  use 5.0<= android handheld.
-```
-
-
-- v0.2.1
-update
-
-```
-1. auto screen turn off (after 1sec from getting notification.)
-2. swipe to remove notification on iphone.
-```
-
-- v0.2
-
-update
-```
-1. add some icons(include whatsapp)
-2. screen awake from sleep when get notification
-3. control calling(you can select accept or decline from your wear)
-4. delete notificatin on iphone from wear.
+- Settings screen
+- Improved media playback, long strings are truncated.
 ```
 
 Tested Devices
 --------------
-I have G watch R only.  
-so, you check other models, please let me know.
+I have only tested it on the LG G Watch and so far I had no problems with it. This is shiitakeo's table of tested devices:
 
-| model | result |
+| Model | Result |
 |:--    |:--     |
 |G Watch R| ◯ (12 hours long time test passed.)|
 |G Watch  | ◯ (12 hours long time test passed.)|
-|moto360|△ (can get notification, but connection is unstable. 4-5hours after connection is lost.please ambient mode turn on.(maybe moto360's BLE stack is something difflenet.)|
+|Moto 360|△ (Can get notification, but connection is unstable, connection is lost after 4-5 hours. Please turn on ambient mode. (maybe moto360's BLE stack is something different.)|
 |Gear Live|◯ (12 hours long time test passed.)|
 |SmartWatch3| ◯ (6 hours test passed.)|
 |ZenWatch| ◯ (12 hours long time test passed.)|
+
+Contact me with any information regarding other watches.
 
 Getting Started
 ---------------
 [tutorial video @ Youtube.](https://www.youtube.com/watch?v=cIYe6ExIjrQ)
 
-1. Install apk to your Android wear(playstore or github).
-2. Install "Light Blue" app to your iPhone.
-3. Create virtual peripheral from "Blink" template.  
-4. Launch the app on your Android wear.
-5. Turn on "Blink" peripheral on LightBlue app.
-6. If success connect to iphone, success animation is played.
-7. Push wear's crown to back home screen. **Don't swipe Activity.**  
+1. Install the app on your watch (PlayStore or GitHub).
+2. Install [LightBlue](https://itunes.apple.com/app/id557428110) on your iOS device.
+3. Create "New Virtual Peripheral" from "Blank" template.
+4. Launch the app on your watch.
+5. Turn on "Blank" peripheral on LightBlue app.
+6. If the connection is successful an animation should be displayed.
+7. Push your watch's crown to go to the home screen, if your watch doesn't have one cover its screen to go back. **Don't swipe the app to close it.**  .
 
-apk install
+App install
 ---------
-### 1. install from play store
-you can install from paly store.  
-need 4.4<= android handheld.
+This app is completely free.
 
-- [free version](https://play.google.com/store/apps/details?id=codegy.android_wear_for_ios)
-- [donation version](https://play.google.com/store/apps/details?id=codegy.android_wear_for_ios.donation)
+### 1. PlayStore
+Install the app from the PlayStore on your Android device and sync apps with your Android Wear watch.
 
-### 2. install github's apk with android handheld(adb over Bluetooth).
-get apk from [release page](https://github.com/shiitakeo/android_wear_for_ios/releases).  
-use mobile-release.apk.  
-install the apk using ADB over Bluetooth. need 4.4<= android handheld.
+- [iOS Wear Connect](https://play.google.com/store/apps/details?id=com.codegy.ioswearconnect)
 
-### 3.install github's apk without android handheld(usb adb).
-get apk from [release page](https://github.com/shiitakeo/android_wear_for_ios/releases).  
-use wearble-release.apk.  
-install the apk using ADB.
+### 2. Advanced
+You will need to enable [developer mode](https://developer.android.com/training/wearables/apps/bt-debugging.html#SetupDevices) on your watch.
+ - Clone or download this project and run it on your watch, use Android Studio to open the project.
+ - Install GitHub's APK using adb. You will find the APK on the [release page](https://github.com/GuiyeC/iOS-Wear-Connect/releases).
 
 ```sh
 $ adb install Wearable-release.apk
 ```
 
-If you want to use moto360, check [official article](https://developer.android.com/training/wearables/apps/bt-debugging.html) for ADB over Bluetooth.
+If you want to use Moto 360, check [official article](https://developer.android.com/training/wearables/apps/bt-debugging.html) for ADB over Bluetooth.
 
 Community Support
 -------
-[xda thread](http://forum.xda-developers.com/android-wear/development/android-wear-ios-connectivity-t3052524)  
-[my twitter account](https://twitter.com/shiitakeo)
+- [Twitter](https://twitter.com/GuiyeC)
+- [XDA thread](http://forum.xda-developers.com/android-wear/development/android-wear-ios-connectivity-t3052524)
