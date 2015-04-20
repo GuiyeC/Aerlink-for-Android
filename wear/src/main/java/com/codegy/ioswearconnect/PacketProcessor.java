@@ -12,7 +12,7 @@ import java.util.Arrays;
  */
 public class PacketProcessor {
 
-    private static enum PacketProcessingStatus {
+    private enum PacketProcessingStatus {
         init,
         app_id,
         title,
@@ -28,7 +28,9 @@ public class PacketProcessor {
     private ByteArrayOutputStream processingAttribute;
 
     private byte[] bytesFromPreviousPacket;
+    // The number of bytes left to process on the current packet
     private int bytesLeftToProcess;
+    // The number of bytes of the current attribute being processed that are in the next packet
     private int attributeBytesInNextPacket;
 
     private PacketProcessingStatus processingStatus;
@@ -70,7 +72,7 @@ public class PacketProcessor {
         return length.intValue();
     }
 
-    public byte[] concat(byte[] a, byte[] b) {
+    public static byte[] concat(byte[] a, byte[] b) {
         int aLen = a.length;
         int bLen = b.length;
         byte[] c = new byte[aLen+bLen];
@@ -109,7 +111,16 @@ public class PacketProcessor {
                 break;
             case message:
                 Log.d(TAG_LOG, "$$ finish message  reading.");
-                processingStatus = PacketProcessingStatus.positiveAction;
+                if (notificationData.hasPositiveAction()) {
+                    processingStatus = PacketProcessingStatus.positiveAction;
+                }
+                else if (notificationData.hasNegativeAction()) {
+                    processingStatus = PacketProcessingStatus.negativeAction;
+                }
+                else {
+                    processingStatus = PacketProcessingStatus.finish;
+                }
+
                 try {
                     notificationData.setMessage(new String(processingAttribute.toByteArray(), "UTF-8"));
                     processingAttribute.reset();
@@ -120,7 +131,14 @@ public class PacketProcessor {
                 break;
             case positiveAction:
                 Log.d(TAG_LOG, "$$ finish positiveAction  reading.");
-                processingStatus = PacketProcessingStatus.negativeAction;
+
+                if (notificationData.hasNegativeAction()) {
+                    processingStatus = PacketProcessingStatus.negativeAction;
+                }
+                else {
+                    processingStatus = PacketProcessingStatus.finish;
+                }
+
                 try {
                     notificationData.setPositiveAction(new String(processingAttribute.toByteArray(), "UTF-8"));
                     processingAttribute.reset();
@@ -179,9 +197,6 @@ public class PacketProcessor {
                     // There may be bytes of another attribute left in this packet
                     bytesLeftToProcess -= attributeBytesInNextPacket;
 
-                    // This attribute's bytes have been processed
-                    attributeBytesInNextPacket = 0;
-
                     if (bytesLeftToProcess > 0 && bytesLeftToProcess <= 2) {
                         // Not enough bytes to start processing next attribute
 
@@ -189,6 +204,9 @@ public class PacketProcessor {
                         bytesFromPreviousPacket = Arrays.copyOfRange(packet, attributeBytesInNextPacket, packet.length);
                         bytesLeftToProcess = 0;
                     }
+
+                    // This attribute's bytes have been processed
+                    attributeBytesInNextPacket = 0;
 
                     updateProcessingStatus();
                 }

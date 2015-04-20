@@ -104,7 +104,7 @@ public class BLEService extends Service {
     // AMS - Apple Media Service Profile
     private static final UUID UUID_AMS = UUID.fromString("89d3502b-0f36-433a-8ef4-c502ad55f8dc");
     private static final String CHARACTERISTIC_REMOTE_COMMAND =   "9b3c81d8-57b1-4a8a-b8df-0e56f7ca51c2";
-    private static final String CHARACTERISTIC_ENTITY_UPDATE =    "2f7cabce-808d-411f-9a0c-bb92ba96c102";
+    public static final String CHARACTERISTIC_ENTITY_UPDATE =    "2f7cabce-808d-411f-9a0c-bb92ba96c102";
     private static final String CHARACTERISTIC_ENTITY_ATTRIBUTE = "c6b2f38c-23ab-46d8-a6ab-a3a870bbd5d7";
 
     // Battery Service
@@ -124,6 +124,7 @@ public class BLEService extends Service {
     public static final int NOTIFICATION_REGULAR = 1000;
     public static final int NOTIFICATION_MEDIA = 1001;
     public static final int NOTIFICATION_BATTERY = 1002;
+    public static final int NOTIFICATION_HELP = 2000;
 
     private static final long SCREEN_TIME_OUT = 1000;
     private static final long VIBRATION_PATTERN[] = { 200, 100, 200, 100 };
@@ -186,10 +187,11 @@ public class BLEService extends Service {
 
         notificationManager = NotificationManagerCompat.from(getApplicationContext());
 
+        buildHelpNotification();
+
         if (API_LEVEL >= 21) {
             initMediaSessions();
         }
-
 
         // Initializes a Bluetooth adapter.  For API level 18 and above, get a reference to
         // BluetoothAdapter through BluetoothManager.
@@ -207,7 +209,6 @@ public class BLEService extends Service {
         return super.onStartCommand(intent, flags, startId);
     }
 
-    @TargetApi(21)
     private void startBLEScanner() {
         if (API_LEVEL >= 21) {
             Log.d(TAG_LOG, "start BLE scan @ lescan");
@@ -222,7 +223,6 @@ public class BLEService extends Service {
         }
     }
 
-    @TargetApi(21)
     private void stopBLEScanner() {
         if (API_LEVEL >= 21) {
             bluetoothLeScanner.stopScan(scanCallback);
@@ -233,13 +233,14 @@ public class BLEService extends Service {
     }
 
 
-    @TargetApi(21)
     @Override
     public void onDestroy() {
         Log.d(TAG_LOG, "~~~~~~~~ service onDestroy");
 
         try {
             stopBLEScanner();
+
+            notificationManager.cancelAll();
 
             connected = false;
 
@@ -313,7 +314,7 @@ public class BLEService extends Service {
     }
 
     private void sendCommand() {
-        if (!connected || writingCommand || pendingCommands.size() == 0) {
+        if (!connected || characteristicsSubscribed.size() < 5 || writingCommand || pendingCommands.size() == 0) {
             return;
         }
 
@@ -323,46 +324,35 @@ public class BLEService extends Service {
             BluetoothGattService service = bluetoothGatt.getService(command.getServiceUUID());
 
             if (service != null) {
-                Log.d(TAG_LOG, "find service @ BR");
                 BluetoothGattCharacteristic bluetoothGattCharacteristic = service.getCharacteristic(UUID.fromString(command.getCharacteristic()));
 
                 if (bluetoothGattCharacteristic != null) {
                     bluetoothGattCharacteristic.setValue(command.getPacket());
                     writingCommand = bluetoothGatt.writeCharacteristic(bluetoothGattCharacteristic);
-                    Log.d(TAG_LOG, "find chara @ BR " + writingCommand);
-                    if (!writingCommand) {
-                        if (command.getCharacteristic().equals(CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
-                            pendingCommands.remove(command);
-                        }
-                    }
-                }
-                else {
-                    Log.d(TAG_LOG, "cant find chara @ BR");
-                    if (pendingCommands.size() > 1) {
-                        pendingCommands.remove(command);
-                        pendingCommands.add(command);
-
-                        sendCommand();
-                    }
-                }
-            } else {
-                Log.d(TAG_LOG, "cant find service @ BR");
-                if (pendingCommands.size() > 1) {
-                    pendingCommands.remove(command);
-                    pendingCommands.add(command);
-
-                    sendCommand();
+                    Log.d(TAG_LOG, "Started writing command: " + writingCommand);
                 }
             }
         }
         catch (Exception e) {
             e.printStackTrace();
             writingCommand = false;
-            if (pendingCommands.size() > 1) {
-                pendingCommands.remove(command);
-                pendingCommands.add(command);
+        }
 
-                sendCommand();
+        if (!writingCommand) {
+            pendingCommands.remove(command);
+
+            if (command.shouldRetryAgain()) {
+                pendingCommands.add(command);
+            }
+
+            if (pendingCommands.size() > 0) {
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+
+                        sendCommand();
+                    }
+                }, 1000);
             }
         }
     }
@@ -392,7 +382,7 @@ public class BLEService extends Service {
                 .setSmallIcon(notificationData.getAppIcon())
                 .setGroup(notificationData.getAppId())
                 .setDeleteIntent(deleteAction)
-                .setPriority(Notification.PRIORITY_MAX)
+                .setPriority(Notification.PRIORITY_HIGH)
                 .extend(wearableExtender);
         
         // Build positive action intent only if available
@@ -469,7 +459,6 @@ public class BLEService extends Service {
         return createScanFilter();
     }
 
-    @TargetApi(21)
     private List<ScanFilter> createScanFilter() {
         ScanFilter filter = new ScanFilter.Builder().setServiceUuid(ParcelUuid.fromString(SERVICE_BLANK)).build();
         List<ScanFilter> list = new ArrayList<>(1);
@@ -480,16 +469,10 @@ public class BLEService extends Service {
 
     private void processCallBack(BluetoothDevice device) {
         if (!connected) {
-            Log.d(TAG_LOG, "is connect");
             if (device != null) {
-                Log.d(TAG_LOG, "device ");
-                if (!reconnect && device.getName() != null) {
-                    Log.d(TAG_LOG, "getname ");
-                    connected = true;
-                    bluetoothGatt = device.connectGatt(getApplicationContext(), false, bluetoothGattCallback);
-                }
-                else if (reconnect && skipCount > 5 && device.getName() != null) {
-                    Log.d(TAG_LOG, "reconnect:: ");
+                if ((!reconnect || skipCount > 5) && device.getName() != null) {
+                    Log.d(TAG_LOG, "Connecting...");
+                    skipCount = 0;
                     connected = true;
                     reconnect = false;
                     bluetoothGatt = device.connectGatt(getApplicationContext(), false, bluetoothGattCallback);
@@ -505,18 +488,11 @@ public class BLEService extends Service {
         }
     }
 
-    @TargetApi(21)
     private class BLEScanCallback extends ScanCallback {
         
         @Override
         public void onScanResult(int callbackType, android.bluetooth.le.ScanResult result) {
             Log.i(TAG_LOG, "Scan Result: " + result.toString());
-            if (result.getDevice() != null && result.getDevice().getUuids() != null) {
-                for (ParcelUuid uuid : result.getDevice().getUuids()) {
-                    Log.i(TAG_LOG, "UUID String: " + uuid.toString());
-                    Log.i(TAG_LOG, "UUID String: " + uuid.getUuid().toString());
-                }
-            }
             BluetoothDevice device = result.getDevice();
             processCallBack(device);
         }
@@ -586,6 +562,9 @@ public class BLEService extends Service {
                 batteryLevel = -1;
 
 
+                buildHelpNotification();
+
+
                 // Initializes a Bluetooth adapter.  For API level 18 and above, get a reference to
                 // BluetoothAdapter through BluetoothManager.
                 final BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
@@ -615,7 +594,6 @@ public class BLEService extends Service {
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             Log.d(TAG_LOG, "onServicesDiscovered received: " + status);
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                //subscribeToCharacteristics(gatt);
                 subscribeCharacteristic(gatt.getService(UUID_ANCS), CHARACTERISTIC_DATA_SOURCE);
             }
         }
@@ -644,12 +622,7 @@ public class BLEService extends Service {
                             stopBLEScanner();
                             requestMediaUpdates();
 
-                            //execute success animation
-                            Intent intent = new Intent(getApplicationContext(), ConfirmationActivity.class);
-                            intent.putExtra(ConfirmationActivity.EXTRA_ANIMATION_TYPE, ConfirmationActivity.SUCCESS_ANIMATION);
-                            intent.putExtra(ConfirmationActivity.EXTRA_MESSAGE, "success");
-                            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            startActivity(intent);
+                            buildHelpNotification();
 
                             break;
                     }
@@ -674,12 +647,6 @@ public class BLEService extends Service {
             Command lastCommand = pendingCommands.get(0);
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                /*
-                if (lastCommand.getCharacteristic().equals(CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
-                    gatt.readCharacteristic(characteristic);
-                }
-                */
-
                 // If battery is still unknown try to get its value
                 if (batteryLevel == -1) {
                     try {
@@ -691,9 +658,12 @@ public class BLEService extends Service {
 
                 pendingCommands.remove(0);
             }
-            else if (!lastCommand.getCharacteristic().equals(CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
+            else {
                 pendingCommands.remove(0);
-                pendingCommands.add(lastCommand);
+
+                if (lastCommand.shouldRetryAgain()) {
+                    pendingCommands.add(lastCommand);
+                }
             }
 
             sendCommand();
@@ -775,7 +745,7 @@ public class BLEService extends Service {
                                 getPacketProcessor().init(packet);
 
                                 // Request attributes for the new notification
-                                byte[] getAttributesPacket = {
+                                byte[] getAttributesPacket = new byte[] {
                                         (byte) CommandID.GetNotificationAttributes.ordinal(),
 
                                         // UID
@@ -795,13 +765,22 @@ public class BLEService extends Service {
                                         (byte) NotificationAttributeID.Message.ordinal(),
                                         (byte) 0xff,
                                         (byte) 0xff,
+                                };
 
-                                        // Positive Action Label - NotificationAttributeIDPositiveActionLabel
-                                        (byte) NotificationAttributeID.PositiveActionLabel.ordinal(),
+                                NotificationData notificationData = getPacketProcessor().getNotificationData();
 
+                                if (notificationData.hasPositiveAction()) {
+                                    getAttributesPacket = PacketProcessor.concat(getAttributesPacket, new byte[] {
+                                            // Positive Action Label - NotificationAttributeIDPositiveActionLabel
+                                            (byte) NotificationAttributeID.PositiveActionLabel.ordinal()
+                                    });
+                                }
+                                if (notificationData.hasNegativeAction()) {
+                                    getAttributesPacket = PacketProcessor.concat(getAttributesPacket, new byte[] {
                                         // Negative Action Label - NotificationAttributeIDNegativeActionLabel
                                         (byte) NotificationAttributeID.NegativeActionLabel.ordinal()
-                                };
+                                });
+                            }
 
                                 Command getAttributesCommand = new Command(UUID_ANCS, CHARACTERISTIC_CONTROL_POINT, getAttributesPacket);
                                 pendingCommands.add(getAttributesCommand);
@@ -915,7 +894,31 @@ public class BLEService extends Service {
         
     }
 
-    @TargetApi(21)
+    private void buildHelpNotification() {
+        Bitmap background = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+        background.eraseColor(0);
+
+        Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
+                .setBackground(background);
+
+        if (!connected) {
+            wearableExtender.addPage(new Notification.Builder(this)
+                    .setContentTitle(getString(R.string.help))
+                    .setContentText(getString(R.string.help_how_to))
+                    .build());
+        }
+
+        Notification.Builder builder = new Notification.Builder(this)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle(getString(connected ? R.string.help_title_connected : R.string.help_title_searching))
+                .setContentText(getString(connected ? R.string.help_subtitle_connected : R.string.help_subtitle_searching))
+                .setPriority(Notification.PRIORITY_MAX)
+                .setOngoing(!connected)
+                .extend(wearableExtender);
+
+        notificationManager.notify(NOTIFICATION_HELP, builder.build());
+    }
+
     private void buildBatteryNotification() {
         if (batteryLevel == -1) {
             return;
@@ -956,7 +959,6 @@ public class BLEService extends Service {
         notificationManager.notify(NOTIFICATION_BATTERY, builder.build());
     }
 
-    @TargetApi(21)
     private void buildMediaNotification() {
         mediaHidden = false;
 
@@ -987,7 +989,6 @@ public class BLEService extends Service {
         Log.d(TAG_LOG, "Read battery: " + result);
     }
 
-    @TargetApi(21)
     private void initMediaSessions() {
         mSession = new MediaSession(getApplicationContext(), "iOS_Wear_session");
         mSession.setActive(true);
@@ -1087,7 +1088,6 @@ public class BLEService extends Service {
         mSession.setPlaybackState(stateBuilder.build());
     }
 
-    @TargetApi(21)
     private long getAvailableActions() {
         long actions = PlaybackState.ACTION_PLAY_PAUSE
                 | PlaybackState.ACTION_SKIP_TO_PREVIOUS
@@ -1105,7 +1105,6 @@ public class BLEService extends Service {
         return actions;
     }
 
-    @TargetApi(21)
     private void processMediaPacket(byte[] packet, String attribute) {
         try {
             if (packet != null) {
@@ -1177,7 +1176,6 @@ public class BLEService extends Service {
         }
     }
 
-    @TargetApi(21)
     private void updateMetadata() {
         MediaMetadata.Builder metadataBuilder = new MediaMetadata.Builder();
 

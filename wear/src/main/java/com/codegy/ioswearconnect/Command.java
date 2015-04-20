@@ -10,6 +10,7 @@ public class Command {
     private UUID serviceUUID;
     private String characteristic;
     private byte[] packet;
+    private int retryCount = 0;
 
     public Command(UUID serviceUUID, String characteristic, byte[] packet) {
         this.serviceUUID = serviceUUID;
@@ -27,6 +28,16 @@ public class Command {
 
     public byte[] getPacket() {
         return packet;
+    }
+
+    public boolean shouldRetryAgain() {
+        if (retryCount >= 3) {
+            return false ;
+        }
+
+        retryCount++;
+
+        return true;
     }
 
 }

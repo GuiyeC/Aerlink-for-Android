@@ -17,4 +17,12 @@
     <string name="app_name">iOS Wear Connect</string>
     <string name="title_activity_phone">Phone call</string>
     <string name="battery_level">Battery level</string>
+
+    <string name="help_title_searching">Searching…</string>
+    <string name="help_subtitle_searching">Searching iOS device. Swipe for help.</string>
+    <string name="help">Help</string>
+    <string name="help_how_to">- Install and launch LightBlue on your iOS Device.\n- If you haven\'t already create a \"New Virtual Peripheral\" from the \"Blank\" template.\n- Turn on the \"Blank\" virtual peripheral.</string>
+
+    <string name="help_title_connected">Connected</string>
+    <string name="help_subtitle_connected">Connection successful.</string>
 </resources>
