@@ -44,7 +44,7 @@ Contact me with any information regarding other watches.
 
 Getting Started
 ---------------
-1. Install the app on your watch (PlayStore or GitHub).
+1. Install the app on your watch.
 2. Install [LightBlue](https://itunes.apple.com/app/id557428110) on your iOS device.
 3. Launch LightBlue and create a "New Virtual Peripheral" from the "Blank" template.
 4. Launch the app on your watch.
@@ -56,18 +56,24 @@ App install
 ---------
 This app is completely free.
 
-### 1. PlayStore
+### 1. PlayStore: REJECTED
+The app has been rejected and I'm waiting for a response to my appeal.
+
 Install the app from the PlayStore on your Android device and sync apps with your Android Wear watch.
 
-- [iOS Wear Connect](https://play.google.com/store/apps/details?id=com.codegy.ioswearconnect)
+- [iOS Wear Connect]()
 
-### 2. Advanced
+### 2. Install on Android handheld and sync with the watch
+Download the "mobile.apk" from the [release page](https://github.com/GuiyeC/iOS-Wear-Connect/releases) and open it on your handheld to install the app, connect the Android device to your watch to sync apps as you would any app downloaded from the PlayStore.
+
+### 3. Install directly on the watch
 You will need to enable [developer mode](https://developer.android.com/training/wearables/apps/bt-debugging.html#SetupDevices) on your watch.
+ - I haven't tried this option but this app could help installing the APK directly on the watch: [Android Wear APK Tools](http://forum.xda-developers.com/smartwatch/other-smartwatches/tool-android-wear-apk-tools-sideload-t2929177)
  - Clone or download this project and run it on your watch, use Android Studio to open the project.
  - Install GitHub's APK using adb. You will find the APK on the [release page](https://github.com/GuiyeC/iOS-Wear-Connect/releases).
 
 ```sh
-$ adb install wear-release.apk
+$ adb install wear.apk
 ```
 
 If you want to use Moto 360, check [official article](https://developer.android.com/training/wearables/apps/bt-debugging.html) for ADB over Bluetooth.
