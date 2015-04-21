@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">iOS Wear Connect</string>
+
+    <string name="title">Open on your watch</string>
+    <string name="description">Switch ON the \"iOS Service\" from your watch. A card with help will appear on your watch's home screen.</string>
+    <string name="moto_360_help">If you use a Moto 360 turn on ambient mode.</string>
 </resources>

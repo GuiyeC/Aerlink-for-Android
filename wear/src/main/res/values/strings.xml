@@ -17,6 +17,7 @@
     <string name="app_name">iOS Wear Connect</string>
     <string name="title_activity_phone">Phone call</string>
     <string name="battery_level">Battery level</string>
+    <string name="ios_service">iOS Service</string>
 
     <string name="help_title_searching">Searching…</string>
     <string name="help_subtitle_searching">Searching iOS device. Swipe for help.</string>

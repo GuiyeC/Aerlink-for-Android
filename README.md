@@ -18,7 +18,7 @@ Change log
  - Get battery updates.
  - When "Not Disturb" is enabled on the iOS Device the screen on the watch doesn't light up and the vibration is more subtle.
  - Support for messaging apps, Telegram and WhatsApp. This will show the sender's name instead of the apps name as the title of the notification.
- - All notifications backgrounds are black, I set it up to had a different color matching the app of the notification but I ended going with a more "Apple Watchy" style.
+ - Every notification background is black, it's possible to have a different color matching the app of the notification but I ended going with a more "Apple Watchy" style.
 
 
 ### Possible updates
@@ -48,7 +48,7 @@ Getting Started
 2. Install [LightBlue](https://itunes.apple.com/app/id557428110) on your iOS device.
 3. Launch LightBlue and create a "New Virtual Peripheral" from the "Blank" template.
 4. Launch the app on your watch.
-5. Switch the discovery mode ON.
+5. Switch ON the iOS Service.
 6. Turn on "Blank" peripheral on LightBlue app.
 7. The watch should connect to the iOS device.
 

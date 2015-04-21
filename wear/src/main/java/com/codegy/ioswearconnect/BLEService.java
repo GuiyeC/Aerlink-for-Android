@@ -23,6 +23,7 @@ import android.support.v4.media.session.MediaSessionCompat;
 import android.support.wearable.activity.ConfirmationActivity;
 import android.util.Log;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -346,13 +347,27 @@ public class BLEService extends Service {
             }
 
             if (pendingCommands.size() > 0) {
-                new Handler().postDelayed(new Runnable() {
-                    @Override
+                Log.d(TAG_LOG, "Will try again");
+                Thread thread = new Thread() {
                     public void run() {
+                        Looper.prepare();
 
-                        sendCommand();
+                        final Handler handler = new Handler();
+                        handler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                Log.d(TAG_LOG, "Trying to send command again");
+                                sendCommand();
+
+                                handler.removeCallbacks(this);
+                                Looper.myLooper().quit();
+                            }
+                        }, 500);
+
+                        Looper.loop();
                     }
-                }, 1000);
+                };
+                thread.start();
             }
         }
     }
@@ -520,6 +535,7 @@ public class BLEService extends Service {
 
     };
 
+
     private final BluetoothGattCallback bluetoothGattCallback = new BluetoothGattCallback() {
         
         @Override
@@ -528,6 +544,7 @@ public class BLEService extends Service {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 // success, connect to gatt.
                 // find service
+
                 gatt.discoverServices();
             }
             else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
@@ -580,13 +597,6 @@ public class BLEService extends Service {
 
                 Log.d(TAG_LOG, "start BLE scan");
                 startBLEScanner();
-
-                //execute success animation
-                Intent intent = new Intent(getApplicationContext(), ConfirmationActivity.class);
-                intent.putExtra(ConfirmationActivity.EXTRA_ANIMATION_TYPE, ConfirmationActivity.FAILURE_ANIMATION);
-                intent.putExtra(ConfirmationActivity.EXTRA_MESSAGE, "airplane mode on -> off, after restart app.");
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(intent);
             }
         }
 
@@ -629,12 +639,20 @@ public class BLEService extends Service {
             }
             else if (status == BluetoothGatt.GATT_WRITE_NOT_PERMITTED) {
                 Log.d(TAG_LOG, "status: write not permitted");
-                //execute not permission animation
-                Intent intent = new Intent(getApplicationContext(), ConfirmationActivity.class);
-                intent.putExtra(ConfirmationActivity.EXTRA_ANIMATION_TYPE, ConfirmationActivity.FAILURE_ANIMATION);
-                intent.putExtra(ConfirmationActivity.EXTRA_MESSAGE, "please re-authorization paring");
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(intent);
+
+                unpairDevice(gatt.getDevice());
+                gatt.disconnect();
+            }
+        }
+
+
+        private void unpairDevice(BluetoothDevice device) {
+            Log.d(TAG_LOG, "Unpairing...");
+            try {
+                Method m = device.getClass().getMethod("removeBond", (Class[]) null);
+                m.invoke(device, (Object[]) null);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
 
@@ -657,8 +675,7 @@ public class BLEService extends Service {
                 }
 
                 pendingCommands.remove(0);
-            }
-            else {
+            } else {
                 pendingCommands.remove(0);
 
                 if (lastCommand.shouldRetryAgain()) {
