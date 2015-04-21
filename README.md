@@ -18,8 +18,10 @@ Change log
  - Get battery updates.
  - When "Not Disturb" is enabled on the iOS Device the screen on the watch doesn't light up and the vibration is more subtle.
  - Support for messaging apps, Telegram and WhatsApp. This will show the sender's name instead of the apps name as the title of the notification.
- - Every notification background is black, it's possible to have a different color matching the app of the notification but I ended going with a more "Apple Watchy" style.
+ - Every notification background is black, it's possible to have a different color matching the app of the notification but I ended up going with a more "Apple Watchy" style.
 
+![Incoming call](https://cloud.githubusercontent.com/assets/289797/7249800/5529e7ee-e81d-11e4-9fe2-ec09d0bab814.png)
+![Notification](https://cloud.githubusercontent.com/assets/289797/7250594/18b280ee-e824-11e4-9d46-81733a81ed36.png)
 
 ### Possible updates
 ```
