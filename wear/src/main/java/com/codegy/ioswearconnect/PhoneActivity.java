@@ -99,7 +99,7 @@ public class PhoneActivity extends Activity {
 
     public void answer(View v) {
         if (callUID != null) {
-            Intent positiveIntent = new Intent(BLEService.INTENT_ACTION_POSITIVE);
+            Intent positiveIntent = new Intent(Constants.IA_POSITIVE);
             positiveIntent.putExtra(BLEService.INTENT_EXTRA_UID, callUID);
 
             sendBroadcast(positiveIntent);
@@ -110,7 +110,7 @@ public class PhoneActivity extends Activity {
 
     public void hangUp(View v) {
         if (callUID != null) {
-            Intent negativeIntent = new Intent(BLEService.INTENT_ACTION_NEGATIVE);
+            Intent negativeIntent = new Intent(Constants.IA_NEGATIVE);
             negativeIntent.putExtra(BLEService.INTENT_EXTRA_UID, callUID);
 
             sendBroadcast(negativeIntent);

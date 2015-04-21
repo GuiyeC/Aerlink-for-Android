@@ -18,6 +18,9 @@
     <string name="title_activity_phone">Phone call</string>
     <string name="battery_level">Battery level</string>
     <string name="ios_service">iOS Service</string>
+    <string name="color_backgrounds">Color backgrounds</string>
+    <string name="battery_updates">Battery updates</string>
+    <string name="moto_360_fix">Moto 360 Fix?</string>
 
     <string name="help_title_searching">Searching…</string>
     <string name="help_subtitle_searching">Searching iOS device. Swipe for help.</string>

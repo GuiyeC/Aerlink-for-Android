@@ -16,6 +16,8 @@
 <resources>
     <string name="battery_level">Batería</string>
     <string name="ios_service">Servicio iOS</string>
+    <string name="color_backgrounds">Fondos con color</string>
+    <string name="battery_updates">Info de batería</string>
 
     <string name="help_title_searching">Buscando…</string>
     <string name="help_subtitle_searching">Buscando dispositvo iOS. Desliza para obtener ayuda.</string>

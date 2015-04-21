@@ -6,17 +6,14 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.bluetooth.*;
 import android.bluetooth.le.*;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.content.*;
+import android.graphics.*;
 import android.media.MediaMetadata;
 import android.media.VolumeProvider;
 import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
 import android.os.*;
+import android.preference.PreferenceManager;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
@@ -112,15 +109,9 @@ public class BLEService extends Service {
     private static final UUID UUID_BAS = UUID.fromString("0000180F-0000-1000-8000-00805f9b34fb");
     private static final String CHARACTERISTIC_BATTERY_LEVEL = "00002a19-0000-1000-8000-00805f9b34fb";
 
-
     private static final String DESCRIPTOR_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
     private static final String SERVICE_BLANK = "00001111-0000-1000-8000-00805f9b34fb";
 
-    // intent action
-    public static final String INTENT_ACTION_POSITIVE = "com.codegy.INTENT_ACTION_POSITIVE";
-    public static final String INTENT_ACTION_NEGATIVE = "com.codegy.INTENT_ACTION_NEGATIVE";
-    public static final String INTENT_ACTION_DELETE = "com.codegy.INTENT_ACTION_DELETE";
-    public static final String INTENT_ACTION_HIDE_MEDIA = "com.codegy.INTENT_ACTION_HIDE_MEDIA";
 
     public static final int NOTIFICATION_REGULAR = 1000;
     public static final int NOTIFICATION_MEDIA = 1001;
@@ -168,6 +159,9 @@ public class BLEService extends Service {
     private String mediaArtist;
 
     private int batteryLevel;
+    private boolean batteryUpdates;
+    private boolean colorBackgrounds;
+    private boolean moto360Fix;
 
 
     @Override
@@ -179,11 +173,19 @@ public class BLEService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d("Service", "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(BLEService.this);
+        batteryUpdates = sp.getBoolean(Constants.SPK_BATTERY_UPDATES, true);
+        colorBackgrounds = sp.getBoolean(Constants.SPK_COLOR_BACKGROUNDS, false);
+        moto360Fix = sp.getBoolean(Constants.SPK_MOTO_360_FIX, false);
+
+
         IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(INTENT_ACTION_POSITIVE);
-        intentFilter.addAction(INTENT_ACTION_NEGATIVE);
-        intentFilter.addAction(INTENT_ACTION_DELETE);
-        intentFilter.addAction(INTENT_ACTION_HIDE_MEDIA);
+        intentFilter.addAction(Constants.IA_POSITIVE);
+        intentFilter.addAction(Constants.IA_NEGATIVE);
+        intentFilter.addAction(Constants.IA_DELETE);
+        intentFilter.addAction(Constants.IA_HIDE_MEDIA);
+        intentFilter.addAction(Constants.IA_BATTERY_UPDATES_CHANGED);
+        intentFilter.addAction(Constants.IA_COLOR_BACKGROUNDS_CHANGED);
         registerReceiver(messageReceiver, intentFilter);
 
         notificationManager = NotificationManagerCompat.from(getApplicationContext());
@@ -208,6 +210,46 @@ public class BLEService extends Service {
         startBLEScanner();
 
         return super.onStartCommand(intent, flags, startId);
+    }
+
+    private void moto360Fix(final long delay) {
+        if (!connected) {
+            // Nothing we can do
+            return;
+        }
+
+        Thread thread = new Thread() {
+            public void run() {
+                Looper.prepare();
+
+                final Handler handler = new Handler();
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        boolean success = false;
+
+                        try {
+                            success = bluetoothGatt.readCharacteristic(bluetoothGatt.getService(UUID_BAS).getCharacteristic(UUID.fromString(CHARACTERISTIC_BATTERY_LEVEL)));
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+
+                        if (success) {
+                            moto360Fix(250000);
+                        }
+                        else {
+                            moto360Fix(2000);
+                        }
+
+                        handler.removeCallbacks(this);
+                        Looper.myLooper().quit();
+                    }
+                }, delay);
+
+                Looper.loop();
+            }
+        };
+        thread.start();
     }
 
     private void startBLEScanner() {
@@ -379,12 +421,17 @@ public class BLEService extends Service {
         }
         else {
             background = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
-            background.eraseColor(notificationData.getBackgroundColor());
+            if (colorBackgrounds) {
+                background.eraseColor(notificationData.getBackgroundColor());
+            }
+            else {
+                background.eraseColor(0);
+            }
         }
 
         
         // Build pending intent for when the user swipes the card away
-        Intent deleteIntent = new Intent(INTENT_ACTION_DELETE);
+        Intent deleteIntent = new Intent(Constants.IA_DELETE);
         deleteIntent.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
         PendingIntent deleteAction = PendingIntent.getBroadcast(getApplicationContext(), notificationId, deleteIntent, PendingIntent.FLAG_ONE_SHOT);
 
@@ -402,7 +449,7 @@ public class BLEService extends Service {
         
         // Build positive action intent only if available
         if (notificationData.getPositiveAction() != null) {
-            Intent positiveIntent = new Intent(INTENT_ACTION_POSITIVE);
+            Intent positiveIntent = new Intent(Constants.IA_POSITIVE);
             positiveIntent.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
             PendingIntent positiveAction = PendingIntent.getBroadcast(getApplicationContext(), notificationId, positiveIntent, PendingIntent.FLAG_ONE_SHOT);
 
@@ -410,7 +457,7 @@ public class BLEService extends Service {
         }
         // Build negative action intent only if available
         if (notificationData.getNegativeAction() != null) {
-            Intent negativeIntent = new Intent(INTENT_ACTION_NEGATIVE);
+            Intent negativeIntent = new Intent(Constants.IA_NEGATIVE);
             negativeIntent.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
             PendingIntent negativeAction = PendingIntent.getBroadcast(getApplicationContext(), notificationId, negativeIntent, PendingIntent.FLAG_ONE_SHOT);
 
@@ -546,6 +593,10 @@ public class BLEService extends Service {
                 // find service
 
                 gatt.discoverServices();
+
+                if (moto360Fix) {
+                    moto360Fix(250000);
+                }
             }
             else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.d(TAG_LOG, "onDisconnect: ");
@@ -666,7 +717,7 @@ public class BLEService extends Service {
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 // If battery is still unknown try to get its value
-                if (batteryLevel == -1) {
+                if (batteryUpdates && batteryLevel == -1) {
                     try {
                         gatt.readCharacteristic(gatt.getService(UUID_BAS).getCharacteristic(UUID.fromString(CHARACTERISTIC_BATTERY_LEVEL)));
                     } catch (Exception e) {
@@ -864,18 +915,18 @@ public class BLEService extends Service {
 
             // perform notification action: immediately
             // delete intent: after 7~8sec.
-            if (action.equals(INTENT_ACTION_POSITIVE) | action.equals(INTENT_ACTION_NEGATIVE) | action.equals(INTENT_ACTION_DELETE)) {
+            if (action.equals(Constants.IA_POSITIVE) | action.equals(Constants.IA_NEGATIVE) | action.equals(Constants.IA_DELETE)) {
                 try {
                     byte[] UID = intent.getByteArrayExtra(INTENT_EXTRA_UID);
                     String notificationId = new String(UID);
 
-                    if (!action.equals(INTENT_ACTION_DELETE)) {
+                    if (!action.equals(Constants.IA_DELETE)) {
                         // Dismiss notification
                         notificationManager.cancel(notificationId, NOTIFICATION_REGULAR);
                     }
                     
                     byte actionId = (byte) ActionID.Positive.ordinal();
-                    if (action.equals(INTENT_ACTION_NEGATIVE) | action.equals(INTENT_ACTION_DELETE)) {
+                    if (action.equals(Constants.IA_NEGATIVE) | action.equals(Constants.IA_DELETE)) {
                         actionId = (byte) ActionID.Negative.ordinal();
                     }
                     
@@ -900,10 +951,29 @@ public class BLEService extends Service {
                     e.printStackTrace();
                 }
             }
-            else if (action.equals(INTENT_ACTION_HIDE_MEDIA)) {
+            else if (action.equals(Constants.IA_HIDE_MEDIA)) {
                 mediaHidden = true;
 
                 if (mediaPlaying) {
+                    buildMediaNotification();
+                }
+            }
+            else if (action.equals(Constants.IA_BATTERY_UPDATES_CHANGED)) {
+                SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(BLEService.this);
+                batteryUpdates = sp.getBoolean(Constants.SPK_BATTERY_UPDATES, true);
+
+                if (batteryUpdates) {
+                    buildBatteryNotification();
+                }
+                else {
+                    notificationManager.cancel(NOTIFICATION_BATTERY);
+                }
+            }
+            else if (action.equals(Constants.IA_COLOR_BACKGROUNDS_CHANGED)) {
+                SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(BLEService.this);
+                colorBackgrounds = sp.getBoolean(Constants.SPK_COLOR_BACKGROUNDS, false);
+
+                if (!mediaHidden) {
                     buildMediaNotification();
                 }
             }
@@ -937,7 +1007,7 @@ public class BLEService extends Service {
     }
 
     private void buildBatteryNotification() {
-        if (batteryLevel == -1) {
+        if (!batteryUpdates || batteryLevel == -1) {
             return;
         }
 
@@ -980,10 +1050,10 @@ public class BLEService extends Service {
         mediaHidden = false;
 
         Bitmap background = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
-        background.eraseColor(0);
+        background.eraseColor(Color.rgb(230, 16, 71));
 
         // Build pending intent for when the user swipes the card away
-        Intent deleteIntent = new Intent(INTENT_ACTION_HIDE_MEDIA);
+        Intent deleteIntent = new Intent(Constants.IA_HIDE_MEDIA);
         PendingIntent deleteAction = PendingIntent.getBroadcast(getApplicationContext(), 0, deleteIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
         Notification.MediaStyle style = new Notification.MediaStyle()

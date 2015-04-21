@@ -11,6 +11,12 @@ This project was inspired by [@MohammadAG](https://twitter.com/MohammadAG) and b
 
 Change log
 --------------
++ v1.1
+ - Option to turn on Color backgrounds.
+ - Option to turn off battery updates.
+ - Added Snapchat icon.
+ - Experimental fix for Moto 360
+
 + v1.0
  - Manage notifications, notifications should always be on sync with the iOS device's. You can also swipe block of notifications, delete single notifications and ANCS positive and negative actions are supported.
  - Answer or hang up calls straight from the watch, I could not get the official "incoming call screen" on the watch to work so I created one inspired by the Apple Watch.
