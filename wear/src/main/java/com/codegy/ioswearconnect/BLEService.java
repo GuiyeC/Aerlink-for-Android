@@ -1196,11 +1196,15 @@ public class BLEService extends Service {
     private void updateMetadata() {
         MediaMetadata.Builder metadataBuilder = new MediaMetadata.Builder();
 
-        // And at minimum the title and artist for legacy support
-        metadataBuilder.putString(MediaMetadata.METADATA_KEY_TITLE,
-                mediaTitle);
-        metadataBuilder.putString(MediaMetadata.METADATA_KEY_ARTIST,
-                mediaArtist);
+        if (mediaTitle == null && mediaArtist == null) {
+            metadataBuilder.putString(MediaMetadata.METADATA_KEY_ARTIST, "No info");
+        }
+        else {
+            // And at minimum the title and artist for legacy support
+            metadataBuilder.putString(MediaMetadata.METADATA_KEY_TITLE, mediaTitle);
+            metadataBuilder.putString(MediaMetadata.METADATA_KEY_ARTIST, mediaArtist);
+        }
+
         // Add any other fields you have for your data as well
         mSession.setMetadata(metadataBuilder.build());
 
