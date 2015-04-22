@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.wearable.view.WatchViewStub;
@@ -99,6 +100,8 @@ public class MainActivity extends Activity {
                     });
                 }
 
+                TextView modelTextView = (TextView) stub.findViewById(R.id.modelTextView);
+                modelTextView.setText(Build.MODEL);
             }
         });
     }

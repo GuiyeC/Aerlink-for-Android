@@ -30,6 +30,10 @@ public class Command {
         return packet;
     }
 
+    public int getRetryCount() {
+        return retryCount;
+    }
+
     public boolean shouldRetryAgain() {
         if (retryCount >= 3) {
             return false ;

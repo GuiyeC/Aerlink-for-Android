@@ -20,6 +20,7 @@ import android.support.v4.media.session.MediaSessionCompat;
 import android.support.wearable.activity.ConfirmationActivity;
 import android.util.Log;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -109,6 +110,10 @@ public class BLEService extends Service {
     private static final UUID UUID_BAS = UUID.fromString("0000180F-0000-1000-8000-00805f9b34fb");
     private static final String CHARACTERISTIC_BATTERY_LEVEL = "00002a19-0000-1000-8000-00805f9b34fb";
 
+    // Current Time Service
+    private static final UUID UUID_CTS = UUID.fromString("00001805-0000-1000-8000-00805f9b34fb");
+    private static final String CHARACTERISTIC_CURRENT_TIME = "00002a2b-0000-1000-8000-00805f9b34fb";
+
     private static final String DESCRIPTOR_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
     private static final String SERVICE_BLANK = "00001111-0000-1000-8000-00805f9b34fb";
 
@@ -125,8 +130,6 @@ public class BLEService extends Service {
     private static final String TAG_LOG = "BLE_wear";
     public static final String INTENT_EXTRA_UID = "INTENT_EXTRA_UID";
 
-    private static final int API_LEVEL = Build.VERSION.SDK_INT;
-
 
 
     private NotificationManagerCompat notificationManager;
@@ -139,6 +142,7 @@ public class BLEService extends Service {
     
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothGatt bluetoothGatt;
+    private String deviceAddress;
     private static boolean connected = false;
     private boolean reconnect = false;
     private int skipCount = 0;
@@ -192,9 +196,7 @@ public class BLEService extends Service {
 
         buildHelpNotification();
 
-        if (API_LEVEL >= 21) {
-            initMediaSessions();
-        }
+        initMediaSessions();
 
         // Initializes a Bluetooth adapter.  For API level 18 and above, get a reference to
         // BluetoothAdapter through BluetoothManager.
@@ -212,103 +214,18 @@ public class BLEService extends Service {
         return super.onStartCommand(intent, flags, startId);
     }
 
-    private void moto360Fix(final long delay) {
-        if (!connected) {
-            // Nothing we can do
-            return;
-        }
-
-        Thread thread = new Thread() {
-            public void run() {
-                Looper.prepare();
-
-                final Handler handler = new Handler();
-                handler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        boolean success = false;
-
-                        try {
-                            success = bluetoothGatt.readCharacteristic(bluetoothGatt.getService(UUID_BAS).getCharacteristic(UUID.fromString(CHARACTERISTIC_BATTERY_LEVEL)));
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-
-                        if (success) {
-                            moto360Fix(250000);
-                        }
-                        else {
-                            moto360Fix(2000);
-                        }
-
-                        handler.removeCallbacks(this);
-                        Looper.myLooper().quit();
-                    }
-                }, delay);
-
-                Looper.loop();
-            }
-        };
-        thread.start();
-    }
-
-    private void startBLEScanner() {
-        if (API_LEVEL >= 21) {
-            Log.d(TAG_LOG, "start BLE scan @ lescan");
-
-            bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
-            ScanSettings settings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED).build();
-            bluetoothLeScanner.startScan(scanFilters(), settings, scanCallback);
-        }
-        else {
-            Log.d(TAG_LOG, "start BLE scan @ BluetoothAdapter");
-            bluetoothAdapter.startLeScan(le_scanCallback);
-        }
-    }
-
-    private void stopBLEScanner() {
-        if (API_LEVEL >= 21) {
-            bluetoothLeScanner.stopScan(scanCallback);
-        }
-        else {
-            bluetoothAdapter.stopLeScan(le_scanCallback);
-        }
-    }
-
-
     @Override
     public void onDestroy() {
         Log.d(TAG_LOG, "~~~~~~~~ service onDestroy");
 
         try {
-            stopBLEScanner();
-
-            notificationManager.cancelAll();
-
-            connected = false;
-
-            writingCommand = false;
-            pendingCommands = null;
-            characteristicsSubscribed = null;
-            mediaPlaying = false;
-            mediaHidden = true;
-            mediaArtist = null;
-            mediaTitle = null;
-            batteryLevel = -1;
-
             unregisterReceiver(messageReceiver);
 
             if (mSession != null) {
                 mSession.release();
             }
 
-            if (null != bluetoothGatt) {
-                bluetoothGatt.disconnect();
-                bluetoothGatt.close();
-                bluetoothGatt = null;
-            }
-
-            bluetoothAdapter = null;
+            reset();
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -347,6 +264,98 @@ public class BLEService extends Service {
         }
 
         return packetProcessor;
+    }
+
+
+    private void reset() {
+        notificationManager.cancelAll();
+
+        try {
+            if (bluetoothLeScanner != null) {
+                Log.d(TAG_LOG, "status: ble reset");
+                stopBLEScanner();
+            }
+
+            if (bluetoothGatt != null) {
+                bluetoothGatt.disconnect();
+                bluetoothGatt.close();
+                bluetoothGatt = null;
+            }
+            if (bluetoothAdapter != null) {
+                bluetoothAdapter = null;
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        connected = false;
+        reconnect = false;
+        skipCount = 0;
+
+        writingCommand = false;
+        pendingCommands.clear();
+        characteristicsSubscribed.clear();
+
+        mediaPlaying = false;
+        mediaHidden = true;
+        mediaArtist = null;
+        mediaTitle = null;
+
+        batteryLevel = -1;
+    }
+
+    private void moto360Fix() {
+        if (!connected) {
+            // Nothing we can do
+            return;
+        }
+
+
+        Thread thread = new Thread() {
+            public void run() {
+                Looper.prepare();
+
+                final Handler handler = new Handler();
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        Log.d(TAG_LOG, "Trying to keep connection alive");
+
+                        bluetoothGatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
+
+                        // This command should have a response from the iOS device
+                        Command attributeCommand = new Command(UUID_AMS, CHARACTERISTIC_ENTITY_ATTRIBUTE, new byte[] {
+                                (byte) EntityID.Track.ordinal(),
+                                (byte) TrackAttributeID.Title.ordinal()
+                        });
+                        pendingCommands.add(attributeCommand);
+
+                        sendCommand();
+
+                        moto360Fix();
+
+                        handler.removeCallbacks(this);
+                        Looper.myLooper().quit();
+                    }
+                }, 250000);
+
+                Looper.loop();
+            }
+        };
+        thread.start();
+    }
+
+    private void startBLEScanner() {
+        Log.d(TAG_LOG, "start BLE scan @ lescan");
+        bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
+        ScanSettings settings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED).build();
+        bluetoothLeScanner.startScan(scanFilters(), settings, scanCallback);
+    }
+
+    private void stopBLEScanner() {
+        bluetoothLeScanner.stopScan(scanCallback);
+        bluetoothLeScanner = null;
     }
 
     private void wakeScreen() {
@@ -517,11 +526,6 @@ public class BLEService extends Service {
     }
 
     private List<ScanFilter> scanFilters() {
-        // can't find ancs service
-        return createScanFilter();
-    }
-
-    private List<ScanFilter> createScanFilter() {
         ScanFilter filter = new ScanFilter.Builder().setServiceUuid(ParcelUuid.fromString(SERVICE_BLANK)).build();
         List<ScanFilter> list = new ArrayList<>(1);
         list.add(filter);
@@ -533,10 +537,12 @@ public class BLEService extends Service {
         if (!connected) {
             if (device != null) {
                 if ((!reconnect || skipCount > 5) && device.getName() != null) {
-                    Log.d(TAG_LOG, "Connecting...");
+                    stopBLEScanner();
+
+                    Log.d(TAG_LOG, "Connecting...: " + device.getName());
                     skipCount = 0;
                     connected = true;
-                    reconnect = false;
+                    deviceAddress = device.getAddress();
                     bluetoothGatt = device.connectGatt(getApplicationContext(), false, bluetoothGattCallback);
                 }
                 else {
@@ -572,16 +578,6 @@ public class BLEService extends Service {
         
     }
 
-    private BluetoothAdapter.LeScanCallback le_scanCallback = new BluetoothAdapter.LeScanCallback() {
-        
-        @Override
-        public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
-            Log.i(TAG_LOG, "onLeScan");
-            processCallBack(device);
-        }
-
-    };
-
 
     private final BluetoothGattCallback bluetoothGattCallback = new BluetoothGattCallback() {
         
@@ -591,47 +587,23 @@ public class BLEService extends Service {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 // success, connect to gatt.
                 // find service
+                connected = true;
 
                 gatt.discoverServices();
 
                 if (moto360Fix) {
-                    moto360Fix(250000);
+                    moto360Fix();
                 }
             }
             else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.d(TAG_LOG, "onDisconnect: ");
 
-                notificationManager.cancelAll();
-
-                if (API_LEVEL >= 21 && bluetoothLeScanner != null) {
-                    Log.d(TAG_LOG, "status: ble reset");
-                    stopBLEScanner();
-                }
-
-                if (bluetoothGatt != null) {
-                    bluetoothGatt.disconnect();
-                    bluetoothGatt.close();
-                    bluetoothGatt = null;
-                }
-                if (bluetoothAdapter != null) {
-                    bluetoothAdapter = null;
-                }
-
-                connected = false;
-
-                writingCommand = false;
-                pendingCommands.clear();
-                characteristicsSubscribed.clear();
-                skipCount = 0;
-                mediaPlaying = false;
-                mediaHidden = true;
-                mediaArtist = null;
-                mediaTitle = null;
-                batteryLevel = -1;
-
+                reset();
 
                 buildHelpNotification();
 
+
+                reconnect = true;
 
                 // Initializes a Bluetooth adapter.  For API level 18 and above, get a reference to
                 // BluetoothAdapter through BluetoothManager.
@@ -643,8 +615,6 @@ public class BLEService extends Service {
                     Log.d(TAG_LOG, "ble adapter is null");
                     return;
                 }
-
-                reconnect = true;
 
                 Log.d(TAG_LOG, "start BLE scan");
                 startBLEScanner();
@@ -663,7 +633,7 @@ public class BLEService extends Service {
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
             Log.d(TAG_LOG, " onDescriptorWrite:: " + status);
             // Notification source
-            if (status == BluetoothGatt.GATT_SUCCESS){
+            if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.d(TAG_LOG, "status: write success: " + descriptor.getCharacteristic().getUuid().toString());
                 characteristicsSubscribed.add(descriptor.getCharacteristic().getUuid().toString());
                     switch (descriptor.getCharacteristic().getUuid().toString()) {
@@ -680,7 +650,9 @@ public class BLEService extends Service {
                             subscribeCharacteristic(gatt.getService(UUID_BAS), CHARACTERISTIC_BATTERY_LEVEL);
                             break;
                         case CHARACTERISTIC_BATTERY_LEVEL:
-                            stopBLEScanner();
+                            subscribeCharacteristic(gatt.getService(UUID_CTS), CHARACTERISTIC_CURRENT_TIME);
+                            break;
+                        case CHARACTERISTIC_CURRENT_TIME:
                             requestMediaUpdates();
 
                             buildHelpNotification();
@@ -695,7 +667,6 @@ public class BLEService extends Service {
                 gatt.disconnect();
             }
         }
-
 
         private void unpairDevice(BluetoothDevice device) {
             Log.d(TAG_LOG, "Unpairing...");
@@ -725,8 +696,17 @@ public class BLEService extends Service {
                     }
                 }
 
+                if (moto360Fix && characteristic.getUuid().toString().equals(CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
+                    try {
+                        gatt.readCharacteristic(gatt.getService(UUID_AMS).getCharacteristic(UUID.fromString(CHARACTERISTIC_ENTITY_ATTRIBUTE)));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+
                 pendingCommands.remove(0);
-            } else {
+            }
+            else {
                 pendingCommands.remove(0);
 
                 if (lastCommand.shouldRetryAgain()) {
@@ -765,6 +745,10 @@ public class BLEService extends Service {
                     Log.d(TAG_LOG, "BAS    CHARACTERISTIC_BATTERY_LEVEL:: " + batteryLevel);
                     buildBatteryNotification();
                 }
+                else if (characteristic.getUuid().toString().equals(CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
+                    String mediaTitle = characteristic.getStringValue(0);
+                    Log.d(TAG_LOG, "AMS    Title:: " + mediaTitle);
+                }
             }
         }
 
@@ -776,6 +760,10 @@ public class BLEService extends Service {
             byte[] packet = characteristic.getValue();
 
             switch (characteristic.getUuid().toString().toLowerCase()) {
+                case CHARACTERISTIC_CURRENT_TIME:
+                    Log.d(TAG_LOG, "CTS    CHARACTERISTIC_CURRENT_TIME:: " + characteristic.getStringValue(0));
+
+                    break;
                 case CHARACTERISTIC_BATTERY_LEVEL:
                     batteryLevel = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0);
                     Log.d(TAG_LOG, "BAS    CHARACTERISTIC_BATTERY_LEVEL:: " + batteryLevel);
@@ -880,32 +868,32 @@ public class BLEService extends Service {
             }
         }
 
-        private void subscribeCharacteristic(BluetoothGattService service, String uuidString) {
-            if (service == null || uuidString == null || characteristicsSubscribed.contains(uuidString)) {
-                return;
-            }
+    };
 
-            try {
-                BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID.fromString(uuidString));
-
-                if (characteristic != null) {
-                    bluetoothGatt.setCharacteristicNotification(characteristic, true);
-
-                    BluetoothGattDescriptor descriptor = characteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
-
-                    if (descriptor != null) {
-                        Log.d(TAG_LOG, " ** find desc :: " + descriptor.getUuid());
-                        descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                        bluetoothGatt.writeDescriptor(descriptor);
-                    }
-                }
-            }
-            catch (Exception e) {
-                e.printStackTrace();
-            }
+    public void subscribeCharacteristic(BluetoothGattService service, String uuidString) {
+        if (service == null || uuidString == null || characteristicsSubscribed.contains(uuidString)) {
+            return;
         }
 
-    };
+        try {
+            BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID.fromString(uuidString));
+
+            if (characteristic != null) {
+                bluetoothGatt.setCharacteristicNotification(characteristic, true);
+
+                BluetoothGattDescriptor descriptor = characteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
+
+                if (descriptor != null) {
+                    Log.d(TAG_LOG, " ** find desc :: " + descriptor.getUuid());
+                    descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                    bluetoothGatt.writeDescriptor(descriptor);
+                }
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     public class MessageReceiver extends BroadcastReceiver {
         

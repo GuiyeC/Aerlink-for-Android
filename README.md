@@ -11,6 +11,9 @@ This project was inspired by [@MohammadAG](https://twitter.com/MohammadAG) and b
 
 Change log
 --------------
++ v1.2
+ - Another try at fixing Moto 360 problems.
+
 + v1.1
  - Option to turn on Color backgrounds.
  - Option to turn off battery updates.
