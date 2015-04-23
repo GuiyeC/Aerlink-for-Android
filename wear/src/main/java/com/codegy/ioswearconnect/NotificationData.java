@@ -155,4 +155,17 @@ public class NotificationData {
     public boolean hasNegativeAction() {
         return hasNegativeAction;
     }
+
+    public boolean compareUID(byte[] UID) {
+        boolean result = false;
+
+        try {
+            result = ((this.UID[0] == UID[0]) && (this.UID[1] == UID[1]) && (this.UID[2] == UID[2]) && (this.UID[3] == UID[3]));
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return result;
+    }
 }

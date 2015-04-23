@@ -22,7 +22,6 @@ public class MainActivity extends Activity {
     private Switch mServiceSwitch;
     private Switch mColorBackgroundsSwitch;
     private Switch mBatteryUpdatesSwitch;
-    private Switch mMoto360FixSwitch;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,12 +42,10 @@ public class MainActivity extends Activity {
                 mServiceSwitch = (Switch) stub.findViewById(R.id.serviceSwitch);
                 mColorBackgroundsSwitch = (Switch) stub.findViewById(R.id.colorBackgroundsSwitch);
                 mBatteryUpdatesSwitch = (Switch) stub.findViewById(R.id.batteryUpdatesSwitch);
-                mMoto360FixSwitch = (Switch) stub.findViewById(R.id.moto360FixSwitch);
 
                 SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
                 final boolean colorBackgrounds = sp.getBoolean(Constants.SPK_COLOR_BACKGROUNDS, false);
                 final boolean batteryUpdates = sp.getBoolean(Constants.SPK_BATTERY_UPDATES, true);
-                final boolean moto360Fix = sp.getBoolean(Constants.SPK_MOTO_360_FIX, false);
                 final boolean serviceRunning = isServiceRunning();
 
 
@@ -88,17 +85,6 @@ public class MainActivity extends Activity {
                     }
                 });
 
-
-                if (mMoto360FixSwitch != null) {
-                    mMoto360FixSwitch.setChecked(moto360Fix);
-                    mMoto360FixSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                        @Override
-                        public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                            SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-                            sp.edit().putBoolean(Constants.SPK_MOTO_360_FIX, isChecked).apply();
-                        }
-                    });
-                }
 
                 TextView modelTextView = (TextView) stub.findViewById(R.id.modelTextView);
                 modelTextView.setText(Build.MODEL);

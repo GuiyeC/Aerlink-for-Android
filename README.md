@@ -11,6 +11,12 @@ This project was inspired by [@MohammadAG](https://twitter.com/MohammadAG) and b
 
 Change log
 --------------
++ v1.3
+ - Improved connection, reconnection and communication with iOS device.
+ - This version improves handling notifications and commands to the iOS device. Every notification should get through to the watch even in blocks of many.
+ - Remove advice to turn on ambient mode on Moto 360 (users report to work longer without turning it on).
+ - Moto 360 fix of last version is enabled by default on this watch.
+ 
 + v1.2
  - Another try at fixing Moto 360 problems.
 
@@ -40,13 +46,12 @@ Change log
 
 Tested Devices
 --------------
-I have only tested it on the LG G Watch and so far I had no problems with it. This is shiitakeo's table of tested devices:
 
 | Model | Result |
 |:--    |:--     |
 |G Watch R| ◯ (12 hours long time test passed.)|
 |G Watch  | ◯ (12 hours long time test passed.)|
-|Moto 360|△ (Can get notification, but connection is unstable, connection is lost after 4-5 hours. Please turn on ambient mode. (maybe moto360's BLE stack is something different.)|
+|Moto 360|△ (15 min - 6 hours. Mixed results, currently working on it.)|
 |Gear Live|◯ (12 hours long time test passed.)|
 |SmartWatch3| ◯ (6 hours test passed.)|
 |ZenWatch| ◯ (12 hours long time test passed.)|

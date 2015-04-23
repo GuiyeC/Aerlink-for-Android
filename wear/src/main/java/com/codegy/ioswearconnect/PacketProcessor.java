@@ -22,7 +22,7 @@ public class PacketProcessor {
         finish
     }
 
-    private static final String TAG_LOG = "BLE_wear";
+    private static final String TAG_LOG = "PacketProcessor";
 
     private NotificationData notificationData;
     private ByteArrayOutputStream processingAttribute;
@@ -35,26 +35,16 @@ public class PacketProcessor {
 
     private PacketProcessingStatus processingStatus;
 
-    PacketProcessor() {
-        processingAttribute = new ByteArrayOutputStream();
-        init(null);
-    }
-
-    public void init(byte[] packet) {
+    public PacketProcessor(NotificationData notificationData) {
         processingStatus = PacketProcessingStatus.init;
 
         bytesLeftToProcess = 0;
         attributeBytesInNextPacket = 0;
         bytesFromPreviousPacket = new byte[] {};
 
-        processingAttribute.reset();
+        processingAttribute = new ByteArrayOutputStream();
 
-        if (packet != null) {
-            notificationData = new NotificationData(packet);
-        }
-        else {
-            notificationData = null;
-        }
+        this.notificationData = notificationData;
     }
 
     public NotificationData getNotificationData() {
@@ -62,7 +52,7 @@ public class PacketProcessor {
     }
 
     public boolean hasFinishedProcessing() {
-        return processingStatus == PacketProcessingStatus.finish && notificationData != null;
+        return processingStatus == PacketProcessingStatus.finish || notificationData == null;
     }
 
     private int getAttributeLength(byte[] packet, int lengthIndex){
