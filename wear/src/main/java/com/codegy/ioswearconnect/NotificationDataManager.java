@@ -109,6 +109,13 @@ public class NotificationDataManager {
                 notificationData.setBackgroundColor(Color.rgb(238, 226, 0));
 
                 break;
+            case "com.viber":
+                notificationData.setAppIcon(R.drawable.ic_viber);
+                notificationData.setBackgroundColor(Color.rgb(180, 70, 195));
+
+                messageApp = true;
+
+                break;
             default:
                 break;
         }

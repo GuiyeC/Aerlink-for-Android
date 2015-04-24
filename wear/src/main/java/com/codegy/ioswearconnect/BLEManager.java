@@ -504,8 +504,11 @@ public class BLEManager {
             super.onCharacteristicWrite(gatt, characteristic, status);
 
             try {
-                Command lastCommand = pendingCommands.get(0);
-                pendingCommands.remove(0);
+                Command lastCommand = null;
+                if (pendingCommands.size() > 0) {
+                    lastCommand = pendingCommands.get(0);
+                    pendingCommands.remove(0);
+                }
 
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     Log.d(TAG_LOG, "Characteristic write successful: " + characteristic.getUuid().toString());
@@ -533,7 +536,7 @@ public class BLEManager {
                 else {
                     Log.w(TAG_LOG, "Characteristic write error: " + status + " :: " + characteristic.getUuid().toString());
 
-                    if (lastCommand.shouldRetryAgain()) {
+                    if (lastCommand != null && lastCommand.shouldRetryAgain()) {
                         pendingCommands.add(lastCommand);
                     }
 

@@ -202,7 +202,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
                 .setOngoing(state != BLEManager.BLEManagerState.Connected)
                 .extend(wearableExtender);
 
-        notificationManager.cancel(NOTIFICATION_HELP);
+        //notificationManager.cancel(NOTIFICATION_HELP);
         notificationManager.notify(NOTIFICATION_HELP, builder.build());
 
         if (state == BLEManager.BLEManagerState.Connected) {
@@ -332,7 +332,15 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
                     case 0:
                         switch (packet[1]) {
                             case 1:
-                                mediaPlaying = !attribute.substring(0, 1).equals("0");
+                                if (attribute.length() > 0) {
+                                    mediaPlaying = !attribute.substring(0, 1).equals("0");
+
+                                    if (attribute.equals("0,,")) {
+                                        mediaHidden = true;
+                                        notificationManager.cancel(NOTIFICATION_MEDIA);
+                                    }
+                                }
+
                                 break;
                         }
 
@@ -360,25 +368,33 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
                                             ServicesConstants.EntityIDTrack,
                                             ServicesConstants.TrackAttributeIDArtist
                                     });
-                                    pendingCommands.add(attributeCommand);
 
-                                    sendCommand();
+                                    mManager.addCommandToQueue(attributeCommand);
                                     */
                                 }
+                                else if (attribute.length() == 0) {
+                                    mediaArtist = null;
+                                }
+
                                 break;
                             case 2:
                                 mediaTitle = attribute;
 
                                 if (truncated) {
                                     mediaTitle += "...";
-
+/*
                                     Command attributeCommand = new Command(ServicesConstants.UUID_AMS, ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE, new byte[] {
                                             ServicesConstants.EntityIDTrack,
                                             ServicesConstants.TrackAttributeIDTitle
                                     });
 
                                     mManager.addCommandToQueue(attributeCommand);
+                                    */
                                 }
+                                else if (attribute.length() == 0) {
+                                    mediaTitle = null;
+                                }
+
                                 break;
                         }
 
@@ -404,10 +420,8 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
                     byte[] UID = intent.getByteArrayExtra(INTENT_EXTRA_UID);
                     String notificationId = new String(UID);
 
-                    if (!action.equals(Constants.IA_DELETE)) {
-                        // Dismiss notification
-                        notificationManager.cancel(notificationId, NOTIFICATION_REGULAR);
-                    }
+                    // Dismiss notification
+                    notificationManager.cancel(notificationId, NOTIFICATION_REGULAR);
                     
                     byte actionId = ServicesConstants.ActionIDPositive;
                     if (action.equals(Constants.IA_NEGATIVE) | action.equals(Constants.IA_DELETE)) {
@@ -501,7 +515,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
                 .extend(wearableExtender)
                 .setPriority(Notification.PRIORITY_MIN);
 
-        notificationManager.cancel(NOTIFICATION_BATTERY);
+        //notificationManager.cancel(NOTIFICATION_BATTERY);
         notificationManager.notify(NOTIFICATION_BATTERY, builder.build());
     }
 
@@ -529,7 +543,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
                 .extend(wearableExtender)
                 .setPriority(Notification.PRIORITY_LOW);
 
-        notificationManager.cancel(NOTIFICATION_MEDIA);
+        //notificationManager.cancel(NOTIFICATION_MEDIA);
         notificationManager.notify(NOTIFICATION_MEDIA, builder.build());
     }
 

@@ -13,13 +13,13 @@ import java.util.Arrays;
 public class PacketProcessor {
 
     private enum PacketProcessingStatus {
-        init,
-        app_id,
-        title,
-        message,
-        positiveAction,
-        negativeAction,
-        finish
+        Init,
+        AppId,
+        Title,
+        Message,
+        PositiveAction,
+        NegativeAction,
+        Finished
     }
 
     private static final String TAG_LOG = "PacketProcessor";
@@ -35,8 +35,9 @@ public class PacketProcessor {
 
     private PacketProcessingStatus processingStatus;
 
+
     public PacketProcessor(NotificationData notificationData) {
-        processingStatus = PacketProcessingStatus.init;
+        processingStatus = PacketProcessingStatus.Init;
 
         bytesLeftToProcess = 0;
         attributeBytesInNextPacket = 0;
@@ -52,7 +53,7 @@ public class PacketProcessor {
     }
 
     public boolean hasFinishedProcessing() {
-        return processingStatus == PacketProcessingStatus.finish || notificationData == null;
+        return processingStatus == PacketProcessingStatus.Finished || notificationData == null;
     }
 
     private int getAttributeLength(byte[] packet, int lengthIndex){
@@ -73,13 +74,13 @@ public class PacketProcessor {
 
     private void updateProcessingStatus() {
         switch (processingStatus) {
-            case init:
+            case Init:
                 Log.d(TAG_LOG, "$$$ init -> app_id.");
-                processingStatus = PacketProcessingStatus.title;
+                processingStatus = PacketProcessingStatus.Title;
                 break;
-            case app_id:
+            case AppId:
                 Log.d(TAG_LOG, "$$$ finish app id reading.");
-                processingStatus = PacketProcessingStatus.title;
+                processingStatus = PacketProcessingStatus.Title;
                 try {
                     notificationData.setAppId(new String(processingAttribute.toByteArray(), "UTF-8"));
                     processingAttribute.reset();
@@ -88,9 +89,9 @@ public class PacketProcessor {
                     e.printStackTrace();
                 }
                 break;
-            case title:
+            case Title:
                 Log.d(TAG_LOG, "$$$ finish title  reading.");
-                processingStatus = PacketProcessingStatus.message;
+                processingStatus = PacketProcessingStatus.Message;
                 try {
                     notificationData.setTitle(new String(processingAttribute.toByteArray(), "UTF-8"));
                     processingAttribute.reset();
@@ -99,16 +100,16 @@ public class PacketProcessor {
                     e.printStackTrace();
                 }
                 break;
-            case message:
+            case Message:
                 Log.d(TAG_LOG, "$$ finish message  reading.");
                 if (notificationData.hasPositiveAction()) {
-                    processingStatus = PacketProcessingStatus.positiveAction;
+                    processingStatus = PacketProcessingStatus.PositiveAction;
                 }
                 else if (notificationData.hasNegativeAction()) {
-                    processingStatus = PacketProcessingStatus.negativeAction;
+                    processingStatus = PacketProcessingStatus.NegativeAction;
                 }
                 else {
-                    processingStatus = PacketProcessingStatus.finish;
+                    processingStatus = PacketProcessingStatus.Finished;
                 }
 
                 try {
@@ -119,14 +120,14 @@ public class PacketProcessor {
                     e.printStackTrace();
                 }
                 break;
-            case positiveAction:
+            case PositiveAction:
                 Log.d(TAG_LOG, "$$ finish positiveAction  reading.");
 
                 if (notificationData.hasNegativeAction()) {
-                    processingStatus = PacketProcessingStatus.negativeAction;
+                    processingStatus = PacketProcessingStatus.NegativeAction;
                 }
                 else {
-                    processingStatus = PacketProcessingStatus.finish;
+                    processingStatus = PacketProcessingStatus.Finished;
                 }
 
                 try {
@@ -137,9 +138,9 @@ public class PacketProcessor {
                     e.printStackTrace();
                 }
                 break;
-            case negativeAction:
+            case NegativeAction:
                 Log.d(TAG_LOG, "$$ finish negativeAction  reading.");
-                processingStatus = PacketProcessingStatus.finish;
+                processingStatus = PacketProcessingStatus.Finished;
                 try {
                     notificationData.setNegativeAction(new String(processingAttribute.toByteArray(), "UTF-8"));
                     processingAttribute.reset();
@@ -203,9 +204,10 @@ public class PacketProcessor {
             }
             else if (bytesLeftToProcess > 0) {
                 // Attribute index
-                if (processingStatus == PacketProcessingStatus.init) {
+                if (processingStatus == PacketProcessingStatus.Init) {
                     // Previous bytes' data is already known
                     attributeIndex = 5;
+                    processingStatus = PacketProcessingStatus.AppId;
                 }
                 else {
                     attributeIndex = packet.length - bytesLeftToProcess;
@@ -225,10 +227,6 @@ public class PacketProcessor {
 
                     // Update bytes left of current attribute
                     attributeBytesInNextPacket = attributeLength - bytesInCurrentPacket;
-
-                    if (processingStatus == PacketProcessingStatus.init) {
-                        processingStatus = PacketProcessingStatus.app_id;
-                    }
 
                     // All bytes have been processed
                     bytesLeftToProcess = 0;

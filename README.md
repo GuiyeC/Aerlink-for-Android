@@ -11,6 +11,10 @@ This project was inspired by [@MohammadAG](https://twitter.com/MohammadAG) and b
 
 Change log
 --------------
++ v1.4.1
+ - Bug fixing.
+ - Added Viber icon.
+ 
 + v1.4
  - Icon, name and package changed to be able to publish on the PlayStore.
  - More improvements in reconnecting.
