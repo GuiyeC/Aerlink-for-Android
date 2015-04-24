@@ -1,10 +1,9 @@
 package com.codegy.ioswearconnect;
 
 import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.*;
 import android.graphics.*;
 import android.media.MediaMetadata;
@@ -13,9 +12,6 @@ import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
 import android.os.*;
 import android.preference.PreferenceManager;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationManagerCompat;
-import android.support.v4.media.session.MediaSessionCompat;
 import android.util.Log;
 
 
@@ -24,12 +20,16 @@ import android.util.Log;
  */
 public class BLEService extends Service implements BLEManager.BLEManagerCallback {
 
+    public static final int NOTIFICATION_SERVICE = 500;
     public static final int NOTIFICATION_REGULAR = 1000;
     public static final int NOTIFICATION_MEDIA = 1001;
     public static final int NOTIFICATION_BATTERY = 1002;
     public static final int NOTIFICATION_HELP = 2000;
 
     private static final long SCREEN_TIME_OUT = 1000;
+
+    private static final long CONNECTION_PATTERN[] = { 80, 60 };
+    private static final long DISCONNECTION_PATTERN[] = { 80, 90 };
     private static final long VIBRATION_PATTERN[] = { 200, 100, 200, 100 };
     private static final long SILENT_VIBRATION_PATTERN[] = { 200, 110 };
     
@@ -40,7 +40,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
 
     private BLEManager mManager;
 
-    private NotificationManagerCompat notificationManager;
+    private NotificationManager notificationManager;
     private int notificationNumber = 0;
 
     private Vibrator vibrator;
@@ -67,7 +67,18 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d("Service", "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
-        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(BLEService.this);
+        /* // Could fix Moto 360
+        Notification notification = new Notification(R.mipmap.ic_launcher, getText(R.string.app_name),
+                System.currentTimeMillis());
+        notification.priority = Notification.PRIORITY_MIN;
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+        notification.setLatestEventInfo(this, getText(R.string.app_name),
+                getText(R.string.app_name), pendingIntent);
+        startForeground(NOTIFICATION_SERVICE, notification);
+        */
+
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
         batteryUpdates = sp.getBoolean(Constants.SPK_BATTERY_UPDATES, true);
         colorBackgrounds = sp.getBoolean(Constants.SPK_COLOR_BACKGROUNDS, false);
 
@@ -82,14 +93,14 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
         registerReceiver(mBroadcastReceiver, intentFilter);
 
 
-        notificationManager = NotificationManagerCompat.from(getApplicationContext());
+        notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
         // Show help card
-        onConnectionStateChange(false);
+        onConnectionStateChange(BLEManager.BLEManagerState.Disconnected);
 
         prepareMediaSession();
 
-        mManager = new BLEManager(getApplicationContext(), this);
+        mManager = new BLEManager(this, this);
 
 
         return super.onStartCommand(intent, flags, startId);
@@ -104,12 +115,14 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
 
             if (mSession != null) {
                 mSession.release();
+                mSession = null;
             }
 
             reset();
 
             if (mManager != null) {
                 mManager.close();
+                mManager = null;
             }
         }
         catch (Exception e) {
@@ -163,14 +176,14 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
     }
 
     @Override
-    public void onConnectionStateChange(boolean connected) {
+    public void onConnectionStateChange(BLEManager.BLEManagerState state) {
         Bitmap background = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
         background.eraseColor(0);
 
         Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
                 .setBackground(background);
 
-        if (!connected) {
+        if (state != BLEManager.BLEManagerState.Connected) {
             // Clear current data
             reset();
 
@@ -183,25 +196,37 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
 
         Notification.Builder builder = new Notification.Builder(this)
                 .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle(getString(connected ? R.string.help_title_connected : R.string.help_title_searching))
-                .setContentText(getString(connected ? R.string.help_subtitle_connected : R.string.help_subtitle_searching))
+                .setContentTitle(getString(state == BLEManager.BLEManagerState.Connected ? R.string.help_title_connected : R.string.help_title_searching))
+                .setContentText(getString(state == BLEManager.BLEManagerState.Connected ? R.string.help_subtitle_connected : R.string.help_subtitle_searching))
                 .setPriority(Notification.PRIORITY_MAX)
-                .setOngoing(!connected)
+                .setOngoing(state != BLEManager.BLEManagerState.Connected)
                 .extend(wearableExtender);
 
         notificationManager.cancel(NOTIFICATION_HELP);
         notificationManager.notify(NOTIFICATION_HELP, builder.build());
+
+        if (state == BLEManager.BLEManagerState.Connected) {
+            getVibrator().vibrate(CONNECTION_PATTERN , -1);
+        }
+        else if (mManager!= null && state == BLEManager.BLEManagerState.Disconnected) {
+            getVibrator().vibrate(DISCONNECTION_PATTERN, -1);
+        }
     }
 
     @Override
     public void onIncomingCall(NotificationData notificationData) {
-        Intent phoneIntent = new Intent(this, PhoneActivity.class);
-        phoneIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
-        phoneIntent.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
-        phoneIntent.putExtra(PhoneActivity.EXTRA_TITLE, notificationData.getTitle());
-        phoneIntent.putExtra(PhoneActivity.EXTRA_MESSAGE, notificationData.getMessage());
+        try {
+            Intent phoneIntent = new Intent(this, PhoneActivity.class);
+            phoneIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+            phoneIntent.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
+            phoneIntent.putExtra(PhoneActivity.EXTRA_TITLE, notificationData.getTitle());
+            phoneIntent.putExtra(PhoneActivity.EXTRA_MESSAGE, notificationData.getMessage());
 
-        startActivity(phoneIntent);
+            startActivity(phoneIntent);
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -230,12 +255,12 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
         // Build pending intent for when the user swipes the card away
         Intent deleteIntent = new Intent(Constants.IA_DELETE);
         deleteIntent.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
-        PendingIntent deleteAction = PendingIntent.getBroadcast(getApplicationContext(), notificationNumber, deleteIntent, 0);
+        PendingIntent deleteAction = PendingIntent.getBroadcast(this, notificationNumber, deleteIntent, 0);
 
-        NotificationCompat.WearableExtender wearableExtender = new NotificationCompat.WearableExtender()
+        Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
                 .setBackground(background);
 
-        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext())
+        Notification.Builder notificationBuilder = new Notification.Builder(this)
                 .setContentTitle(notificationData.getTitle())
                 .setContentText(notificationData.getMessage())
                 .setSmallIcon(notificationData.getAppIcon())
@@ -248,7 +273,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
         if (notificationData.getPositiveAction() != null) {
             Intent positiveIntent = new Intent(Constants.IA_POSITIVE);
             positiveIntent.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
-            PendingIntent positiveAction = PendingIntent.getBroadcast(getApplicationContext(), notificationNumber, positiveIntent, 0);
+            PendingIntent positiveAction = PendingIntent.getBroadcast(this, notificationNumber, positiveIntent, 0);
 
             notificationBuilder.addAction(R.drawable.ic_action_accept, notificationData.getPositiveAction(), positiveAction);
         }
@@ -256,7 +281,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
         if (notificationData.getNegativeAction() != null) {
             Intent negativeIntent = new Intent(Constants.IA_NEGATIVE);
             negativeIntent.putExtra(INTENT_EXTRA_UID, notificationData.getUID());
-            PendingIntent negativeAction = PendingIntent.getBroadcast(getApplicationContext(), notificationNumber, negativeIntent, 0);
+            PendingIntent negativeAction = PendingIntent.getBroadcast(this, notificationNumber, negativeIntent, 0);
 
             notificationBuilder.addAction(R.drawable.ic_action_remove, notificationData.getNegativeAction(), negativeAction);
         }
@@ -286,12 +311,13 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
     }
 
     @Override
+    public boolean shouldUpdateBatteryLevel() {
+        return batteryLevel == -1;
+    }
+
+    @Override
     public void onBatteryLevelChanged(int newBatteryLevel) {
         batteryLevel = newBatteryLevel;
-
-        if (!batteryUpdates || batteryLevel == -1) {
-            return;
-        }
 
         buildBatteryNotification();
     }
@@ -345,15 +371,13 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
 
                                 if (truncated) {
                                     mediaTitle += "...";
-                                    /*
+
                                     Command attributeCommand = new Command(ServicesConstants.UUID_AMS, ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE, new byte[] {
                                             ServicesConstants.EntityIDTrack,
                                             ServicesConstants.TrackAttributeIDTitle
                                     });
-                                    pendingCommands.add(attributeCommand);
 
-                                    sendCommand();
-                                    */
+                                    mManager.addCommandToQueue(attributeCommand);
                                 }
                                 break;
                         }
@@ -441,6 +465,10 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
     };
 
     private void buildBatteryNotification() {
+        if (!batteryUpdates || batteryLevel == -1) {
+            return;
+        }
+
         Bitmap background = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
         background.eraseColor(0);
 
@@ -466,7 +494,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
         Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
                 .setBackground(background);
 
-        Notification.Builder builder = new Notification.Builder( this )
+        Notification.Builder builder = new Notification.Builder(this)
                 .setSmallIcon(batteryIcon)
                 .setContentTitle(getString(R.string.battery_level))
                 .setContentText(batteryLevel + "%")
@@ -485,7 +513,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
 
         // Build pending intent for when the user swipes the card away
         Intent deleteIntent = new Intent(Constants.IA_HIDE_MEDIA);
-        PendingIntent deleteAction = PendingIntent.getBroadcast(getApplicationContext(), 0, deleteIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent deleteAction = PendingIntent.getBroadcast(this, 0, deleteIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
         Notification.MediaStyle style = new Notification.MediaStyle()
                 .setMediaSession(mSession.getSessionToken());
@@ -494,7 +522,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
                 .setBackground(background)
                 .setHintHideIcon(true);
 
-        Notification.Builder builder = new Notification.Builder( this )
+        Notification.Builder builder = new Notification.Builder(this)
                 .setSmallIcon(R.drawable.ic_music)
                  .setDeleteIntent(deleteAction)
                 .setStyle(style)
@@ -506,9 +534,9 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
     }
 
     private void prepareMediaSession() {
-        mSession = new MediaSession(getApplicationContext(), "iOS_Wear_session");
+        mSession = new MediaSession(this, "iOS_Wear_session");
         mSession.setActive(true);
-        mSession.setFlags(MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS | MediaSession.FLAG_HANDLES_MEDIA_BUTTONS);
+        mSession.setFlags(MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS | MediaSession.FLAG_HANDLES_MEDIA_BUTTONS);
         mSession.setPlaybackToRemote(new VolumeProvider(VolumeProvider.VOLUME_CONTROL_RELATIVE, 50, 100) {
 
             @Override

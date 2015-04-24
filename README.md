@@ -11,6 +11,11 @@ This project was inspired by [@MohammadAG](https://twitter.com/MohammadAG) and b
 
 Change log
 --------------
++ v1.4
+ - Icon, name and package changed to be able to publish on the PlayStore.
+ - More improvements in reconnecting.
+ - Bug fixing.
+ 
 + v1.3
  - Improved connection, reconnection and communication with iOS device.
  - This version improves handling notifications and commands to the iOS device. Every notification should get through to the watch even in blocks of many.
@@ -72,12 +77,10 @@ App install
 ---------
 This app is completely free.
 
-### 1. PlayStore: REJECTED
-The app has been rejected and I'm waiting for a response to my appeal.
-
+### 1. PlayStore
 Install the app from the PlayStore on your Android device and sync apps with your Android Wear watch.
 
-- [iOS Wear Connect]()
+- [Wear Connect for iOS](https://play.google.com/store/apps/details?id=com.codegy.wearconnectforios)
 
 ### 2. Install on Android handheld and sync with the watch
 Download the "mobile.apk" from the [release page](https://github.com/GuiyeC/iOS-Wear-Connect/releases) and open it on your handheld to install the app, connect the Android device to your watch to sync apps as you would any app downloaded from the PlayStore.

@@ -14,6 +14,9 @@
  limitations under the License.
 -->
 <resources>
+    <!-- <string name="app_name">iOS Wear Connect</string> -->
+    <string name="app_name">Wear Connect</string>
+
     <string name="battery_level">Batería</string>
     <string name="ios_service">Servicio iOS</string>
     <string name="color_backgrounds">Fondos con color</string>

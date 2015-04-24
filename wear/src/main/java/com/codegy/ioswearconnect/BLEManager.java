@@ -26,12 +26,20 @@ public class BLEManager {
     private static final String DESCRIPTOR_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
     private static final String SERVICE_BLANK = "00001111-0000-1000-8000-00805f9b34fb";
 
+    public enum BLEManagerState {
+        Disconnected,
+        Connecting,
+        Connected,
+        Reconnecting
+    }
+
     public interface BLEManagerCallback {
-        void onConnectionStateChange(boolean connected);
+        void onConnectionStateChange(BLEManagerState state);
         void onIncomingCall(NotificationData notificationData);
         void onCallEnded();
         void onNotificationReceived(NotificationData notificationData);
         void onNotificationCanceled(String notificationId);
+        boolean shouldUpdateBatteryLevel();
         void onBatteryLevelChanged(int newBatteryLevel);
         void onMediaDataUpdated(byte[] packet, String attribute);
     }
@@ -44,7 +52,7 @@ public class BLEManager {
 
     private BluetoothLeScanner mScanner;
     private BluetoothGatt bluetoothGatt;
-    private static boolean connected = false;
+    private BLEManagerState state = BLEManagerState.Disconnected;
     private boolean reconnect = false;
     private int skipCount = 0;
 
@@ -64,46 +72,6 @@ public class BLEManager {
         startScanner();
     }
 
-
-    private void moto360Fix() {
-        if (!connected) {
-            // Nothing we can do
-            return;
-        }
-
-
-        Thread thread = new Thread() {
-            public void run() {
-                Looper.prepare();
-
-                final Handler handler = new Handler();
-                handler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        Log.d(TAG_LOG, "Trying to keep connection alive");
-
-                        bluetoothGatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
-
-                        // This command should have a response from the iOS device
-                        Command attributeCommand = new Command(ServicesConstants.UUID_AMS, ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE, new byte[] {
-                                ServicesConstants.EntityIDTrack,
-                                ServicesConstants.TrackAttributeIDTitle
-                        });
-
-                        addCommandToQueue(attributeCommand);
-
-                        moto360Fix();
-
-                        handler.removeCallbacks(this);
-                        Looper.myLooper().quit();
-                    }
-                }, 250000);
-
-                Looper.loop();
-            }
-        };
-        thread.start();
-    }
 
     private void startScanner() {
         // Initializes a Bluetooth adapter.  For API level 18 and above, get a reference to
@@ -134,8 +102,11 @@ public class BLEManager {
     }
 
     public void close() {
+        Log.d(TAG_LOG, "Close manager");
+
         mNextCommandHandler.removeCallbacks(mNextCommandRunnable);
         mClearOldNotificationsHandler.removeCallbacks(mClearOldNotificationsRunnable);
+        mCheckConnectingHandler.removeCallbacks(mCheckConnectingRunnable);
 
         try {
             if (mScanner != null) {
@@ -150,7 +121,7 @@ public class BLEManager {
             e.printStackTrace();
         }
 
-        connected = false;
+        state = BLEManagerState.Disconnected;
         reconnect = false;
         skipCount = 0;
 
@@ -161,6 +132,15 @@ public class BLEManager {
         characteristicsSubscribed.clear();
     }
 
+    public void setState(BLEManagerState state) {
+        if (state == this.state) {
+            return;
+        }
+
+        this.state = state;
+
+        mCallback.onConnectionStateChange(state);
+    }
 
     public void addCommandToQueue(Command command) {
         pendingCommands.add(command);
@@ -171,7 +151,7 @@ public class BLEManager {
     private void sendNextCommand() {
         mNextCommandHandler.removeCallbacks(mNextCommandRunnable);
 
-        if (!connected || characteristicsSubscribed.size() < 5 || pendingCommands.size() == 0) {
+        if (state == BLEManagerState.Disconnected || pendingCommands.size() == 0) {
             return;
         }
 
@@ -214,6 +194,47 @@ public class BLEManager {
         }
     }
 
+    private Handler mMoto360FixHandler = new Handler();
+    private Runnable mMoto360FixRunnable = new Runnable() {
+        @Override
+        public void run() {
+            Log.d(TAG_LOG, "Trying to keep connection alive");
+
+            bluetoothGatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
+            bluetoothGatt.readRemoteRssi();
+
+            // This command should have a response from the iOS device
+            Command attributeCommand = new Command(ServicesConstants.UUID_AMS, ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE, new byte[]{
+                    ServicesConstants.EntityIDTrack,
+                    ServicesConstants.TrackAttributeIDTitle
+            });
+
+            addCommandToQueue(attributeCommand);
+
+            startMoto360FixHandler();
+
+            mMoto360FixHandler.removeCallbacks(mMoto360FixRunnable);
+            //Looper.myLooper().quit();
+        }
+    };
+
+    private void startMoto360FixHandler() {
+        if (state == BLEManagerState.Disconnected) {
+            return;
+        }
+
+        Thread thread = new Thread() {
+            public void run() {
+                //Looper.prepare();
+
+                mNextCommandHandler.postDelayed(mNextCommandRunnable, 250000);
+
+//                Looper.loop();
+            }
+        };
+        thread.start();
+    }
+
     private Handler mNextCommandHandler = new Handler();
     private Runnable mNextCommandRunnable = new Runnable() {
         @Override
@@ -221,18 +242,27 @@ public class BLEManager {
             Log.d(TAG_LOG, "Sending next command");
             sendNextCommand();
 
-            mNextCommandHandler.removeCallbacks(this);
+            mNextCommandHandler.removeCallbacks(mNextCommandRunnable);
+            //Looper.myLooper().quit();
         }
     };
 
     private void startNextCommandHandler() {
+        mNextCommandHandler.removeCallbacks(mNextCommandRunnable);
+
+        if (state == BLEManagerState.Disconnected || pendingCommands.size() == 0) {
+            return;
+        }
+
+        final long delay = 600 * pendingCommands.get(0).getRetryCount();
+
         Thread thread = new Thread() {
             public void run() {
-                Looper.prepare();
+                //Looper.prepare();
 
-                mNextCommandHandler.postDelayed(mNextCommandRunnable, 1000);
+                mNextCommandHandler.postDelayed(mNextCommandRunnable, delay);
 
-                Looper.loop();
+//                Looper.loop();
             }
         };
         thread.start();
@@ -246,18 +276,49 @@ public class BLEManager {
             mPacketProcessor = null;
             pendingNotifications.clear();
 
-            mClearOldNotificationsHandler.removeCallbacks(this);
+            mClearOldNotificationsHandler.removeCallbacks(mClearOldNotificationsRunnable);
+            //Looper.myLooper().quit();
         }
     };
 
     private void startClearOldNotificationsHandler() {
         Thread thread = new Thread() {
             public void run() {
-                Looper.prepare();
+                //Looper.prepare();
 
                 mClearOldNotificationsHandler.postDelayed(mClearOldNotificationsRunnable, 700);
 
-                Looper.loop();
+              //  Looper.loop();
+            }
+        };
+        thread.start();
+    }
+
+    private Handler mCheckConnectingHandler = new Handler();
+    private Runnable mCheckConnectingRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (state == BLEManagerState.Connecting) {
+                Log.d(TAG_LOG, "Connecting is taking too long");
+
+                close();
+                reconnect = true;
+                startScanner();
+            }
+
+            mCheckConnectingHandler.removeCallbacks(mCheckConnectingRunnable);
+            //Looper.myLooper().quit();
+        }
+    };
+
+    private void startCheckConnectingHandler() {
+        Thread thread = new Thread() {
+            public void run() {
+               // Looper.prepare();
+
+                mCheckConnectingHandler.postDelayed(mCheckConnectingRunnable, 3000);
+
+                //Looper.loop();
             }
         };
         thread.start();
@@ -305,7 +366,7 @@ public class BLEManager {
 
             BluetoothDevice device = result.getDevice();
 
-            if (!connected) {
+            if (state == BLEManagerState.Disconnected) {
                 if (device != null) {
                     if ((!reconnect || skipCount > 5) && device.getName() != null) {
                         stopScanner();
@@ -313,8 +374,11 @@ public class BLEManager {
                         Log.d(TAG_LOG, "Connecting...: " + device.getName());
 
                         skipCount = 0;
-                        //connected = true;
+                        setState(BLEManagerState.Connecting);
                         bluetoothGatt = device.connectGatt(mContext, false, bluetoothGattCallback);
+
+                        mCheckConnectingHandler.removeCallbacks(mCheckConnectingRunnable);
+                        startCheckConnectingHandler();
                     }
                     else {
                         Log.d(TAG_LOG, "skip:: ");
@@ -346,18 +410,16 @@ public class BLEManager {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 Log.e(TAG_LOG, "Connected");
 
-                connected = true;
-
                 gatt.discoverServices();
 
                 if (moto360Fix) {
-                    moto360Fix();
+                    startMoto360FixHandler();
                 }
             }
             else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.e(TAG_LOG, "Disconnected");
 
-                connected = false;
+                setState(BLEManagerState.Disconnected);
 
                 close();
 
@@ -366,8 +428,13 @@ public class BLEManager {
 
                 startScanner();
             }
+        }
 
-            mCallback.onConnectionStateChange(connected);
+        @Override
+        public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.d(TAG_LOG, String.format("BluetoothGatt ReadRssi[%d]", rssi));
+            }
         }
 
         @Override
@@ -375,7 +442,9 @@ public class BLEManager {
             Log.d(TAG_LOG, "onServicesDiscovered: " + status);
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
+                mCheckConnectingHandler.removeCallbacks(mCheckConnectingRunnable);
                 subscribeCharacteristic(gatt.getService(ServicesConstants.UUID_ANCS), ServicesConstants.CHARACTERISTIC_DATA_SOURCE);
+                startCheckConnectingHandler();
             }
         }
 
@@ -383,22 +452,31 @@ public class BLEManager {
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.d(TAG_LOG, "Descriptor write successful: " + descriptor.getCharacteristic().getUuid().toString());
+
+                mCheckConnectingHandler.removeCallbacks(mCheckConnectingRunnable);
+
                 characteristicsSubscribed.add(descriptor.getCharacteristic().getUuid().toString());
                 switch (descriptor.getCharacteristic().getUuid().toString()) {
                     case ServicesConstants.CHARACTERISTIC_DATA_SOURCE:
                         subscribeCharacteristic(gatt.getService(ServicesConstants.UUID_ANCS), ServicesConstants.CHARACTERISTIC_NOTIFICATION_SOURCE);
+                        startCheckConnectingHandler();
                         break;
                     case ServicesConstants.CHARACTERISTIC_NOTIFICATION_SOURCE:
                         subscribeCharacteristic(gatt.getService(ServicesConstants.UUID_AMS), ServicesConstants.CHARACTERISTIC_REMOTE_COMMAND);
+                        startCheckConnectingHandler();
                         break;
                     case ServicesConstants.CHARACTERISTIC_REMOTE_COMMAND:
                         subscribeCharacteristic(gatt.getService(ServicesConstants.UUID_AMS), ServicesConstants.CHARACTERISTIC_ENTITY_UPDATE);
+                        startCheckConnectingHandler();
                         break;
                     case ServicesConstants.CHARACTERISTIC_ENTITY_UPDATE:
                         subscribeCharacteristic(gatt.getService(ServicesConstants.UUID_BAS), ServicesConstants.CHARACTERISTIC_BATTERY_LEVEL);
+                        startCheckConnectingHandler();
                         break;
                     case ServicesConstants.CHARACTERISTIC_BATTERY_LEVEL:
                         requestMediaUpdates();
+
+                        setState(BLEManagerState.Connected);
 
                         break;
                 }
@@ -425,40 +503,46 @@ public class BLEManager {
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             super.onCharacteristicWrite(gatt, characteristic, status);
 
-            Command lastCommand = pendingCommands.get(0);
-            pendingCommands.remove(0);
+            try {
+                Command lastCommand = pendingCommands.get(0);
+                pendingCommands.remove(0);
 
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                Log.d(TAG_LOG, "Characteristic write successful: " + characteristic.getUuid().toString());
-                // If battery is still unknown try to get its value
-                /*
-                if (batteryLevel == -1) {
-                    try {
-                        gatt.readCharacteristic(gatt.getService(ServicesConstants.UUID_BAS).getCharacteristic(UUID.fromString(ServicesConstants.CHARACTERISTIC_BATTERY_LEVEL)));
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    Log.d(TAG_LOG, "Characteristic write successful: " + characteristic.getUuid().toString());
+
+                    // If battery is still unknown try to get its value
+                    if (mCallback.shouldUpdateBatteryLevel()) {
+                        try {
+                            gatt.readCharacteristic(gatt.getService(ServicesConstants.UUID_BAS).getCharacteristic(UUID.fromString(ServicesConstants.CHARACTERISTIC_BATTERY_LEVEL)));
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
-                }
-                */
 
-                /*
-                if (moto360Fix && characteristic.getUuid().toString().equals(ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
-                    try {
-                        gatt.readCharacteristic(gatt.getService(ServicesConstants.UUID_AMS).getCharacteristic(UUID.fromString(ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE)));
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                    if (moto360Fix && characteristic.getUuid().toString().equals(ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
+                        try {
+                            gatt.readCharacteristic(gatt.getService(ServicesConstants.UUID_AMS).getCharacteristic(UUID.fromString(ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE)));
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
-                }
-                */
-            } else {
-                Log.w(TAG_LOG, "Characteristic write error: " + status + " :: " + characteristic.getUuid().toString());
 
-                if (lastCommand.shouldRetryAgain()) {
-                    pendingCommands.add(lastCommand);
+
+                    sendNextCommand();
+                }
+                else {
+                    Log.w(TAG_LOG, "Characteristic write error: " + status + " :: " + characteristic.getUuid().toString());
+
+                    if (lastCommand.shouldRetryAgain()) {
+                        pendingCommands.add(lastCommand);
+                    }
+
+                    startNextCommandHandler();
                 }
             }
-
-            sendNextCommand();
+            catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         @Override
@@ -551,7 +635,8 @@ public class BLEManager {
 
                                 if (notificationData.isIncomingCall()) {
                                     mCallback.onIncomingCall(notificationData);
-                                } else {
+                                }
+                                else {
                                     mCallback.onNotificationReceived(notificationData);
                                 }
                             }
