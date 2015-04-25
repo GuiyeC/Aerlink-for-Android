@@ -55,6 +55,7 @@ public class BLEManager {
     private BLEManagerState state = BLEManagerState.Disconnected;
     private boolean reconnect = false;
     private int skipCount = 0;
+    private int connectionFailedCount = 0;
 
     private List<String> characteristicsSubscribed = new ArrayList<>();
     private List<Command> pendingCommands = new ArrayList<>();
@@ -114,6 +115,7 @@ public class BLEManager {
             }
 
             if (bluetoothGatt != null) {
+                bluetoothGatt.disconnect();
                 bluetoothGatt.close();
                 bluetoothGatt = null;
             }
@@ -214,7 +216,6 @@ public class BLEManager {
             startMoto360FixHandler();
 
             mMoto360FixHandler.removeCallbacks(mMoto360FixRunnable);
-            //Looper.myLooper().quit();
         }
     };
 
@@ -225,11 +226,7 @@ public class BLEManager {
 
         Thread thread = new Thread() {
             public void run() {
-                //Looper.prepare();
-
                 mNextCommandHandler.postDelayed(mNextCommandRunnable, 250000);
-
-//                Looper.loop();
             }
         };
         thread.start();
@@ -243,7 +240,6 @@ public class BLEManager {
             sendNextCommand();
 
             mNextCommandHandler.removeCallbacks(mNextCommandRunnable);
-            //Looper.myLooper().quit();
         }
     };
 
@@ -258,11 +254,7 @@ public class BLEManager {
 
         Thread thread = new Thread() {
             public void run() {
-                //Looper.prepare();
-
                 mNextCommandHandler.postDelayed(mNextCommandRunnable, delay);
-
-//                Looper.loop();
             }
         };
         thread.start();
@@ -277,18 +269,13 @@ public class BLEManager {
             pendingNotifications.clear();
 
             mClearOldNotificationsHandler.removeCallbacks(mClearOldNotificationsRunnable);
-            //Looper.myLooper().quit();
         }
     };
 
     private void startClearOldNotificationsHandler() {
         Thread thread = new Thread() {
             public void run() {
-                //Looper.prepare();
-
                 mClearOldNotificationsHandler.postDelayed(mClearOldNotificationsRunnable, 700);
-
-              //  Looper.loop();
             }
         };
         thread.start();
@@ -299,26 +286,49 @@ public class BLEManager {
         @Override
         public void run() {
             if (state == BLEManagerState.Connecting) {
-                Log.d(TAG_LOG, "Connecting is taking too long");
+                Log.w(TAG_LOG, "Connecting is taking too long");
 
-                close();
-                reconnect = true;
-                startScanner();
+                if (bluetoothGatt != null && bluetoothGatt.getDevice() != null) {
+                    BluetoothDevice device = bluetoothGatt.getDevice();
+                    int bondState = device.getBondState();
+
+                    // Don't do anything while bonding
+                    if (bondState == BluetoothDevice.BOND_BONDING) {
+                        Log.w(TAG_LOG, "Waiting for bond...");
+                        mCheckConnectingHandler.removeCallbacks(mCheckConnectingRunnable);
+                        startCheckConnectingHandler();
+                        return;
+                    }
+
+                    connectionFailedCount++;
+
+                    if (bondState == BluetoothDevice.BOND_NONE || connectionFailedCount > 1) {
+                        connectionFailedCount = 0;
+                        unpairDevice(device);
+                        device.createBond();
+
+                        // Check if bond is successful
+                        startCheckConnectingHandler();
+                    }
+                    else {
+                        bluetoothGatt.disconnect();
+                    }
+                }
+                else {
+                    close();
+                    reconnect = true;
+                    startScanner();
+                }
             }
 
             mCheckConnectingHandler.removeCallbacks(mCheckConnectingRunnable);
-            //Looper.myLooper().quit();
         }
     };
 
     private void startCheckConnectingHandler() {
         Thread thread = new Thread() {
             public void run() {
-               // Looper.prepare();
-
-                mCheckConnectingHandler.postDelayed(mCheckConnectingRunnable, 3000);
-
-                //Looper.loop();
+                mCheckConnectingHandler.postDelayed(mCheckConnectingRunnable, 4000);
             }
         };
         thread.start();
@@ -478,6 +488,8 @@ public class BLEManager {
 
                         setState(BLEManagerState.Connected);
 
+                        connectionFailedCount = 0;
+
                         break;
                 }
             }
@@ -486,16 +498,6 @@ public class BLEManager {
 
                 unpairDevice(gatt.getDevice());
                 gatt.disconnect();
-            }
-        }
-
-        private void unpairDevice(BluetoothDevice device) {
-            Log.d(TAG_LOG, "Unpairing...");
-            try {
-                Method m = device.getClass().getMethod("removeBond", (Class[]) null);
-                m.invoke(device, (Object[]) null);
-            } catch (Exception e) {
-                e.printStackTrace();
             }
         }
 
@@ -758,5 +760,25 @@ public class BLEManager {
             e.printStackTrace();
         }
     }
-    
+
+
+    private void pairDevice(BluetoothDevice device) {
+        Log.d(TAG_LOG, "Pairing...");
+        try {
+            Method m = device.getClass().getMethod("createBond", (Class[]) null);
+            m.invoke(device, (Object[]) null);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    private void unpairDevice(BluetoothDevice device) {
+        Log.d(TAG_LOG, "Unpairing...");
+        try {
+            Method m = device.getClass().getMethod("removeBond", (Class[]) null);
+            m.invoke(device, (Object[]) null);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 }
