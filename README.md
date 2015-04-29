@@ -11,6 +11,12 @@ This project was inspired by [@MohammadAG](https://twitter.com/MohammadAG) and b
 
 Change log
 --------------
++ v1.6
+ - New way of connecting, more info cards, no more infinite "Searching..." loop.
+ - The pairing PIN is now displayed in a card too.
+ - Connection and reconnection improvements.
+ - Moto 360 improvements, a little more to come.
+ 
 + v1.5
  - Connection and reconnection improvements. It should automatically unpair and repair with the iPhone when a there is a problem.
  

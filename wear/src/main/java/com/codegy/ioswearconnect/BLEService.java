@@ -53,6 +53,8 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
     private String mediaTitle;
     private String mediaArtist;
 
+    private int bondPassKey = -1;
+
     private int batteryLevel;
     private boolean batteryUpdates;
     private boolean colorBackgrounds;
@@ -84,12 +86,14 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
 
 
         IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(Constants.IA_TRY_CONNECTING);
         intentFilter.addAction(Constants.IA_POSITIVE);
         intentFilter.addAction(Constants.IA_NEGATIVE);
         intentFilter.addAction(Constants.IA_DELETE);
         intentFilter.addAction(Constants.IA_HIDE_MEDIA);
         intentFilter.addAction(Constants.IA_BATTERY_UPDATES_CHANGED);
         intentFilter.addAction(Constants.IA_COLOR_BACKGROUNDS_CHANGED);
+        intentFilter.addAction("android.bluetooth.device.action.PAIRING_REQUEST");
         registerReceiver(mBroadcastReceiver, intentFilter);
 
 
@@ -183,29 +187,79 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
         Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
                 .setBackground(background);
 
-        if (state != BLEManager.BLEManagerState.Connected) {
+        PendingIntent connectPendingIntent = null;
+        if (state == BLEManager.BLEManagerState.Disconnected) {
             // Clear current data
             reset();
 
+            // Build pending intent for when the user swipes the card away
+            Intent connectIntent = new Intent(Constants.IA_TRY_CONNECTING);
+            connectPendingIntent = PendingIntent.getBroadcast(this, 0, connectIntent, 0);
+
             // Add help page
-            wearableExtender.addPage(new Notification.Builder(this)
+            wearableExtender.setContentAction(0).
+                    addPage(new Notification.Builder(this)
                     .setContentTitle(getString(R.string.help))
                     .setContentText(getString(R.string.help_how_to))
                     .build());
         }
 
+        String title = null;
+        String text = null;
+
+        switch (state) {
+            case NoBluetooth:
+                title = getString(R.string.help_title_no_bluetooth);
+                text = getString(R.string.help_no_bluetooth);
+                break;
+            case Disconnected:
+                title = getString(R.string.help_title_disconnected);
+                text = getString(R.string.help_disconnected);
+                break;
+            case Scanning:
+                title = getString(R.string.help_title_scanning);
+                text = getString(R.string.help_scanning);
+                break;
+            case Connecting:
+                title = getString(R.string.help_title_connecting);
+                text = getString(R.string.help_connecting);
+                break;
+            case Preparing:
+                title = getString(R.string.help_title_preparing);
+                text = getString(R.string.help_preparing);
+                break;
+            case Ready:
+                title = getString(R.string.help_title_ready);
+                text = getString(R.string.help_ready);
+                break;
+        }
+
+        if (bondPassKey != -1) {
+            text += "\nPIN: " + bondPassKey;
+            bondPassKey = -1;
+        }
+
         Notification.Builder builder = new Notification.Builder(this)
                 .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle(getString(state == BLEManager.BLEManagerState.Connected ? R.string.help_title_connected : R.string.help_title_searching))
-                .setContentText(getString(state == BLEManager.BLEManagerState.Connected ? R.string.help_subtitle_connected : R.string.help_subtitle_searching))
+                .setContentTitle(title)
+                .setContentText(text)
                 .setPriority(Notification.PRIORITY_MAX)
-                .setOngoing(state != BLEManager.BLEManagerState.Connected)
+                .setOngoing(state != BLEManager.BLEManagerState.Ready && state != BLEManager.BLEManagerState.NoBluetooth)
                 .extend(wearableExtender);
+
+        if (connectPendingIntent != null) {
+            Notification.Action connectAction = new Notification.Action.Builder(
+                    android.R.drawable.ic_menu_search,
+                    "Reconnect",
+                    connectPendingIntent
+            ).build();
+            builder.addAction(connectAction);
+        }
 
         //notificationManager.cancel(NOTIFICATION_HELP);
         notificationManager.notify(NOTIFICATION_HELP, builder.build());
 
-        if (state == BLEManager.BLEManagerState.Connected) {
+        if (state == BLEManager.BLEManagerState.Ready) {
             getVibrator().vibrate(CONNECTION_PATTERN , -1);
         }
         else if (mManager!= null && state == BLEManager.BLEManagerState.Disconnected) {
@@ -474,6 +528,19 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
                     buildMediaNotification();
                 }
             }
+            else if (action.equals(Constants.IA_TRY_CONNECTING)) {
+                mManager.tryConnectingAgain();
+            }
+            else if (intent.getAction().equals("android.bluetooth.device.action.PAIRING_REQUEST")) {
+                try {
+                    bondPassKey = intent.getExtras().getInt("android.bluetooth.device.extra.PAIRING_KEY");
+                    Log.d(TAG_LOG, "Passkey: " + bondPassKey);
+
+                    onConnectionStateChange(mManager.getState());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
         }
         
     };
@@ -538,7 +605,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
 
         Notification.Builder builder = new Notification.Builder(this)
                 .setSmallIcon(R.drawable.ic_music)
-                 .setDeleteIntent(deleteAction)
+                .setDeleteIntent(deleteAction)
                 .setStyle(style)
                 .extend(wearableExtender)
                 .setPriority(Notification.PRIORITY_LOW);

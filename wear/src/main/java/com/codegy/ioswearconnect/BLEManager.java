@@ -3,10 +3,8 @@ package com.codegy.ioswearconnect;
 import android.bluetooth.*;
 import android.bluetooth.le.*;
 import android.content.Context;
-import android.content.Intent;
 import android.os.Build;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.ParcelUuid;
 import android.util.Log;
 
@@ -27,10 +25,12 @@ public class BLEManager {
     private static final String SERVICE_BLANK = "00001111-0000-1000-8000-00805f9b34fb";
 
     public enum BLEManagerState {
+        NoBluetooth,
         Disconnected,
+        Scanning,
         Connecting,
-        Connected,
-        Reconnecting
+        Preparing,
+        Ready
     }
 
     public interface BLEManagerCallback {
@@ -51,13 +51,11 @@ public class BLEManager {
     private PacketProcessor mPacketProcessor;
 
     private BluetoothLeScanner mScanner;
-    private BluetoothGatt bluetoothGatt;
+    private BluetoothGatt mBluetoothGatt;
     private BLEManagerState state = BLEManagerState.Disconnected;
-    private boolean reconnect = false;
-    private int skipCount = 0;
-    private int connectionFailedCount = 0;
 
-    private List<String> characteristicsSubscribed = new ArrayList<>();
+    private boolean mSilentReconnect;
+
     private List<Command> pendingCommands = new ArrayList<>();
     private List<NotificationData> pendingNotifications = new ArrayList<>();
 
@@ -73,65 +71,8 @@ public class BLEManager {
         startScanner();
     }
 
-
-    private void startScanner() {
-        // Initializes a Bluetooth adapter.  For API level 18 and above, get a reference to
-        // BluetoothAdapter through BluetoothManager.
-        final BluetoothManager bluetoothManager = (BluetoothManager) mContext.getSystemService(Context.BLUETOOTH_SERVICE);
-        BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
-
-        // Checks if Bluetooth is supported on the device.
-        if (bluetoothAdapter != null) {
-            mScanner = bluetoothAdapter.getBluetoothLeScanner();
-            ScanSettings settings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED).build();
-            mScanner.startScan(scanFilters(), settings, mScanCallback);
-
-            Log.d(TAG_LOG, "Scanning started");
-        }
-        else {
-            Log.d(TAG_LOG, "Bluetooth not supported");
-        }
-    }
-
-    private void stopScanner() {
-        if (mScanner != null) {
-            mScanner.stopScan(mScanCallback);
-            mScanner = null;
-
-            Log.d(TAG_LOG, "Scanning stopped");
-        }
-    }
-
-    public void close() {
-        Log.d(TAG_LOG, "Close manager");
-
-        mNextCommandHandler.removeCallbacks(mNextCommandRunnable);
-        mClearOldNotificationsHandler.removeCallbacks(mClearOldNotificationsRunnable);
-        mCheckConnectingHandler.removeCallbacks(mCheckConnectingRunnable);
-
-        try {
-            if (mScanner != null) {
-                stopScanner();
-            }
-
-            if (bluetoothGatt != null) {
-                bluetoothGatt.disconnect();
-                bluetoothGatt.close();
-                bluetoothGatt = null;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        state = BLEManagerState.Disconnected;
-        reconnect = false;
-        skipCount = 0;
-
-        mPacketProcessor = null;
-
-        pendingCommands.clear();
-        pendingNotifications.clear();
-        characteristicsSubscribed.clear();
+    public BLEManagerState getState() {
+        return state;
     }
 
     public void setState(BLEManagerState state) {
@@ -141,260 +82,178 @@ public class BLEManager {
 
         this.state = state;
 
-        mCallback.onConnectionStateChange(state);
-    }
-
-    public void addCommandToQueue(Command command) {
-        pendingCommands.add(command);
-
-        sendNextCommand();
-    }
-
-    private void sendNextCommand() {
-        mNextCommandHandler.removeCallbacks(mNextCommandRunnable);
-
-        if (state == BLEManagerState.Disconnected || pendingCommands.size() == 0) {
-            return;
-        }
-
-        boolean result = false;
-        Command command = pendingCommands.get(0);
-
-        try {
-            BluetoothGattService service = bluetoothGatt.getService(command.getServiceUUID());
-
-            if (service != null) {
-                BluetoothGattCharacteristic bluetoothGattCharacteristic = service.getCharacteristic(UUID.fromString(command.getCharacteristic()));
-
-                if (bluetoothGattCharacteristic != null) {
-                    // not being used
-                    // bluetoothGattCharacteristic.setWriteType(command.getWriteType());
-
-                    result = bluetoothGattCharacteristic.setValue(command.getPacket());
-                    Log.d(TAG_LOG, "Characteristic value set: " + result);
-
-                    result = bluetoothGatt.writeCharacteristic(bluetoothGattCharacteristic);
-                    Log.d(TAG_LOG, "Started writing command: " + result);
-                }
-            }
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            result = false;
-        }
-
-        if (!result) {
-            pendingCommands.remove(command);
-
-            if (command.shouldRetryAgain()) {
-                pendingCommands.add(command);
-            }
-        }
-
-        if (pendingCommands.size() > 0) {
-            startNextCommandHandler();
+        if (!mSilentReconnect) {
+            // Just reconnecting, don't show the user
+            mCallback.onConnectionStateChange(state);
         }
     }
 
-    private Handler mMoto360FixHandler = new Handler();
-    private Runnable mMoto360FixRunnable = new Runnable() {
-        @Override
-        public void run() {
-            Log.d(TAG_LOG, "Trying to keep connection alive");
 
-            bluetoothGatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
-            bluetoothGatt.readRemoteRssi();
-
-            // This command should have a response from the iOS device
-            Command attributeCommand = new Command(ServicesConstants.UUID_AMS, ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE, new byte[]{
-                    ServicesConstants.EntityIDTrack,
-                    ServicesConstants.TrackAttributeIDTitle
-            });
-
-            addCommandToQueue(attributeCommand);
-
-            startMoto360FixHandler();
-
-            mMoto360FixHandler.removeCallbacks(mMoto360FixRunnable);
-        }
-    };
-
-    private void startMoto360FixHandler() {
+    public void tryConnectingAgain() {
         if (state == BLEManagerState.Disconnected) {
+            mScansFailed = 0;
+            mConnectionsFailed = 0;
+            restartScanner();
+        }
+    }
+
+    private void restartScanner() {
+        reset();
+        startScanner();
+    }
+
+    private void startScanner() {
+        // Check if the scanner is alive already
+        if (mScanner != null) {
             return;
         }
 
-        Thread thread = new Thread() {
-            public void run() {
-                mNextCommandHandler.postDelayed(mNextCommandRunnable, 250000);
+        // Initializes a Bluetooth adapter.  For API level 18 and above, get a reference to
+        // BluetoothAdapter through BluetoothManager.
+        final BluetoothManager bluetoothManager = (BluetoothManager) mContext.getSystemService(Context.BLUETOOTH_SERVICE);
+
+        // Checks if Bluetooth is supported on the device.
+        if (bluetoothManager != null) {
+            cancelScanningTimeoutTask();
+
+            BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
+
+            // If disabled -> enable bluetooth
+            if (!bluetoothAdapter.isEnabled()) {
+                bluetoothAdapter.enable();
             }
-        };
-        thread.start();
-    }
 
-    private Handler mNextCommandHandler = new Handler();
-    private Runnable mNextCommandRunnable = new Runnable() {
-        @Override
-        public void run() {
-            Log.d(TAG_LOG, "Sending next command");
-            sendNextCommand();
 
-            mNextCommandHandler.removeCallbacks(mNextCommandRunnable);
-        }
-    };
+            mScanner = bluetoothAdapter.getBluetoothLeScanner();
 
-    private void startNextCommandHandler() {
-        mNextCommandHandler.removeCallbacks(mNextCommandRunnable);
+            // If bluetooth was disabled, the scanner may take longer
+            if (mScanner != null) {
+                ScanSettings settings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED).build();
+                mScanner.startScan(null, settings, mScanCallback);
 
-        if (state == BLEManagerState.Disconnected || pendingCommands.size() == 0) {
-            return;
-        }
+                Log.d(TAG_LOG, "Scanning started");
 
-        final long delay = 600 * pendingCommands.get(0).getRetryCount();
+                setState(BLEManagerState.Scanning);
 
-        Thread thread = new Thread() {
-            public void run() {
-                mNextCommandHandler.postDelayed(mNextCommandRunnable, delay);
+                scheduleScanningTimeoutTask();
             }
-        };
-        thread.start();
-    }
+            else {
+                final Handler handler = new Handler(mContext.getMainLooper());
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        startScanner();
 
-    private Handler mClearOldNotificationsHandler = new Handler();
-    private Runnable mClearOldNotificationsRunnable = new Runnable() {
-        @Override
-        public void run() {
-            Log.d(TAG_LOG, "Clear old notifications");
-            mPacketProcessor = null;
-            pendingNotifications.clear();
-
-            mClearOldNotificationsHandler.removeCallbacks(mClearOldNotificationsRunnable);
-        }
-    };
-
-    private void startClearOldNotificationsHandler() {
-        Thread thread = new Thread() {
-            public void run() {
-                mClearOldNotificationsHandler.postDelayed(mClearOldNotificationsRunnable, 700);
-            }
-        };
-        thread.start();
-    }
-
-    private Handler mCheckConnectingHandler = new Handler();
-    private Runnable mCheckConnectingRunnable = new Runnable() {
-        @Override
-        public void run() {
-            if (state == BLEManagerState.Connecting) {
-                Log.w(TAG_LOG, "Connecting is taking too long");
-
-                if (bluetoothGatt != null && bluetoothGatt.getDevice() != null) {
-                    BluetoothDevice device = bluetoothGatt.getDevice();
-                    int bondState = device.getBondState();
-
-                    // Don't do anything while bonding
-                    if (bondState == BluetoothDevice.BOND_BONDING) {
-                        Log.w(TAG_LOG, "Waiting for bond...");
-                        mCheckConnectingHandler.removeCallbacks(mCheckConnectingRunnable);
-                        startCheckConnectingHandler();
-                        return;
+                        handler.removeCallbacksAndMessages(null);
                     }
-
-                    connectionFailedCount++;
-
-                    if (bondState == BluetoothDevice.BOND_NONE || connectionFailedCount > 1) {
-                        connectionFailedCount = 0;
-                        unpairDevice(device);
-                        device.createBond();
-
-                        // Check if bond is successful
-                        startCheckConnectingHandler();
-                    }
-                    else {
-                        bluetoothGatt.disconnect();
-                    }
-                }
-                else {
-                    close();
-                    reconnect = true;
-                    startScanner();
-                }
+                }, 2000);
             }
-
-            mCheckConnectingHandler.removeCallbacks(mCheckConnectingRunnable);
         }
-    };
+        else {
+            Log.d(TAG_LOG, "Bluetooth not supported");
 
-    private void startCheckConnectingHandler() {
-        Thread thread = new Thread() {
-            public void run() {
-                mCheckConnectingHandler.postDelayed(mCheckConnectingRunnable, 4000);
-            }
-        };
-        thread.start();
+            setState(BLEManagerState.NoBluetooth);
+        }
     }
 
+    private void stopScanner() {
+        if (mScanner != null) {
+            try {
+                mScanner.stopScan(mScanCallback);
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
 
-    private void requestMediaUpdates() {
+            mScanner = null;
+
+            Log.d(TAG_LOG, "Scanning stopped");
+        }
+    }
+
+    public void close() {
+        Log.d(TAG_LOG, "Close manager");
+
+        reset();
+        mNextCommandTask = null;
+        mClearOldNotificationsTask = null;
+        mMoto360FixTask = null;
+
+        cancelScanningTimeoutTask();
+        mScanningTimeoutTask = null;
+        cancelConnectingTimeoutTask();
+        mConnectingTimeoutTask = null;
+
+        mSilentReconnect = false;
+
+        state = BLEManagerState.Disconnected;
+    }
+
+    private void reset() {
+        cancelNextCommandTask();
+        cancelClearOldNotificationsTask();
+        cancelMoto360FixTask();
+
         try {
-            Command trackCommand = new Command(ServicesConstants.UUID_AMS, ServicesConstants.CHARACTERISTIC_ENTITY_UPDATE, new byte[] {
-                    ServicesConstants.EntityIDTrack,
-                    ServicesConstants.TrackAttributeIDTitle,
-                    ServicesConstants.TrackAttributeIDArtist
-            });
+            if (mScanner != null) {
+                stopScanner();
+            }
 
-            pendingCommands.add(trackCommand);
-
-            Command playerCommand = new Command(ServicesConstants.UUID_AMS, ServicesConstants.CHARACTERISTIC_ENTITY_UPDATE, new byte[] {
-                    ServicesConstants.EntityIDPlayer,
-                    ServicesConstants.PlayerAttributeIDPlaybackInfo
-            });
-
-            pendingCommands.add(playerCommand);
-
-            sendNextCommand();
+            if (mBluetoothGatt != null) {
+                mBluetoothGatt.disconnect();
+                mBluetoothGatt.close();
+                mBluetoothGatt = null;
+            }
         }
         catch (Exception e) {
             e.printStackTrace();
         }
+
+        mPacketProcessor = null;
+
+        pendingCommands.clear();
+        pendingNotifications.clear();
     }
 
     private List<ScanFilter> scanFilters() {
-        ScanFilter filter = new ScanFilter.Builder().setServiceUuid(ParcelUuid.fromString(SERVICE_BLANK)).build();
-        List<ScanFilter> list = new ArrayList<>(1);
-        list.add(filter);
+        ScanFilter blankFilter = new ScanFilter.Builder().setServiceUuid(ParcelUuid.fromString(SERVICE_BLANK)).build();
+        ScanFilter bleUtilityFilter = new ScanFilter.Builder().setDeviceName("BLE Utility").build();
+        List<ScanFilter> scanFilters = new ArrayList<>(2);
+        scanFilters.add(blankFilter);
+        scanFilters.add(bleUtilityFilter);
 
-        return list;
+        return scanFilters;
     }
-
 
     private final ScanCallback mScanCallback = new ScanCallback() {
 
         @Override
         public void onScanResult(int callbackType, android.bluetooth.le.ScanResult result) {
-            Log.i(TAG_LOG, "Scan Result: " + result.toString());
+            Log.d(TAG_LOG, "Scan Result: " + result.toString());
 
             BluetoothDevice device = result.getDevice();
 
-            if (state == BLEManagerState.Disconnected) {
-                if (device != null) {
-                    if ((!reconnect || skipCount > 5) && device.getName() != null) {
-                        stopScanner();
+            if (state == BLEManagerState.Scanning) {
+                if (device != null && device.getName() != null && (device.getName().equals("codegy.BLEConnect") || device.getName().equals("Blank") || device.getName().equals("BLE Utility"))) {
+                    cancelScanningTimeoutTask();
+                    stopScanner();
 
-                        Log.d(TAG_LOG, "Connecting...: " + device.getName());
+                    mBluetoothGatt = device.connectGatt(mContext, false, mBluetoothGattCallback);
 
-                        skipCount = 0;
-                        setState(BLEManagerState.Connecting);
-                        bluetoothGatt = device.connectGatt(mContext, false, bluetoothGattCallback);
+                    Log.i(TAG_LOG, "Connecting...: " + device.getName());
 
-                        mCheckConnectingHandler.removeCallbacks(mCheckConnectingRunnable);
-                        startCheckConnectingHandler();
-                    }
-                    else {
-                        Log.d(TAG_LOG, "skip:: ");
-                        skipCount++;
-                    }
+                    setState(BLEManagerState.Connecting);
+
+                    scheduleConnectingTimeoutTask();
                 }
+            }
+            else {
+                if (state == BLEManagerState.Disconnected) {
+                    mSilentReconnect = false;
+                }
+
+                cancelScanningTimeoutTask();
+                stopScanner();
             }
         }
 
@@ -411,32 +270,40 @@ public class BLEManager {
 
     };
 
-    private final BluetoothGattCallback bluetoothGattCallback = new BluetoothGattCallback() {
+    private final BluetoothGattCallback mBluetoothGattCallback = new BluetoothGattCallback() {
 
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             Log.d(TAG_LOG, "onConnectionStateChange: " + status + " -> " + newState);
 
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                Log.e(TAG_LOG, "Connected");
+                Log.i(TAG_LOG, "Connected");
+
+                setState(BLEManagerState.Preparing);
 
                 gatt.discoverServices();
-
-                if (moto360Fix) {
-                    startMoto360FixHandler();
-                }
             }
             else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.e(TAG_LOG, "Disconnected");
 
-                setState(BLEManagerState.Disconnected);
+                cancelConnectingTimeoutTask();
 
-                close();
+                if (mBluetoothGatt != null) {
+                    mBluetoothGatt.close();
+                }
 
+                if (!mSilentReconnect && state == BLEManagerState.Ready) {
+                    Log.w(TAG_LOG, "Trying to reconnect");
 
-                reconnect = true;
+                    mScansFailed = 0;
+                    mSilentReconnect = true;
+                    restartScanner();
+                }
+                else {
+                    mSilentReconnect = false;
 
-                startScanner();
+                    setState(BLEManagerState.Disconnected);
+                }
             }
         }
 
@@ -452,9 +319,9 @@ public class BLEManager {
             Log.d(TAG_LOG, "onServicesDiscovered: " + status);
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                mCheckConnectingHandler.removeCallbacks(mCheckConnectingRunnable);
-                subscribeCharacteristic(gatt.getService(ServicesConstants.UUID_ANCS), ServicesConstants.CHARACTERISTIC_DATA_SOURCE);
-                startCheckConnectingHandler();
+                subscribeCharacteristic(gatt, ServicesConstants.UUID_ANCS, ServicesConstants.CHARACTERISTIC_DATA_SOURCE);
+
+                scheduleConnectingTimeoutTask();
             }
         }
 
@@ -463,41 +330,67 @@ public class BLEManager {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.d(TAG_LOG, "Descriptor write successful: " + descriptor.getCharacteristic().getUuid().toString());
 
-                mCheckConnectingHandler.removeCallbacks(mCheckConnectingRunnable);
+                cancelConnectingTimeoutTask();
 
-                characteristicsSubscribed.add(descriptor.getCharacteristic().getUuid().toString());
                 switch (descriptor.getCharacteristic().getUuid().toString()) {
                     case ServicesConstants.CHARACTERISTIC_DATA_SOURCE:
-                        subscribeCharacteristic(gatt.getService(ServicesConstants.UUID_ANCS), ServicesConstants.CHARACTERISTIC_NOTIFICATION_SOURCE);
-                        startCheckConnectingHandler();
+                        subscribeCharacteristic(gatt, ServicesConstants.UUID_ANCS, ServicesConstants.CHARACTERISTIC_NOTIFICATION_SOURCE);
+                        scheduleConnectingTimeoutTask();
                         break;
                     case ServicesConstants.CHARACTERISTIC_NOTIFICATION_SOURCE:
-                        subscribeCharacteristic(gatt.getService(ServicesConstants.UUID_AMS), ServicesConstants.CHARACTERISTIC_REMOTE_COMMAND);
-                        startCheckConnectingHandler();
+                        subscribeCharacteristic(gatt, ServicesConstants.UUID_AMS, ServicesConstants.CHARACTERISTIC_REMOTE_COMMAND);
+                        scheduleConnectingTimeoutTask();
                         break;
                     case ServicesConstants.CHARACTERISTIC_REMOTE_COMMAND:
-                        subscribeCharacteristic(gatt.getService(ServicesConstants.UUID_AMS), ServicesConstants.CHARACTERISTIC_ENTITY_UPDATE);
-                        startCheckConnectingHandler();
+                        subscribeCharacteristic(gatt, ServicesConstants.UUID_AMS, ServicesConstants.CHARACTERISTIC_ENTITY_UPDATE);
+                        scheduleConnectingTimeoutTask();
                         break;
                     case ServicesConstants.CHARACTERISTIC_ENTITY_UPDATE:
-                        subscribeCharacteristic(gatt.getService(ServicesConstants.UUID_BAS), ServicesConstants.CHARACTERISTIC_BATTERY_LEVEL);
-                        startCheckConnectingHandler();
+                        subscribeCharacteristic(gatt, ServicesConstants.UUID_BAS, ServicesConstants.CHARACTERISTIC_BATTERY_LEVEL);
+                        scheduleConnectingTimeoutTask();
                         break;
                     case ServicesConstants.CHARACTERISTIC_BATTERY_LEVEL:
+                        Log.i(TAG_LOG, "Ready");
                         requestMediaUpdates();
 
-                        setState(BLEManagerState.Connected);
+                        cancelConnectingTimeoutTask();
 
-                        connectionFailedCount = 0;
+                        setState(BLEManagerState.Ready);
+
+                        mScansFailed = 0;
+                        mConnectionsFailed = 0;
+                        mSilentReconnect = false;
+                        mConnectingTimeoutTask = null;
+                        mScanningTimeoutTask = null;
+
+
+                        if (moto360Fix) {
+                            Log.i(TAG_LOG, "Scheduling Moto 360 fix");
+                            mBluetoothGatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
+
+                            scheduleMoto360FixTask();
+                        }
 
                         break;
                 }
             }
             else if (status == BluetoothGatt.GATT_WRITE_NOT_PERMITTED) {
-                Log.d(TAG_LOG, "status: write not permitted");
+                Log.e(TAG_LOG, "Status: write not permitted");
+
+                cancelConnectingTimeoutTask();
+
+                mScansFailed = 0;
+                mConnectionsFailed = 0;
+                mSilentReconnect = false;
 
                 unpairDevice(gatt.getDevice());
-                gatt.disconnect();
+                gatt.getDevice().createBond();
+
+                // Check if bond is successful
+                scheduleConnectingTimeoutTask();
+            }
+            else {
+                subscribeCharacteristic(gatt, descriptor.getCharacteristic().getService().getUuid(), descriptor.getCharacteristic().getUuid().toString());
             }
         }
 
@@ -542,7 +435,7 @@ public class BLEManager {
                         pendingCommands.add(lastCommand);
                     }
 
-                    startNextCommandHandler();
+                    scheduleNextCommandTask();
                 }
             }
             catch (Exception e) {
@@ -628,7 +521,7 @@ public class BLEManager {
 
                     if (mPacketProcessor != null) {
                         // Only remove callback if we are getting useful data
-                        mClearOldNotificationsHandler.removeCallbacks(mClearOldNotificationsRunnable);
+                        cancelClearOldNotificationsTask();
 
                         mPacketProcessor.process(packet);
 
@@ -652,7 +545,7 @@ public class BLEManager {
 
                     if (pendingNotifications.size() > 0 || mPacketProcessor == null) {
                         // Clear notifications in case data never arrives
-                        startClearOldNotificationsHandler();
+                        scheduleClearOldNotificationsTask();
                     }
 
                     break;
@@ -709,7 +602,7 @@ public class BLEManager {
 
 
                                 // Clear notifications in case data never arrives
-                                startClearOldNotificationsHandler();
+                                scheduleClearOldNotificationsTask();
 
                                 break;
                             case ServicesConstants.EventIDNotificationRemoved:
@@ -737,22 +630,139 @@ public class BLEManager {
 
     };
 
-    private void subscribeCharacteristic(BluetoothGattService service, String uuidString) {
-        if (service == null || uuidString == null || characteristicsSubscribed.contains(uuidString)) {
+    public void addCommandToQueue(Command command) {
+        pendingCommands.add(command);
+
+        sendNextCommand();
+    }
+
+    private void sendNextCommand() {
+        cancelNextCommandTask();
+
+        if (state == BLEManagerState.Disconnected || pendingCommands.size() == 0) {
+            return;
+        }
+
+        boolean result = false;
+        Command command = pendingCommands.get(0);
+
+        try {
+            BluetoothGattService service = mBluetoothGatt.getService(command.getServiceUUID());
+
+            if (service != null) {
+                BluetoothGattCharacteristic mBluetoothGattCharacteristic = service.getCharacteristic(UUID.fromString(command.getCharacteristic()));
+
+                if (mBluetoothGattCharacteristic != null) {
+                    // not being used
+                    // mBluetoothGattCharacteristic.setWriteType(command.getWriteType());
+
+                    result = mBluetoothGattCharacteristic.setValue(command.getPacket());
+                    Log.d(TAG_LOG, "Characteristic value set: " + result);
+
+                    result = mBluetoothGatt.writeCharacteristic(mBluetoothGattCharacteristic);
+                    Log.d(TAG_LOG, "Started writing command: " + result);
+                }
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            result = false;
+        }
+
+        if (!result) {
+            pendingCommands.remove(command);
+
+            if (command.shouldRetryAgain()) {
+                pendingCommands.add(command);
+            }
+        }
+
+        if (pendingCommands.size() > 0) {
+            scheduleNextCommandTask();
+        }
+    }
+
+    private void requestMediaUpdates() {
+        try {
+            Command trackCommand = new Command(ServicesConstants.UUID_AMS, ServicesConstants.CHARACTERISTIC_ENTITY_UPDATE, new byte[] {
+                    ServicesConstants.EntityIDTrack,
+                    ServicesConstants.TrackAttributeIDTitle,
+                    ServicesConstants.TrackAttributeIDArtist
+            });
+
+            pendingCommands.add(trackCommand);
+
+            Command playerCommand = new Command(ServicesConstants.UUID_AMS, ServicesConstants.CHARACTERISTIC_ENTITY_UPDATE, new byte[] {
+                    ServicesConstants.EntityIDPlayer,
+                    ServicesConstants.PlayerAttributeIDPlaybackInfo
+            });
+
+            pendingCommands.add(playerCommand);
+
+            sendNextCommand();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void subscribeCharacteristic(BluetoothGatt mBluetoothGatt, UUID serviceUUID, String characteristicUUIDString) {
+        if (mBluetoothGatt == null || serviceUUID == null || characteristicUUIDString == null ) {
             return;
         }
 
         try {
-            BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID.fromString(uuidString));
+            BluetoothGattService service = mBluetoothGatt.getService(serviceUUID);
 
-            if (characteristic != null) {
-                bluetoothGatt.setCharacteristicNotification(characteristic, true);
+            if (service != null) {
+                BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID.fromString(characteristicUUIDString));
 
-                BluetoothGattDescriptor descriptor = characteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
+                if (characteristic != null) {
+                    mBluetoothGatt.setCharacteristicNotification(characteristic, true);
 
-                if (descriptor != null) {
-                    descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                    bluetoothGatt.writeDescriptor(descriptor);
+                    BluetoothGattDescriptor descriptor = characteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
+
+                    if (descriptor != null) {
+                        descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                        mBluetoothGatt.writeDescriptor(descriptor);
+                    }
+
+                }
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void unpairDevice(BluetoothDevice device) {
+        Log.d(TAG_LOG, "Unpairing...");
+
+        try {
+            Method m = device.getClass().getMethod("removeBond", (Class[]) null);
+            m.invoke(device, (Object[]) null);
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void disableBluetooth() {
+        try {
+            // Initializes a Bluetooth adapter.  For API level 18 and above, get a reference to
+            // BluetoothAdapter through BluetoothManager.
+            final BluetoothManager bluetoothManager = (BluetoothManager) mContext.getSystemService(Context.BLUETOOTH_SERVICE);
+
+            // Checks if Bluetooth is supported on the device.
+            if (bluetoothManager != null) {
+                BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
+
+                if (bluetoothAdapter.isEnabled()) {
+                    bluetoothAdapter.disable();
+
+                    mDisabledBluetooth = true;
+
+                    Log.d(TAG_LOG, "Disabling bluetooth");
                 }
             }
         }
@@ -762,22 +772,251 @@ public class BLEManager {
     }
 
 
-    private void pairDevice(BluetoothDevice device) {
-        Log.d(TAG_LOG, "Pairing...");
-        try {
-            Method m = device.getClass().getMethod("createBond", (Class[]) null);
-            m.invoke(device, (Object[]) null);
-        } catch (Exception e) {
-            e.printStackTrace();
+    // TASKS
+
+    // Use so it's not reenabling bluetooth all the time
+    private boolean mDisabledBluetooth = true;
+    private int mScansFailed = 1;
+    private ScheduledTask mScanningTimeoutTask;
+
+    private void scheduleScanningTimeoutTask() {
+        if (mScanningTimeoutTask == null) {
+            mScanningTimeoutTask = new ScheduledTask(5000, mContext.getMainLooper(), new Runnable() {
+                @Override
+                public void run() {
+                    Log.i(TAG_LOG, "Scanner timed out");
+
+                    stopScanner();
+
+                    mScansFailed++;
+
+                    if (mScansFailed % 2 == 0) {
+                        mSilentReconnect = false;
+                        setState(BLEManagerState.Disconnected);
+                    }
+                    else {
+                        if (!mDisabledBluetooth) {
+                            disableBluetooth();
+                        }
+                        else {
+                            mDisabledBluetooth = false;
+                        }
+
+                        startScanner();
+                    }
+                }
+            });
+        }
+        else {
+            mScanningTimeoutTask.cancel();
+        }
+
+        mScanningTimeoutTask.schedule();
+    }
+
+    private void cancelScanningTimeoutTask() {
+        if (mScanningTimeoutTask != null) {
+            mScanningTimeoutTask.cancel();
         }
     }
-    private void unpairDevice(BluetoothDevice device) {
-        Log.d(TAG_LOG, "Unpairing...");
-        try {
-            Method m = device.getClass().getMethod("removeBond", (Class[]) null);
-            m.invoke(device, (Object[]) null);
-        } catch (Exception e) {
-            e.printStackTrace();
+
+
+    private int mConnectionsFailed = 0;
+    private ScheduledTask mConnectingTimeoutTask;
+
+    private void scheduleConnectingTimeoutTask() {
+        if (mConnectingTimeoutTask == null) {
+            mConnectingTimeoutTask = new ScheduledTask(4000, mContext.getMainLooper(), new Runnable() {
+                @Override
+                public void run() {
+                    if (state == BLEManagerState.Connecting || state == BLEManagerState.Preparing) {
+                        Log.w(TAG_LOG, "Connecting timed out");
+
+                        if (mBluetoothGatt != null && mBluetoothGatt.getDevice() != null) {
+                            BluetoothDevice device = mBluetoothGatt.getDevice();
+                            int bondState = device.getBondState();
+
+                            // Don't do anything while bonding
+                            if (bondState == BluetoothDevice.BOND_BONDING) {
+                                Log.w(TAG_LOG, "Waiting for bond...");
+                                mConnectionsFailed = 4;
+                                scheduleConnectingTimeoutTask();
+                            }
+                            else {
+                                mConnectionsFailed++;
+
+                                // Don't unpair if it's reconnecting silently
+                                if (bondState == BluetoothDevice.BOND_NONE || (mConnectionsFailed == 4 && !mSilentReconnect)) {
+                                    mSilentReconnect = false;
+                                    unpairDevice(device);
+                                    device.createBond();
+
+                                    // Check if bond is successful
+                                    scheduleConnectingTimeoutTask();
+                                }
+                                else {
+                                    try {
+                                        mBluetoothGatt.disconnect();
+                                        mBluetoothGatt.close();
+                                        mBluetoothGatt = null;
+                                    }
+                                    catch (Exception e) {
+                                        e.printStackTrace();
+                                    }
+
+                                    mScansFailed = 0;
+
+                                    if (mConnectionsFailed == 2) {
+                                        if (!mDisabledBluetooth) {
+                                            disableBluetooth();
+                                        }
+                                        else {
+                                            mDisabledBluetooth = false;
+                                        }
+
+                                        restartScanner();
+                                    }
+                                    else if (mConnectionsFailed == 6) {
+                                        Log.w(TAG_LOG, "Giving up on connection");
+
+                                        mConnectionsFailed = 0;
+                                        stopScanner();
+
+                                        mSilentReconnect = false;
+                                        setState(BLEManagerState.Disconnected);
+                                    }
+                                    else {
+                                        restartScanner();
+                                    }
+                                }
+                            }
+                        }
+                        else {
+                            Log.w(TAG_LOG, "Giving up on connection");
+
+                            mScansFailed = 0;
+                            mConnectionsFailed = 0;
+                            stopScanner();
+
+                            mSilentReconnect = false;
+                            setState(BLEManagerState.Disconnected);
+                        }
+                    }
+                }
+            });
+        }
+        else {
+            mConnectingTimeoutTask.cancel();
+        }
+
+        mConnectingTimeoutTask.schedule();
+    }
+
+    private void cancelConnectingTimeoutTask() {
+        if (mConnectingTimeoutTask != null) {
+            mConnectingTimeoutTask.cancel();
+        }
+    }
+
+
+    private ScheduledTask mNextCommandTask;
+
+    private void scheduleNextCommandTask() {
+        if (state == BLEManagerState.Disconnected || pendingCommands.size() == 0) {
+            cancelNextCommandTask();
+            return;
+        }
+
+        long delay = 600 * pendingCommands.get(0).getRetryCount();
+
+        if (mNextCommandTask == null) {
+            mNextCommandTask = new ScheduledTask(delay, mContext.getMainLooper(), new Runnable() {
+                @Override
+                public void run() {
+                    Log.d(TAG_LOG, "Sending next command");
+                    sendNextCommand();
+                }
+            });
+        }
+        else {
+            mNextCommandTask.cancel();
+            mNextCommandTask.setDelay(delay);
+        }
+
+        mNextCommandTask.schedule();
+    }
+
+    private void cancelNextCommandTask() {
+        if (mNextCommandTask != null) {
+            mNextCommandTask.cancel();
+        }
+    }
+
+
+    private ScheduledTask mClearOldNotificationsTask;
+
+    private void scheduleClearOldNotificationsTask() {
+        if (mClearOldNotificationsTask == null) {
+            mClearOldNotificationsTask = new ScheduledTask(700, mContext.getMainLooper(), new Runnable() {
+                @Override
+                public void run() {
+                    Log.i(TAG_LOG, "Clear old notifications");
+                    mPacketProcessor = null;
+                    pendingNotifications.clear();
+                }
+            });
+        }
+        else {
+            mClearOldNotificationsTask.cancel();
+        }
+
+        mClearOldNotificationsTask.schedule();
+    }
+
+    private void cancelClearOldNotificationsTask() {
+        if (mClearOldNotificationsTask != null) {
+            mClearOldNotificationsTask.cancel();
+        }
+    }
+
+
+    private ScheduledTask mMoto360FixTask;
+
+    private void scheduleMoto360FixTask() {
+        if (state == BLEManagerState.Disconnected) {
+            cancelMoto360FixTask();
+            return;
+        }
+
+        if (mMoto360FixTask == null) {
+            mMoto360FixTask = new ScheduledTask(250000, mContext.getMainLooper(), new Runnable() {
+                @Override
+                public void run() {
+                    Log.d(TAG_LOG, "Trying to keep connection alive");
+                    mBluetoothGatt.readRemoteRssi();
+
+                    // This command should have a response from the iOS device
+                    Command attributeCommand = new Command(ServicesConstants.UUID_AMS, ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE, new byte[]{
+                            ServicesConstants.EntityIDTrack,
+                            ServicesConstants.TrackAttributeIDTitle
+                    });
+
+                    addCommandToQueue(attributeCommand);
+
+                    scheduleMoto360FixTask();
+                }
+            });
+        }
+        else {
+            mMoto360FixTask.cancel();
+        }
+
+        mMoto360FixTask.schedule();
+    }
+
+    private void cancelMoto360FixTask() {
+        if (mMoto360FixTask != null) {
+            mMoto360FixTask.cancel();
         }
     }
 

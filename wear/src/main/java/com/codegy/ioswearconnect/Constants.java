@@ -11,6 +11,7 @@ public class Constants {
     public static final String SPK_MOTO_360_FIX = "SPK_MOTO_360_FIX";
 
     // Intent Actions
+    public static final String IA_TRY_CONNECTING = "com.codegy.IA_TRY_CONNECTING";
     public static final String IA_COLOR_BACKGROUNDS_CHANGED = "com.codegy.IA_COLOR_BACKGROUNDS_CHANGED";
     public static final String IA_BATTERY_UPDATES_CHANGED = "com.codegy.IA_BATTERY_UPDATES_CHANGED";
     public static final String IA_POSITIVE = "com.codegy.IA_POSITIVE";
