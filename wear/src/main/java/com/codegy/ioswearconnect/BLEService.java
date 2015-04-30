@@ -56,7 +56,9 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
     private int bondPassKey = -1;
 
     private int batteryLevel;
+    private boolean completeBatteryInfo;
     private boolean batteryUpdates;
+    private boolean batteryHidden = false;
     private boolean colorBackgrounds;
 
 
@@ -83,6 +85,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
         batteryUpdates = sp.getBoolean(Constants.SPK_BATTERY_UPDATES, true);
         colorBackgrounds = sp.getBoolean(Constants.SPK_COLOR_BACKGROUNDS, false);
+        completeBatteryInfo = sp.getBoolean(Constants.SPK_COMPLETE_BATTERY_INFO, false);
 
 
         IntentFilter intentFilter = new IntentFilter();
@@ -91,6 +94,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
         intentFilter.addAction(Constants.IA_NEGATIVE);
         intentFilter.addAction(Constants.IA_DELETE);
         intentFilter.addAction(Constants.IA_HIDE_MEDIA);
+        intentFilter.addAction(Constants.IA_HIDE_BATTERY);
         intentFilter.addAction(Constants.IA_BATTERY_UPDATES_CHANGED);
         intentFilter.addAction(Constants.IA_COLOR_BACKGROUNDS_CHANGED);
         intentFilter.addAction("android.bluetooth.device.action.PAIRING_REQUEST");
@@ -371,7 +375,16 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
 
     @Override
     public void onBatteryLevelChanged(int newBatteryLevel) {
+        // If the battery is running down, vibrate at 20, 15, 10 and 5
+        if (batteryLevel < newBatteryLevel && newBatteryLevel <= 20 && newBatteryLevel % 5 == 0) {
+            getVibrator().vibrate(SILENT_VIBRATION_PATTERN, -1);
+        }
+
         batteryLevel = newBatteryLevel;
+
+        if (completeBatteryInfo || batteryLevel <= 25 || batteryLevel % 10 == 0) {
+            batteryHidden = false;
+        }
 
         buildBatteryNotification();
     }
@@ -509,9 +522,13 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
                     buildMediaNotification();
                 }
             }
+            else if (action.equals(Constants.IA_HIDE_BATTERY)) {
+                batteryHidden = true;
+            }
             else if (action.equals(Constants.IA_BATTERY_UPDATES_CHANGED)) {
                 SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(BLEService.this);
                 batteryUpdates = sp.getBoolean(Constants.SPK_BATTERY_UPDATES, true);
+                completeBatteryInfo = sp.getBoolean(Constants.SPK_COMPLETE_BATTERY_INFO, false);
 
                 if (batteryUpdates) {
                     buildBatteryNotification();
@@ -546,7 +563,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
     };
 
     private void buildBatteryNotification() {
-        if (!batteryUpdates || batteryLevel == -1) {
+        if (!batteryUpdates || batteryHidden || batteryLevel == -1) {
             return;
         }
 
@@ -571,12 +588,16 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
             batteryIcon = R.drawable.ic_battery_1;
         }
 
+        // Build pending intent for when the user swipes the card away
+        Intent deleteIntent = new Intent(Constants.IA_HIDE_BATTERY);
+        PendingIntent deleteAction = PendingIntent.getBroadcast(this, 0, deleteIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
         Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
                 .setBackground(background);
 
         Notification.Builder builder = new Notification.Builder(this)
                 .setSmallIcon(batteryIcon)
+                .setDeleteIntent(deleteAction)
                 .setContentTitle(getString(R.string.battery_level))
                 .setContentText(batteryLevel + "%")
                 .extend(wearableExtender)

@@ -1,4 +1,4 @@
-iOS Wear Connect
+Wear Connect for iOS
 ===================================
 
 This app uses BLE services available on iOS devices to manage notifications, control music playback and check the iOS device battery level, without jailbreaking the iOS device or rooting the Android Wear device. This app is not a hack and has zero risks on either device.
@@ -11,6 +11,11 @@ This project was inspired by [@MohammadAG](https://twitter.com/MohammadAG) and b
 
 Change log
 --------------
++ v1.6.1
+ - Option to have less frequent or complete battery updates. When "Complete battery info" is disabled it will only show the battery every 10% or when it's lower than 25%.
+ - It now vibrates when the iOS device's battery is at 20%, 15%, 10% or 5%.
+ - Updated help card with BLE Utility instead of LightBlue.
+ 
 + v1.6
  - New way of connecting, more info cards, no more infinite "Searching..." loop.
  - The pairing PIN is now displayed in a card too.
@@ -79,11 +84,11 @@ Contact me with any information regarding other watches.
 Getting Started
 ---------------
 1. Install the app on your watch.
-2. Install [LightBlue](https://itunes.apple.com/app/id557428110) on your iOS device.
-3. Launch LightBlue and create a "New Virtual Peripheral" from the "Blank" template.
+2. Install [BLE Utility](https://itunes.apple.com/app/id606210918) on your iOS device.
+3. Select the "Peripheral" tab on BLE Utility app.
 4. Launch the app on your watch.
 5. Switch ON the iOS Service.
-6. Turn on "Blank" peripheral on LightBlue app.
+6. Tap the "Disconnected" card on the watch to search for the iOS device.
 7. The watch should connect to the iOS device.
 
 App install

@@ -8,6 +8,7 @@ public class Constants {
     // Shared Preferences Keys
     public static final String SPK_COLOR_BACKGROUNDS = "SPK_COLOR_BACKGROUNDS";
     public static final String SPK_BATTERY_UPDATES = "SPK_BATTERY_UPDATES";
+    public static final String SPK_COMPLETE_BATTERY_INFO = "SPK_COMPLETE_BATTERY_INFO";
     public static final String SPK_MOTO_360_FIX = "SPK_MOTO_360_FIX";
 
     // Intent Actions
@@ -18,5 +19,6 @@ public class Constants {
     public static final String IA_NEGATIVE = "com.codegy.IA_NEGATIVE";
     public static final String IA_DELETE = "com.codegy.IA_DELETE";
     public static final String IA_HIDE_MEDIA = "com.codegy.IA_HIDE_MEDIA";
+    public static final String IA_HIDE_BATTERY = "com.codegy.IA_HIDE_BATTERY";
 
 }

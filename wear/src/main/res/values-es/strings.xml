@@ -21,6 +21,7 @@
     <string name="ios_service">Servicio iOS</string>
     <string name="color_backgrounds">Fondos con color</string>
     <string name="battery_updates">Info de batería</string>
+    <string name="complete_battery_info">Info de batería completa</string>
 
 
     <string name="help_title_no_bluetooth">Sin bluetooth</string>
@@ -29,12 +30,12 @@
     <string name="help_title_disconnected">Desconectado</string>
     <string name="help_disconnected">Pulsa para buscar.</string>
     <string name="help">Ayuda</string>
-    <string name="help_how_to">- Instala y abre LightBlue en tu dispositivo iOS.\n- Si no lo has hecho ya crea un \"New Virtual Peripheral\" usando la plantilla \"Blank\".\n- Enciende el \'virtual peripheral\' llamado \"Blank\".\n- Pulsa en la tarjeta anterior para buscar el dispositivo iOS.</string>
+    <string name="help_how_to">- Instala y abre \"BLE Utility\" en tu dispositivo iOS.\n- Selecciona la pestaña \"Peripheral\".\n- Pulsa en la tarjeta anterior para buscar el dispositivo iOS.</string>
 
     <string name="help_title_scanning">Buscando…</string>
     <string name="help_scanning">Buscando dispositvo iOS.</string>
 
-    <string name="help_title_connecting">Connecting…</string>
+    <string name="help_title_connecting">Conectando…</string>
     <string name="help_connecting">Conectando con el dispositivo.</string>
 
     <string name="help_title_preparing">Preparando…</string>

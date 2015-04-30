@@ -22,6 +22,7 @@ public class MainActivity extends Activity {
     private Switch mServiceSwitch;
     private Switch mColorBackgroundsSwitch;
     private Switch mBatteryUpdatesSwitch;
+    private Switch mCompleteBatteryInfoSwitch;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,10 +43,13 @@ public class MainActivity extends Activity {
                 mServiceSwitch = (Switch) stub.findViewById(R.id.serviceSwitch);
                 mColorBackgroundsSwitch = (Switch) stub.findViewById(R.id.colorBackgroundsSwitch);
                 mBatteryUpdatesSwitch = (Switch) stub.findViewById(R.id.batteryUpdatesSwitch);
+                mCompleteBatteryInfoSwitch = (Switch) stub.findViewById(R.id.completeBatteryInfoSwitch);
+
 
                 SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
                 final boolean colorBackgrounds = sp.getBoolean(Constants.SPK_COLOR_BACKGROUNDS, false);
                 final boolean batteryUpdates = sp.getBoolean(Constants.SPK_BATTERY_UPDATES, true);
+                final boolean completeBatteryInfo = sp.getBoolean(Constants.SPK_COMPLETE_BATTERY_INFO, false);
                 final boolean serviceRunning = isServiceRunning();
 
 
@@ -80,6 +84,46 @@ public class MainActivity extends Activity {
                     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
                         sp.edit().putBoolean(Constants.SPK_BATTERY_UPDATES, isChecked).apply();
+
+                        MainActivity.this.sendBroadcast(new Intent(Constants.IA_BATTERY_UPDATES_CHANGED));
+                    }
+                });
+
+
+                mBatteryUpdatesSwitch.setChecked(batteryUpdates);
+                mBatteryUpdatesSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+                        SharedPreferences.Editor editor = sp.edit();
+                        editor.putBoolean(Constants.SPK_BATTERY_UPDATES, isChecked);
+
+                        if (!isChecked) {
+                            editor.putBoolean(Constants.SPK_COMPLETE_BATTERY_INFO, false);
+                            mCompleteBatteryInfoSwitch.setChecked(false);
+                        }
+
+                        editor.apply();
+
+                        MainActivity.this.sendBroadcast(new Intent(Constants.IA_BATTERY_UPDATES_CHANGED));
+                    }
+                });
+
+
+                mCompleteBatteryInfoSwitch.setChecked(completeBatteryInfo);
+                mCompleteBatteryInfoSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+                        SharedPreferences.Editor editor = sp.edit();
+                        editor.putBoolean(Constants.SPK_COMPLETE_BATTERY_INFO, isChecked);
+
+                        if (isChecked) {
+                            editor.putBoolean(Constants.SPK_BATTERY_UPDATES, true);
+                            mBatteryUpdatesSwitch.setChecked(true);
+                        }
+
+                        editor.apply();
 
                         MainActivity.this.sendBroadcast(new Intent(Constants.IA_BATTERY_UPDATES_CHANGED));
                     }

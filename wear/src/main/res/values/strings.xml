@@ -22,6 +22,7 @@
     <string name="ios_service">iOS Service</string>
     <string name="color_backgrounds">Color backgrounds</string>
     <string name="battery_updates">Battery updates</string>
+    <string name="complete_battery_info">Complete battery info</string>
     <string name="moto_360_fix">Moto 360 Fix?</string>
 
 
@@ -31,7 +32,7 @@
     <string name="help_title_disconnected">Disconnected</string>
     <string name="help_disconnected">Tap to start searching.</string>
     <string name="help">Help</string>
-    <string name="help_how_to">- Install and launch LightBlue on your iOS Device.\n- If you haven\'t already create a \"New Virtual Peripheral\" from the \"Blank\" template.\n- Turn on the \"Blank\" virtual peripheral.\n- Tap the precious card to search for the iOS device.</string>
+    <string name="help_how_to">- Install and launch \"BLE Utility\" on your iOS Device.\n- Select the \"Peripheral\" tab.\n- Tap the previous card to search for the iOS device.</string>
 
     <string name="help_title_scanning">Searching…</string>
     <string name="help_scanning">Looking for an iOS device.</string>
