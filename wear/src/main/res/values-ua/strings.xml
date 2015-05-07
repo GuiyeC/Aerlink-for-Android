@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2014 The Android Open Source Project
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+<resources>
+    <!-- <string name="app_name">iOS Wear Connect</string> -->
+    <string name="app_name">Wear Connect</string>
+
+    <string name="title_activity_phone">Дзвінок</string>
+    <string name="battery_level">Рівень заряду</string>
+    <string name="ios_service">Сервіси iOS</string>
+    <string name="color_backgrounds">Кольоровий фон</string>
+    <string name="battery_updates">Статус батареї</string>
+    <string name="complete_battery_info">Актуальний статус батареї</string>
+    <string name="moto_360_fix">Фікс для Moto 360?</string>
+
+
+    <string name="help_title_no_bluetooth">Немає Bluetooth</string>
+    <string name="help_no_bluetooth">Bluetooth не підтримується.</string>
+
+    <string name="help_title_disconnected">Відключено</string>
+    <string name="help_disconnected">Натисніть для пошуку.</string>
+    <string name="help">Допомога</string>
+    <string name="help_how_to">- Встановіть та запустіть \"BLE Utility\" на Вашому iOS Пристрої.\n- Виберіть вкладку \"Peripheral\".\n- Натисніть на попередню карточку для з'єднання с iOS пристроєм.</string>
+
+    <string name="help_title_scanning">Пошук…</string>
+    <string name="help_scanning">Пошук iOS пристрою.</string>
+
+    <string name="help_title_connecting">З'єднання…</string>
+    <string name="help_connecting">З'єднання з iOS пристроєм.</string>
+
+    <string name="help_title_preparing">Підготовка…</string>
+    <string name="help_preparing">Перевіряємо, чи все працює.</string>
+
+    <string name="help_title_ready">Готово</string>
+    <string name="help_ready">Пристрої сполучені!</string>
+
+</resources>

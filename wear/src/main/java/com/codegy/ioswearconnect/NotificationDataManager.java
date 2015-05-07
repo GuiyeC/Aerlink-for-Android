@@ -77,6 +77,14 @@ public class NotificationDataManager {
                 messageApp = true;
 
                 break;
+            case "com.vk.vkclient":
+            case "com.vk.vkhd":
+                notificationData.setAppIcon(R.drawable.ic_vk);
+                notificationData.setBackgroundColor(Color.rgb(96, 138, 188));
+
+                messageApp = true;
+
+                break;
             case "com.google.inbox":
                 notificationData.setAppIcon(R.drawable.ic_inbox);
                 notificationData.setBackgroundColor(Color.rgb(66, 133, 244));
