@@ -32,13 +32,13 @@
     <string name="help_title_disconnected">Відключено</string>
     <string name="help_disconnected">Натисніть для пошуку.</string>
     <string name="help">Допомога</string>
-    <string name="help_how_to">- Встановіть та запустіть \"BLE Utility\" на Вашому iOS Пристрої.\n- Виберіть вкладку \"Peripheral\".\n- Натисніть на попередню карточку для з'єднання с iOS пристроєм.</string>
+    <string name="help_how_to">- Встановіть та запустіть \"BLE Utility\" на Вашому iOS Пристрої.\n- Виберіть вкладку \"Peripheral\".\n- Натисніть на попередню карточку для з\'єднання с iOS пристроєм.</string>
 
     <string name="help_title_scanning">Пошук…</string>
     <string name="help_scanning">Пошук iOS пристрою.</string>
 
-    <string name="help_title_connecting">З'єднання…</string>
-    <string name="help_connecting">З'єднання з iOS пристроєм.</string>
+    <string name="help_title_connecting">З\'єднання…</string>
+    <string name="help_connecting">З\'єднання з iOS пристроєм.</string>
 
     <string name="help_title_preparing">Підготовка…</string>
     <string name="help_preparing">Перевіряємо, чи все працює.</string>
