@@ -5,7 +5,7 @@ android {
     buildToolsVersion "21.1.2"
     defaultConfig {
         //applicationId "com.codegy.ioswearconnect"
-        applicationId "com.codegy.wearconnectforios"
+        applicationId "com.dseverin.wearconnectforios"
         minSdkVersion 19
         targetSdkVersion 22
         versionCode 9

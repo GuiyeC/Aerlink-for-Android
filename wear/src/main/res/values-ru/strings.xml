@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2014 The Android Open Source Project
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+<resources>
+    <!-- <string name="app_name">iOS Wear Connect</string> -->
+    <string name="app_name">Wear Connect</string>
+
+    <string name="title_activity_phone">Звонок</string>
+    <string name="battery_level">Уровень заряда</string>
+    <string name="ios_service">Сервисы iOS</string>
+    <string name="color_backgrounds">Цветной фон</string>
+    <string name="battery_updates">Статус батареи</string>
+    <string name="complete_battery_info">Актуальный статус батареи</string>
+    <string name="moto_360_fix">Фикс для Moto 360?</string>
+
+
+    <string name="help_title_no_bluetooth">Нет Bluetooth</string>
+    <string name="help_no_bluetooth">Bluetooth не поддерживается.</string>
+
+    <string name="help_title_disconnected">Отключено</string>
+    <string name="help_disconnected">Нажмите для поиска.</string>
+    <string name="help">Помощь</string>
+    <string name="help_how_to">- Установите и запустите \"BLE Utility\" на Вашем iOS Устройстве.\n- Выберите вкладку \"Peripheral\".\n- Нажмите на прерыдущую карточку для соединения с iOS устройством.</string>
+
+    <string name="help_title_scanning">Поиск…</string>
+    <string name="help_scanning">Поиск iOS устройства.</string>
+
+    <string name="help_title_connecting">Соединение…</string>
+    <string name="help_connecting">Соединение с iOS устройством.</string>
+
+    <string name="help_title_preparing">Подготовка…</string>
+    <string name="help_preparing">Проверяем, все ли работает.</string>
+
+    <string name="help_title_ready">Готово</string>
+    <string name="help_ready">Устройства сопряжены!</string>
+
+</resources>
