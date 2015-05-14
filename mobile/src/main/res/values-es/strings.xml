@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">Aerlink</string>
+
     <string name="title">Abre la app en tu reloj</string>
     <string name="description">Activa el \"Servicio iOS\" desde tu reloj. Aparecerá una tarjeta con ayuda en la pantalla principal de tu reloj.</string>
     <string name="moto_360_help">Si usas un Moto 360 activa el modo ambiente.</string>

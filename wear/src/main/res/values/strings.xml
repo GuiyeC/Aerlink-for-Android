@@ -45,6 +45,7 @@
 
     <string name="help_title_ready">Ready</string>
     <string name="help_ready">You\'re good to go. Enjoy!</string>
+
     <string name="title_activity_camera_remote">CameraRemoteActivity</string>
     <string name="hello_round">Hello Round World!</string>
     <string name="hello_square">Hello Square World!</string>

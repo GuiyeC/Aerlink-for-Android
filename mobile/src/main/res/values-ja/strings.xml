@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">Aerlink</string>
+
     <string name="description">Watchで \"iOS Service\" をOnにして下さい。接続用のカードがWatchのホームスクリーンに出ます。</string>
     <string name="moto_360_help">Moto 360をお使いの場合はアンビエントモードをOnにして下さい。</string>
     <string name="title">WatchでWear Connectを起動して下さい</string>

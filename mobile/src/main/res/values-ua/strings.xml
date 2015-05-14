@@ -1,4 +1,6 @@
 <resources>
+    <string name="app_name">Aerlink</string>
+
     <string name="title">Відкрийте програму на Вашому годиннику</string>
     <string name="description">Увімкніть опцію \"iOS Service\". Картка на домашньому екрані допоможе синхронізуватися з телефоном.</string>
     <string name="moto_360_help">Для Moto 360 вимкніть ambient mode.</string>

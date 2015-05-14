@@ -14,6 +14,8 @@
  limitations under the License.
 -->
 <resources>
+    <string name="app_name">Aerlink</string>
+
     <string name="title_activity_phone">Дзвінок</string>
     <string name="battery_level">Рівень заряду</string>
     <string name="ios_service">Сервіси iOS</string>
