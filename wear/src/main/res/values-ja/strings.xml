@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2014 The Android Open Source Project
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+<resources>
+    <string name="app_name">Wear Connect</string>
+    <string name="battery_level">バッテリーレベル</string>
+    <string name="battery_updates">バッテリーアップデート</string>
+    <string name="color_backgrounds">バックグラウンドカラー</string>
+    <string name="complete_battery_info">バッテリー情報</string>
+    <string name="help">ヘルプ</string>
+    <string name="help_connecting">iOSデバイスへ接続中</string>
+    <string name="help_disconnected">タップしてサーチを開始</string>
+    <string name="help_no_bluetooth">Bluetoothはサポートされていません</string>
+    <string name="help_scanning">iOSデバイスを検索中</string>
+    <string name="help_title_connecting">接続中…</string>
+    <string name="help_title_disconnected">切断されました</string>
+    <string name="help_title_no_bluetooth">No bluetooth</string>
+    <string name="help_title_scanning">検索中…</string>
+    <string name="ios_service">iOS Service</string>
+    <string name="help_how_to">- iOSデバイスに \"BLE Utility\" をインストールして起動して下さい。\n- \"Peripheral\" タブを選択してくだい。 \n- iOSデバイスを検索するためにカードをタップして下さい。</string>
+    <string name="help_ready">利用可能です。Enjoy!</string>
+    <string name="help_preparing">準備が正常に完了しました</string>
+    <string name="help_title_preparing">準備中…</string>
+    <string name="help_title_ready">準備完了</string>
+</resources>
