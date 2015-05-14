@@ -7,6 +7,10 @@ import java.util.UUID;
  */
 public class ServicesConstants {
 
+    // ALS - Aerlink Service
+    public static final UUID UUID_ALS = UUID.fromString("0d6a2c7d-392a-4781-b432-db437f70f643");
+    public static final String CHARACTERISTIC_CAMERA_REMOTE = "7be5ff0a-e736-453a-9257-c94fffdc6a97";
+
     // ANCS - Apple Notification Center Service Profile
     public static final UUID UUID_ANCS = UUID.fromString("7905f431-b5ce-4e99-a40f-4b1e122d00d0");
     public static final String CHARACTERISTIC_NOTIFICATION_SOURCE = "9fbf120d-6301-42d9-8c58-25e699a21dbd";

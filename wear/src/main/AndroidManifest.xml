@@ -21,6 +21,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
+                <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -28,12 +29,20 @@
         <service android:name=".BLEService" />
 
         <activity android:name="android.support.wearable.activity.ConfirmationActivity" />
-
         <activity
             android:name=".PhoneActivity"
             android:label="@string/title_activity_phone"
             android:launchMode="singleInstance"
             android:theme="@style/NoAnimTheme" >
+        </activity>
+        <activity
+            android:name=".CameraRemoteActivity"
+            android:label="@string/title_activity_camera_remote" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <!-- By far not ready <category android:name="android.intent.category.LAUNCHER" /> -->
+            </intent-filter>
         </activity>
     </application>
 

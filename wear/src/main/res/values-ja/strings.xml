@@ -14,7 +14,6 @@
  limitations under the License.
 -->
 <resources>
-    <string name="app_name">Wear Connect</string>
     <string name="battery_level">バッテリーレベル</string>
     <string name="battery_updates">バッテリーアップデート</string>
     <string name="color_backgrounds">バックグラウンドカラー</string>

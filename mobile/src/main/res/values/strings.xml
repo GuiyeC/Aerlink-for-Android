@@ -1,6 +1,6 @@
 <resources>
     <!-- <string name="app_name">iOS Wear Connect</string> -->
-    <string name="app_name">Wear Connect</string>
+    <string name="app_name">Aerlink</string>
 
     <string name="title">Open on your watch</string>
     <string name="description">Switch ON the \"iOS Service\" from your watch. A card with help will appear on your watch\'s home screen.</string>

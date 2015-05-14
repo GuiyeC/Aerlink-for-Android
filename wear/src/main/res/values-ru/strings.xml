@@ -14,9 +14,6 @@
  limitations under the License.
 -->
 <resources>
-    <!-- <string name="app_name">iOS Wear Connect</string> -->
-    <string name="app_name">Wear Connect</string>
-
     <string name="title_activity_phone">Звонок</string>
     <string name="battery_level">Уровень заряда</string>
     <string name="ios_service">Сервисы iOS</string>

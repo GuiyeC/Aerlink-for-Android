@@ -3,11 +3,15 @@ package com.codegy.ioswearconnect;
 import android.bluetooth.*;
 import android.bluetooth.le.*;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.media.Image;
 import android.os.Build;
 import android.os.Handler;
 import android.os.ParcelUuid;
 import android.util.Log;
 
+import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,6 +29,7 @@ public class BLEManager {
     private static final String SERVICE_BLANK = "00001111-0000-1000-8000-00805f9b34fb";
 
     public enum BLEManagerState {
+        Killed,
         NoBluetooth,
         Disconnected,
         Scanning,
@@ -42,11 +47,18 @@ public class BLEManager {
         boolean shouldUpdateBatteryLevel();
         void onBatteryLevelChanged(int newBatteryLevel);
         void onMediaDataUpdated(byte[] packet, String attribute);
+        void onMediaArtistUpdated(String mediaArtist);
+        void onMediaTitleUpdated(String mediaTitle);
+    }
+
+    public interface BLECameraRemoteCallback {
+        void onCameraImageChanged(Bitmap cameraImage);
     }
 
 
     private Context mContext;
     private BLEManagerCallback mCallback;
+    private BLECameraRemoteCallback cameraRemoteCallback;
 
     private PacketProcessor mPacketProcessor;
 
@@ -55,6 +67,8 @@ public class BLEManager {
     private BLEManagerState state = BLEManagerState.Disconnected;
 
     private boolean mSilentReconnect;
+
+    private byte mRequestingMediaAttribute = -1;
 
     private List<Command> pendingCommands = new ArrayList<>();
     private List<NotificationData> pendingNotifications = new ArrayList<>();
@@ -88,6 +102,19 @@ public class BLEManager {
         }
     }
 
+    public void setCameraRemoteCallback(BLECameraRemoteCallback cameraRemoteCallback) {
+        this.cameraRemoteCallback = cameraRemoteCallback;
+
+        if (mBluetoothGatt != null && state == BLEManagerState.Ready) {
+            if (cameraRemoteCallback != null) {
+                subscribeCharacteristic(mBluetoothGatt, ServicesConstants.UUID_ALS, ServicesConstants.CHARACTERISTIC_CAMERA_REMOTE);
+            }
+            else {
+                unsubscribeCharacteristic(mBluetoothGatt, ServicesConstants.UUID_ALS, ServicesConstants.CHARACTERISTIC_CAMERA_REMOTE);
+            }
+        }
+    }
+
 
     public void tryConnectingAgain() {
         if (state == BLEManagerState.Disconnected) {
@@ -104,7 +131,7 @@ public class BLEManager {
 
     private void startScanner() {
         // Check if the scanner is alive already
-        if (mScanner != null) {
+        if (state == BLEManagerState.Killed || mScanner != null) {
             return;
         }
 
@@ -174,7 +201,10 @@ public class BLEManager {
     public void close() {
         Log.d(TAG_LOG, "Close manager");
 
+        state = BLEManagerState.Killed;
+
         reset();
+        mCallback = null;
         mNextCommandTask = null;
         mClearOldNotificationsTask = null;
         mMoto360FixTask = null;
@@ -185,8 +215,6 @@ public class BLEManager {
         mConnectingTimeoutTask = null;
 
         mSilentReconnect = false;
-
-        state = BLEManagerState.Disconnected;
     }
 
     private void reset() {
@@ -210,6 +238,7 @@ public class BLEManager {
         }
 
         mPacketProcessor = null;
+        mRequestingMediaAttribute = -1;
 
         pendingCommands.clear();
         pendingNotifications.clear();
@@ -326,6 +355,12 @@ public class BLEManager {
         }
 
         @Override
+        public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
+            super.onMtuChanged(gatt, mtu, status);
+            Log.i(TAG_LOG, "MTU Changed: " + mtu);
+        }
+
+        @Override
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.d(TAG_LOG, "Descriptor write successful: " + descriptor.getCharacteristic().getUuid().toString());
@@ -417,9 +452,12 @@ public class BLEManager {
                         }
                     }
 
-                    if (moto360Fix && characteristic.getUuid().toString().equals(ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
+                    if (characteristic.getUuid().toString().equals(ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
                         try {
-                            gatt.readCharacteristic(gatt.getService(ServicesConstants.UUID_AMS).getCharacteristic(UUID.fromString(ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE)));
+                            if (lastCommand != null && lastCommand.getPacket() != null) {
+                                mRequestingMediaAttribute = lastCommand.getPacket()[1];
+                                gatt.readCharacteristic(gatt.getService(ServicesConstants.UUID_AMS).getCharacteristic(UUID.fromString(ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE)));
+                            }
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
@@ -472,12 +510,29 @@ public class BLEManager {
                     mCallback.onBatteryLevelChanged(batteryLevel);
                 }
                 else if (characteristic.getUuid().toString().equals(ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
-                    String mediaTitle = characteristic.getStringValue(0);
-                    Log.d(TAG_LOG, "AMS    Title:: " + mediaTitle);
+                    String mediaAttribute = characteristic.getStringValue(0);
+                    Log.d(TAG_LOG, "AMS    Attribute:: " + mediaAttribute);
+
+                    if (mRequestingMediaAttribute == ServicesConstants.TrackAttributeIDArtist) {
+                        mCallback.onMediaArtistUpdated(mediaAttribute);
+                    }
+                    else if (mRequestingMediaAttribute == ServicesConstants.TrackAttributeIDTitle) {
+                        mCallback.onMediaTitleUpdated(mediaAttribute);
+                    }
+
+                    mRequestingMediaAttribute = -1;
                 }
+                else {
+                    String value = characteristic.getStringValue(0);
+                    Log.d(TAG_LOG, "READ    Value:: " + value);
+                }
+            }
+            else if (characteristic.getUuid().toString().equals(ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
+                mRequestingMediaAttribute = -1;
             }
         }
 
+        private ByteArrayOutputStream processingImage;
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             // Get notification packet from iOS
@@ -625,6 +680,30 @@ public class BLEManager {
                     }
 
                     break;
+                case ServicesConstants.CHARACTERISTIC_CAMERA_REMOTE:
+                    if (processingImage == null) {
+                        processingImage = new ByteArrayOutputStream();
+                    }
+                    processingImage.write(packet, 0, packet.length);
+
+                    try {
+                        String temp = characteristic.getStringValue(0);
+                        if (temp.contains("ENDAL")) {
+                            Bitmap cameraImage = BitmapFactory.decodeByteArray(processingImage.toByteArray(), 0, processingImage.toByteArray().length-5);
+                            Log.i(TAG_LOG, "IMAGE");
+                            processingImage.reset();
+
+                            if (cameraRemoteCallback != null) {
+                                cameraRemoteCallback.onCameraImageChanged(cameraImage);
+                            }
+                        }
+                    }
+                    catch(Exception e) {
+                        Log.d(TAG_LOG, "error");
+                        e.printStackTrace();
+                    }
+
+                    break;
             }
         }
 
@@ -682,6 +761,14 @@ public class BLEManager {
         }
     }
 
+    public void requestFullMediaArtist() {
+
+    }
+
+    public void requestFullMediaTitle() {
+
+    }
+
     private void requestMediaUpdates() {
         try {
             Command trackCommand = new Command(ServicesConstants.UUID_AMS, ServicesConstants.CHARACTERISTIC_ENTITY_UPDATE, new byte[] {
@@ -706,25 +793,33 @@ public class BLEManager {
         }
     }
 
-    private void subscribeCharacteristic(BluetoothGatt mBluetoothGatt, UUID serviceUUID, String characteristicUUIDString) {
-        if (mBluetoothGatt == null || serviceUUID == null || characteristicUUIDString == null ) {
+    private void subscribeCharacteristic(BluetoothGatt bluetoothGatt, UUID serviceUUID, String characteristicUUIDString) {
+        setCharacteristicNotification(bluetoothGatt, serviceUUID, characteristicUUIDString, true);
+    }
+
+    private void unsubscribeCharacteristic(BluetoothGatt bluetoothGatt, UUID serviceUUID, String characteristicUUIDString) {
+        setCharacteristicNotification(bluetoothGatt, serviceUUID, characteristicUUIDString, false);
+    }
+
+    private void setCharacteristicNotification(BluetoothGatt bluetoothGatt, UUID serviceUUID, String characteristicUUIDString, boolean subscribe) {
+        if (bluetoothGatt == null || serviceUUID == null || characteristicUUIDString == null ) {
             return;
         }
 
         try {
-            BluetoothGattService service = mBluetoothGatt.getService(serviceUUID);
+            BluetoothGattService service = bluetoothGatt.getService(serviceUUID);
 
             if (service != null) {
                 BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID.fromString(characteristicUUIDString));
 
                 if (characteristic != null) {
-                    mBluetoothGatt.setCharacteristicNotification(characteristic, true);
+                    bluetoothGatt.setCharacteristicNotification(characteristic, subscribe);
 
                     BluetoothGattDescriptor descriptor = characteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
 
                     if (descriptor != null) {
                         descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                        mBluetoothGatt.writeDescriptor(descriptor);
+                        bluetoothGatt.writeDescriptor(descriptor);
                     }
 
                 }
@@ -765,6 +860,17 @@ public class BLEManager {
                     Log.d(TAG_LOG, "Disabling bluetooth");
                 }
             }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void takePicture() {
+        try {
+            BluetoothGattService service = mBluetoothGatt.getService(ServicesConstants.UUID_ALS);
+            BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID.fromString(ServicesConstants.CHARACTERISTIC_CAMERA_REMOTE));
+            mBluetoothGatt.readCharacteristic(characteristic);
         }
         catch (Exception e) {
             e.printStackTrace();

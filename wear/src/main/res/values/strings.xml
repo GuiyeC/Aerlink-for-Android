@@ -15,7 +15,7 @@
 -->
 <resources>
     <!-- <string name="app_name">iOS Wear Connect</string> -->
-    <string name="app_name">Wear Connect</string>
+    <string name="app_name">Aerlink</string>
 
     <string name="title_activity_phone">Phone call</string>
     <string name="battery_level">Battery level</string>
@@ -45,5 +45,8 @@
 
     <string name="help_title_ready">Ready</string>
     <string name="help_ready">You\'re good to go. Enjoy!</string>
+    <string name="title_activity_camera_remote">CameraRemoteActivity</string>
+    <string name="hello_round">Hello Round World!</string>
+    <string name="hello_square">Hello Square World!</string>
 
 </resources>

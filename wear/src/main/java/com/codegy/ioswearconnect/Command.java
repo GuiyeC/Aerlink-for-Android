@@ -14,6 +14,7 @@ public class Command {
     private String characteristic;
     private byte[] packet;
     private int retryCount = 0;
+    private int importance = 5;
     //private int writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
 
     public Command(UUID serviceUUID, String characteristic, byte[] packet) {
@@ -38,6 +39,10 @@ public class Command {
         return retryCount;
     }
 
+    public void setImportance(int importance) {
+        this.importance = importance;
+    }
+
     /*
     public int getWriteType() {
         return writeType;
@@ -49,7 +54,7 @@ public class Command {
     */
 
     public boolean shouldRetryAgain() {
-        if (retryCount >= 5) {
+        if (retryCount >= importance) {
             return false ;
         }
 

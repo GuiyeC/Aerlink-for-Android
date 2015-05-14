@@ -11,6 +11,14 @@ This project was inspired by [@MohammadAG](https://twitter.com/MohammadAG) and b
 
 Change log
 --------------
++ v1.7
+ - New name and icon.
+ - New icons thanks to [@santtiaga](https://twitter.com/santtiaga).
+ - Russian/Ukrainian languages and VK app icon thanks to Reseece
+ - Japanese language thanks to braitom
+ - Small improvements.
+ - More to come!
+
 + v1.6.1
  - Option to have less frequent or complete battery updates. When "Complete battery info" is disabled it will only show the battery every 10% or when it's lower than 25%.
  - It now vibrates when the iOS device's battery is at 20%, 15%, 10% or 5%.

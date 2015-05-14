@@ -37,6 +37,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
     public static final String INTENT_EXTRA_UID = "INTENT_EXTRA_UID";
 
 
+    private IBinder mBinder = new ServiceBinder();
 
     private BLEManager mManager;
 
@@ -64,11 +65,26 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
 
     @Override
     public IBinder onBind(Intent intent) {
-        return null;
+        Log.v(TAG_LOG, "in onBind");
+        return mBinder;
     }
 
     @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
+    public void onRebind(Intent intent) {
+        Log.v(TAG_LOG, "in onRebind");
+        super.onRebind(intent);
+    }
+
+    @Override
+    public boolean onUnbind(Intent intent) {
+        Log.v(TAG_LOG, "in onUnbind");
+        return true;
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+
         Log.d("Service", "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
         /* // Could fix Moto 360
@@ -109,9 +125,6 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
         prepareMediaSession();
 
         mManager = new BLEManager(this, this);
-
-
-        return super.onStartCommand(intent, flags, startId);
     }
 
     @Override
@@ -151,7 +164,11 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
 
         batteryLevel = -1;
     }
-    
+
+    public BLEManager getManager() {
+        return mManager;
+    }
+
     private Vibrator getVibrator() {
         if (vibrator == null) {
             vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
@@ -324,7 +341,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
                 .setSmallIcon(notificationData.getAppIcon())
                 .setGroup(notificationData.getAppId())
                 .setDeleteIntent(deleteAction)
-                .setPriority(Notification.PRIORITY_HIGH)
+                .setPriority(Notification.PRIORITY_MAX)
                 .extend(wearableExtender);
 
         // Build positive action intent only if available
@@ -376,7 +393,7 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
     @Override
     public void onBatteryLevelChanged(int newBatteryLevel) {
         // If the battery is running down, vibrate at 20, 15, 10 and 5
-        if (batteryLevel < newBatteryLevel && newBatteryLevel <= 20 && newBatteryLevel % 5 == 0) {
+        if (batteryLevel > newBatteryLevel && newBatteryLevel <= 20 && newBatteryLevel % 5 == 0) {
             getVibrator().vibrate(SILENT_VIBRATION_PATTERN, -1);
         }
 
@@ -430,14 +447,13 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
 
                                 if (truncated) {
                                     mediaArtist += "...";
-                                    /*
                                     Command attributeCommand = new Command(ServicesConstants.UUID_AMS, ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE, new byte[] {
                                             ServicesConstants.EntityIDTrack,
                                             ServicesConstants.TrackAttributeIDArtist
                                     });
+                                    attributeCommand.setImportance(1);
 
                                     mManager.addCommandToQueue(attributeCommand);
-                                    */
                                 }
                                 else if (attribute.length() == 0) {
                                     mediaArtist = null;
@@ -449,14 +465,13 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
 
                                 if (truncated) {
                                     mediaTitle += "...";
-/*
                                     Command attributeCommand = new Command(ServicesConstants.UUID_AMS, ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE, new byte[] {
                                             ServicesConstants.EntityIDTrack,
                                             ServicesConstants.TrackAttributeIDTitle
                                     });
+                                    attributeCommand.setImportance(1);
 
                                     mManager.addCommandToQueue(attributeCommand);
-                                    */
                                 }
                                 else if (attribute.length() == 0) {
                                     mediaTitle = null;
@@ -473,6 +488,20 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
         catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public void onMediaArtistUpdated(String mediaArtist) {
+        this.mediaArtist = mediaArtist;
+
+        updateMetadata();
+    }
+
+    @Override
+    public void onMediaTitleUpdated(String mediaTitle) {
+        this.mediaTitle = mediaTitle;
+
+        updateMetadata();
     }
 
     private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
@@ -769,6 +798,18 @@ public class BLEService extends Service implements BLEManager.BLEManagerCallback
 
         if (mediaPlaying || !mediaHidden) {
             buildMediaNotification();
+        }
+    }
+
+    public void takePicture() {
+        if (mManager != null) {
+            mManager.takePicture();
+        }
+    }
+
+    public class ServiceBinder extends Binder {
+        public BLEService getService() {
+            return BLEService.this;
         }
     }
 }
