@@ -30,7 +30,7 @@
     <string name="help_title_no_bluetooth">No bluetooth</string>
     <string name="help_title_scanning">検索中…</string>
     <string name="ios_service">iOS Service</string>
-    <string name="help_how_to">- iOSデバイスに \"BLE Utility\" をインストールして起動して下さい。\n- \"Peripheral\" タブを選択してくだい。 \n- iOSデバイスを検索するためにカードをタップして下さい。</string>
+    <string name="help_how_to">- iOSデバイスに \"Aerlink\" をインストールして起動して下さい。\n- iOSデバイスを検索するためにカードをタップして下さい。</string>
     <string name="help_ready">利用可能です。Enjoy!</string>
     <string name="help_preparing">準備が正常に完了しました</string>
     <string name="help_title_preparing">準備中…</string>

@@ -11,7 +11,7 @@
     </style>
 
 
-    <style name="SwitchTheme" parent="@android:style/Theme.Material">
+    <style name="MaterialTheme" parent="@android:style/Theme.Material">
         <item name="android:colorAccent">#1586dc</item>
     </style>
 </resources>

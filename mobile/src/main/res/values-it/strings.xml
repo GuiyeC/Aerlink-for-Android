@@ -4,5 +4,6 @@
     <string name="app_name">Aerlink</string>
 
     <string name="title">Eseguimi sul tuo Orologio</string>
-    <string name="description">Attiva il \"Servizio iOS\" sul tuo orologio. Una scheda d'aiuto apparirà sulla schermata principale dell'orologio.</string>
-    <string name="moto_360_help">Se usi un Moto 360 attiva la Modalità Ambiente.</string></resources>
+    <string name="description">Attiva il \"Servizio iOS\" sul tuo orologio. Una scheda d\'aiuto apparirà sulla schermata principale dell\'orologio.</string>
+    <string name="twitter_help">Twitter: @GuiyeC</string>
+</resources>

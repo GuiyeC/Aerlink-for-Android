@@ -1,5 +1,8 @@
-Wear Connect for iOS
+Aerlink: Wear Connect for iOS
 ===================================
+
+TODO: Update README.md
+
 
 This app uses BLE services available on iOS devices to manage notifications, control music playback and check the iOS device battery level, without jailbreaking the iOS device or rooting the Android Wear device. This app is not a hack and has zero risks on either device.
 

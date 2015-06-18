@@ -5,5 +5,5 @@
 
     <string name="title">시계에서 앱을 열어 주세요</string>
     <string name="description">\"iOS 서비스\"를 시계에서 켜 주세요. 시계의 홈 화면에서 카드가 나타나 도움을 드릴 것입니다.</string>
-    <string name="moto_360_help">Moto 360을 사용하고 계실 경우 화면 켜짐 유지 설정을 켜 주세요.</string>
+    <string name="twitter_help">Twitter: @GuiyeC</string>
 </resources>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.codegy.ioswearconnect" >
+    package="com.codegy.aerlink" >
 
     <uses-feature android:name="android.hardware.type.watch" />
 
@@ -13,11 +13,22 @@
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/AppTheme" >
+        android:theme="@android:style/Theme.DeviceDefault" >
+        <uses-library
+            android:name="com.google.android.wearable"
+            android:required="false" />
+
+        <service
+            android:name=".MainService"
+            android:enabled="true"
+            android:exported="true" >
+        </service>
+
         <activity
             android:name=".MainActivity"
             android:label="@string/app_name"
-            android:launchMode="singleInstance" >
+            android:launchMode="singleTask"
+            android:taskAffinity="com.codegy.aerlink.MainActivity" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -26,24 +37,59 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".BLEService" />
-
-        <activity android:name="android.support.wearable.activity.ConfirmationActivity" />
         <activity
-            android:name=".PhoneActivity"
+            android:name=".notifications.PhoneActivity"
             android:label="@string/title_activity_phone"
-            android:launchMode="singleInstance"
-            android:theme="@style/NoAnimTheme" >
+            android:launchMode="singleTask"
+            android:taskAffinity="com.codegy.aerlink.notifications.PhoneActivity" >
         </activity>
+
         <activity
-            android:name=".CameraRemoteActivity"
-            android:label="@string/title_activity_camera_remote" >
+            android:name=".reminders.RemindersActivity"
+            android:icon="@mipmap/ic_launcher_reminders"
+            android:label="@string/title_activity_reminders"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.codegy.aerlink.reminders.RemindersActivity" >
+        </activity>
+
+        <activity
+            android:name=".cameraremote.CameraRemoteActivity"
+            android:icon="@mipmap/ic_launcher_camera"
+            android:label="@string/title_activity_camera_remote"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.codegy.aerlink.cameraremote.CameraRemoteActivity" >
+        </activity>
+
+        <activity
+            android:name=".cameraremote.CameraImageActivity"
+            android:label="@string/title_activity_camera_image"
+            android:launchMode="singleTop">
+        </activity>
+
+        <activity-alias
+                android:label="@string/title_activity_reminders"
+                android:icon="@mipmap/ic_launcher_reminders"
+                android:name=".reminders.RemindersActivity"
+                android:enabled="true"
+                android:targetActivity=".reminders.RemindersActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
-                <!-- By far not ready <category android:name="android.intent.category.LAUNCHER" /> -->
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+
+        <activity-alias
+                android:label="@string/title_activity_camera_remote"
+                android:icon="@mipmap/ic_launcher_camera"
+                android:name=".cameraremote.CameraRemoteActivity"
+                android:enabled="true"
+                android:targetActivity=".cameraremote.CameraRemoteActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
     </application>
 
 </manifest>

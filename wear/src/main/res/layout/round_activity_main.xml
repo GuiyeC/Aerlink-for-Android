@@ -7,67 +7,67 @@
         tools:context=".MainActivity"
         android:background="#ecf0f1"
         tools:deviceIds="wear_round">
-        <LinearLayout
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#ecf0f1"
+            android:paddingTop="30dp"
+            android:paddingLeft="20dp"
+            android:paddingRight="20dp"
+            android:paddingBottom="50dp"
+            android:gravity="center">
+
+        <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/imageView"
+                android:src="@mipmap/ic_launcher" />
+
+        <Switch
+                android:id="@+id/serviceSwitch"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:background="#ecf0f1"
-                android:paddingTop="30dp"
-                android:paddingLeft="20dp"
-                android:paddingRight="20dp"
-                android:paddingBottom="50dp"
-                android:gravity="center">
+                android:layout_marginTop="12dp"
+                android:text="@string/ios_service"
+                android:textColor="#2c3e50"
+                android:theme="@style/MaterialTheme"/>
 
-                <ImageView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:id="@+id/imageView"
-                        android:src="@mipmap/ic_launcher" />
+        <Switch
+                android:id="@+id/colorBackgroundsSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/color_backgrounds"
+                android:textColor="#2c3e50"
+                android:theme="@style/MaterialTheme"/>
 
-                <Switch
-                        android:id="@+id/serviceSwitch"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="@string/ios_service"
-                        android:textColor="#2c3e50"
-                        android:theme="@style/SwitchTheme"/>
+        <Switch
+                android:id="@+id/batteryUpdatesSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/battery_updates"
+                android:textColor="#2c3e50"
+                android:theme="@style/MaterialTheme"/>
 
-                <Switch
-                        android:id="@+id/colorBackgroundsSwitch"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="@string/color_backgrounds"
-                        android:textColor="#2c3e50"
-                        android:theme="@style/SwitchTheme"/>
+        <Switch
+                android:id="@+id/completeBatteryInfoSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/complete_battery_info"
+                android:textColor="#2c3e50"
+                android:theme="@style/MaterialTheme"/>
 
-                <Switch
-                        android:id="@+id/batteryUpdatesSwitch"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="@string/battery_updates"
-                        android:textColor="#2c3e50"
-                        android:theme="@style/SwitchTheme"/>
+        <TextView
+                android:id="@+id/modelTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="#9b2c3e50"
+                android:text="Model"/>
 
-                <Switch
-                        android:id="@+id/completeBatteryInfoSwitch"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="@string/complete_battery_info"
-                        android:textColor="#2c3e50"
-                        android:theme="@style/SwitchTheme"/>
-
-                <TextView
-                        android:id="@+id/modelTextView"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:textColor="#9b2c3e50"
-                        android:text="Model"/>
-
-        </LinearLayout>
+    </LinearLayout>
 
 </ScrollView>

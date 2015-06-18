@@ -32,10 +32,13 @@
     <string name="help_title_disconnected">Disconnected</string>
     <string name="help_disconnected">Tap to start searching.</string>
     <string name="help">Help</string>
-    <string name="help_how_to">- Install and launch \"BLE Utility\" on your iOS Device.\n- Select the \"Peripheral\" tab.\n- Tap the previous card to search for the iOS device.</string>
+    <string name="help_how_to">- Install and launch \"Aerlink\" on your iOS Device.\n- Tap the previous card to search for the iOS device.</string>
 
     <string name="help_title_scanning">Searching…</string>
     <string name="help_scanning">Looking for an iOS device.</string>
+
+    <string name="help_title_Pairing">Pairing…</string>
+    <string name="help_Pairing">Trying to pair to the iOS device. You need to have Aerlink open on the iOS device.\nIf this takes too long try rebooting the watch.</string>
 
     <string name="help_title_connecting">Connecting…</string>
     <string name="help_connecting">Connecting to the iOS device.</string>
@@ -46,8 +49,10 @@
     <string name="help_title_ready">Ready</string>
     <string name="help_ready">You\'re good to go. Enjoy!</string>
 
-    <string name="title_activity_camera_remote">CameraRemoteActivity</string>
+    <string name="title_activity_camera_remote">Camera Remote</string>
     <string name="hello_round">Hello Round World!</string>
     <string name="hello_square">Hello Square World!</string>
+    <string name="title_activity_reminders">Reminders</string>
+    <string name="title_activity_camera_image">CameraImageActivity</string>
 
 </resources>

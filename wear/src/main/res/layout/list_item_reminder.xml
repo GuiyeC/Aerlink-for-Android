@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:gravity="center_vertical"
+        android:layout_width="match_parent"
+        android:layout_height="50dp">
+
+        <CheckBox
+                android:id="@+id/checkBox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:theme="@style/MaterialTheme"
+                android:clickable="false"
+                android:focusable="false"/>
+
+        <TextView
+                android:id="@+id/textView"
+                android:gravity="center_vertical|left"
+                android:layout_width="match_parent"
+                android:layout_marginRight="12dp"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-condensed-light"
+                android:lineSpacingExtra="-4sp"
+                android:textSize="20sp"
+                android:textColor="#AAAAAA"
+                android:clickable="false"
+                tools:text="Test item"/>
+
+</LinearLayout>

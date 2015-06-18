@@ -29,7 +29,7 @@
     <string name="help_title_disconnected">Desconectado</string>
     <string name="help_disconnected">Pulsa para buscar.</string>
     <string name="help">Ayuda</string>
-    <string name="help_how_to">- Instala y abre \"BLE Utility\" en tu dispositivo iOS.\n- Selecciona la pestaña \"Peripheral\".\n- Pulsa en la tarjeta anterior para buscar el dispositivo iOS.</string>
+    <string name="help_how_to">- Instala y abre \"Aerlink\" en tu dispositivo iOS.\n- Pulsa en la tarjeta anterior para buscar el dispositivo iOS.</string>
 
     <string name="help_title_scanning">Buscando…</string>
     <string name="help_scanning">Buscando dispositvo iOS.</string>

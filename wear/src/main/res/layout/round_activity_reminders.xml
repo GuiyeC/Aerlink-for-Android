@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:tools="http://schemas.android.com/tools"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:gravity="center_horizontal"
+              tools:context="com.codegy.aerlink.reminders.RemindersActivity"
+              tools:deviceIds="wear_round">
+
+    <TextView
+            android:id="@+id/infoTextView"
+            android:paddingLeft="30dp"
+            android:paddingRight="30dp"
+            android:paddingTop="30dp"
+            android:paddingBottom="30dp"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textSize="15sp"
+            tools:text="Test info"
+            android:visibility="gone"/>
+
+    <TextView
+            android:id="@+id/titleTextView"
+            android:paddingLeft="38dp"
+            android:paddingRight="38dp"
+            android:paddingTop="30dp"
+            android:paddingBottom="4dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="26sp"
+            android:fontFamily="sans-serif-condensed-light"
+            tools:text="Test title"/>
+
+    <View
+            android:layout_width="match_parent"
+            android:layout_height="1px"
+            android:background="#333333"/>
+
+    <ListView
+            android:id="@+id/listView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="24dp"
+            android:layout_marginRight="12dp"
+            android:scrollbars="none"
+            android:divider="@null"/>
+
+</LinearLayout>

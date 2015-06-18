@@ -3,14 +3,14 @@ apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion 22
-    buildToolsVersion "21.1.2"
+    buildToolsVersion "22.0.1"
+
     defaultConfig {
-        //applicationId "com.codegy.ioswearconnect"
         applicationId "com.codegy.wearconnectforios"
         minSdkVersion 21
         targetSdkVersion 22
-        versionCode 10
-        versionName "1.7"
+        versionCode 12
+        versionName "2.0-b2"
     }
     buildTypes {
         release {
@@ -18,12 +18,11 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-    productFlavors {
-    }
 }
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.google.android.support:wearable:1.1.0'
-    compile 'com.google.android.gms:play-services-wearable:7.0.0'
+    compile 'com.google.android.support:wearable:1.2.0'
+    provided 'com.google.android.wearable:wearable:1.0.0'
+    compile 'com.google.android.gms:play-services-wearable:7.5.0'
 }

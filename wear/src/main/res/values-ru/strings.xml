@@ -31,7 +31,7 @@
     <string name="help_title_disconnected">Отключено</string>
     <string name="help_disconnected">Нажмите для поиска.</string>
     <string name="help">Помощь</string>
-    <string name="help_how_to">- Установите и запустите \"BLE Utility\" на Вашем iOS Устройстве.\n- Выберите вкладку \"Peripheral\".\n- Нажмите на прерыдущую карточку для соединения с iOS устройством.</string>
+    <string name="help_how_to">- Установите и запустите \"Aerlink\" на Вашем iOS Устройстве.\n- Нажмите на прерыдущую карточку для соединения с iOS устройством.</string>
 
     <string name="help_title_scanning">Поиск…</string>
     <string name="help_scanning">Поиск iOS устройства.</string>

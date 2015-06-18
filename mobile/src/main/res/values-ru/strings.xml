@@ -4,5 +4,5 @@
 
     <string name="title">Откройте приложение на Ваших часах</string>
     <string name="description">Включите опцию \"iOS Service\". Карточка на домашнем экране поможет синхронизироваться с телефоном.</string>
-    <string name="moto_360_help">Для Moto 360 отключите ambient mode.</string>
+    <string name="twitter_help">Twitter: @GuiyeC</string>
 </resources>

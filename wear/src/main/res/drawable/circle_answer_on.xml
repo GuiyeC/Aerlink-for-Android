@@ -4,5 +4,5 @@
         xmlns:android="http://schemas.android.com/apk/res/android"
         android:shape="oval">
 
-    <solid android:color="#4dd964"/>
+    <solid android:color="#20b34a"/>
 </shape>

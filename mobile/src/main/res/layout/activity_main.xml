@@ -14,7 +14,7 @@
             android:id="@+id/imageView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:src="@drawable/ic_launcher"
+            android:src="@mipmap/ic_launcher"
             android:layout_alignParentTop="true"
             android:layout_centerHorizontal="true"
             android:layout_marginTop="100dp" />
@@ -32,14 +32,23 @@
             android:layout_marginTop="25dp"
             android:layout_centerHorizontal="true" />
 
-    <TextView
-            android:id="@+id/text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/description"
-            android:textColor="#7f8c8d"
-            android:gravity="center"
-            android:layout_below="@+id/textView"
-            android:layout_marginTop="10dp"
-            android:layout_centerHorizontal="true" />
+        <TextView
+                android:id="@+id/text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/description"
+                android:textColor="#7f8c8d"
+                android:gravity="center"
+                android:layout_below="@+id/textView"
+                android:layout_marginTop="10dp"
+                android:layout_centerHorizontal="true" />
+
+        <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/twitter_help"
+                android:textColor="#7f8c8d"
+                android:gravity="center"
+                android:layout_alignParentBottom="true"
+                android:layout_centerHorizontal="true" />
 </RelativeLayout>
