@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- <string name="app_name">iOS Wear Connect</string> -->
+    <string name="app_name">Aerlink</string>
+
+    <string name="title">Bitte auf der Uhr öffnen</string>
+    <string name="description">Schalte die \"iOS Dienste\" auf deiner Uhr ein. Eine Karte mit Hilfe wird dann auf deinem Startbildschirm erscheinen.</string>
+    <string name="twitter_help">Twitter: @GuiyeC</string>
+</resources>
