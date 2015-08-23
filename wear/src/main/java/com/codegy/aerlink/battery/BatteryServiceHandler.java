@@ -96,6 +96,10 @@ public class BatteryServiceHandler extends ServiceHandler {
         buildBatteryNotification();
     }
 
+    public int getBatteryLevel() {
+        return batteryLevel;
+    }
+
     private void buildBatteryNotification() {
         if (!batteryUpdates || batteryHidden || batteryLevel == -1) {
             return;

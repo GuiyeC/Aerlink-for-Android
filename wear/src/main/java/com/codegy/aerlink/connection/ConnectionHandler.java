@@ -8,6 +8,7 @@ import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.os.Handler;
 import android.util.Log;
+import com.codegy.aerlink.battery.BASConstants;
 import com.codegy.aerlink.utils.ScheduledTask;
 
 import java.lang.reflect.Method;
@@ -376,39 +377,16 @@ public class ConnectionHandler {
                 e.printStackTrace();
             }
         }
-        
-        /*
+
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             super.onCharacteristicRead(gatt, characteristic, status);
             Log.d(LOG_TAG, "onCharacteristicRead status:: " + status);
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                if (characteristic.getUuid().toString().equals(ServicesConstants.CHARACTERISTIC_BATTERY_LEVEL)) {
-                    int batteryLevel = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0);
-                    Log.d(LOG_TAG, "BAS    CHARACTERISTIC_BATTERY_LEVEL:: " + batteryLevel);
-                    mCallback.onBatteryLevelChanged(batteryLevel);
-                }
-                else if (characteristic.getUuid().toString().equals(ServicesConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE)) {
-                    String mediaAttribute = characteristic.getStringValue(0);
-                    Log.d(LOG_TAG, "AMS    Attribute:: " + mediaAttribute);
-
-                    if (mRequestingMediaAttribute == ServicesConstants.TrackAttributeIDArtist) {
-                        mCallback.onMediaArtistUpdated(mediaAttribute);
-                    }
-                    else if (mRequestingMediaAttribute == ServicesConstants.TrackAttributeIDTitle) {
-                        mCallback.onMediaTitleUpdated(mediaAttribute);
-                    }
-
-                    mRequestingMediaAttribute = -1;
-                }
-                else {
-                    String value = characteristic.getStringValue(0);
-                    Log.d(LOG_TAG, "READ    Value:: " + value);
-                }
+                mCallback.onCharacteristicChanged(characteristic);
             }
         }
-        */
 
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
@@ -456,6 +434,8 @@ public class ConnectionHandler {
 
             mDeviceMac = mBluetoothGatt.getDevice().getAddress();
 
+            readBattery();
+
             sendNextCommand();
         }
     }
@@ -479,14 +459,14 @@ public class ConnectionHandler {
             BluetoothGattService service = mBluetoothGatt.getService(command.getServiceUUID());
 
             if (service != null) {
-                BluetoothGattCharacteristic mBluetoothGattCharacteristic = service.getCharacteristic(UUID.fromString(command.getCharacteristic()));
+                BluetoothGattCharacteristic bluetoothGattCharacteristic = service.getCharacteristic(UUID.fromString(command.getCharacteristic()));
 
-                if (mBluetoothGattCharacteristic != null) {
+                if (bluetoothGattCharacteristic != null) {
                     // not being used
                     // mBluetoothGattCharacteristic.setWriteType(command.getWriteType());
 
-                    mBluetoothGattCharacteristic.setValue(command.getPacket());
-                    boolean result = mBluetoothGatt.writeCharacteristic(mBluetoothGattCharacteristic);
+                    bluetoothGattCharacteristic.setValue(command.getPacket());
+                    boolean result = mBluetoothGatt.writeCharacteristic(bluetoothGattCharacteristic);
                     Log.d(LOG_TAG, "Started writing command: " + result);
                 }
             }
@@ -497,6 +477,24 @@ public class ConnectionHandler {
 
         if (pendingCommands.size() > 0) {
             scheduleNextCommandTask();
+        }
+    }
+
+    private void readBattery() {
+        try {
+            BluetoothGattService service = mBluetoothGatt.getService(BASConstants.SERVICE_UUID);
+
+            if (service != null) {
+                BluetoothGattCharacteristic bluetoothGattCharacteristic = service.getCharacteristic(UUID.fromString(BASConstants.CHARACTERISTIC_BATTERY_LEVEL));
+
+                if (bluetoothGattCharacteristic != null) {
+                    boolean result = mBluetoothGatt.readCharacteristic(bluetoothGattCharacteristic);
+                    Log.d(LOG_TAG, "Started reading battery: " + result);
+                }
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
         }
     }
 

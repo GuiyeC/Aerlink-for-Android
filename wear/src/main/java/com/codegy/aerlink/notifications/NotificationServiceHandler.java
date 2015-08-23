@@ -30,7 +30,7 @@ public class NotificationServiceHandler extends ServiceHandler {
     private static final String LOG_TAG = NotificationServiceHandler.class.getSimpleName();
 
     private static final int NOTIFICATION_REGULAR = 1000;
-    private static final long VIBRATION_PATTERN[] = { 200, 100, 200, 100 };
+    private static final long VIBRATION_PATTERN[] = { 100, 400, 200, 40, 40, 40, 70, 200 };
     private static final long SILENT_VIBRATION_PATTERN[] = { 200, 110 };
 
 
@@ -295,7 +295,7 @@ public class NotificationServiceHandler extends ServiceHandler {
 
         if (!notificationData.isPreExisting()) {
             if (!notificationData.isSilent()) {
-               // mServiceUtils.vibrate(VIBRATION_PATTERN, -1);
+                //mServiceUtils.vibrate(VIBRATION_PATTERN, -1);
                 mServiceUtils.wakeScreen();
 
                 notificationBuilder.setVibrate(VIBRATION_PATTERN);

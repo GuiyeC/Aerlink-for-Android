@@ -154,6 +154,10 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
         }
     }
 
+    public boolean isConnectionReady() {
+        return (connectionHandler != null && connectionHandler.getState() == ConnectionHandler.ConnectionState.Ready);
+    }
+
     public ServiceHandler getServiceHandler(Class serviceHandlerClass) {
         ServiceHandler serviceHandler = null;
 

@@ -43,12 +43,13 @@ public class AerlinkActivity extends WearableActivity {
     @Override
     protected void onResume() {
         super.onResume();
-
+/*
         if (!isServiceRunning()) {
             startService(new Intent(this, MainService.class));
         }
+        */
 
-        if (!mServiceBound) {
+        if (isServiceRunning() && !mServiceBound) {
             Intent intent = new Intent(this, MainService.class);
             bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
         }
@@ -70,6 +71,24 @@ public class AerlinkActivity extends WearableActivity {
             showDisconnected();
         }
     }
+
+    public void startService() {
+        startService(new Intent(this, MainService.class));
+
+        Intent intent = new Intent(this, MainService.class);
+        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    public void stopService() {
+        stopService(new Intent(this, MainService.class));
+
+        try {
+            unbindService(serviceConnection);
+        } catch (Exception e) {}
+
+        mServiceBound = false;
+    }
+
 
     public void tryToConnect() { }
 
@@ -143,7 +162,7 @@ public class AerlinkActivity extends WearableActivity {
     };
 
 
-    private boolean isServiceRunning() {
+    public boolean isServiceRunning() {
         ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
         for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
             if (MainService.class.getName().equals(service.service.getClassName())) {
