@@ -9,8 +9,8 @@ import java.util.UUID;
 public class Command {
 
     public static final int IMPORTANCE_MIN = 1;
-    public static final int IMPORTANCE_NORMAL = 5;
-    public static final int IMPORTANCE_MAX = 1000;
+    public static final int IMPORTANCE_NORMAL = 3;
+    public static final int IMPORTANCE_MAX = 500;
 
     private UUID serviceUUID;
     private String characteristic;

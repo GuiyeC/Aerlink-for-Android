@@ -30,7 +30,7 @@
     <string name="help_no_bluetooth">Bluetooth is not supported.</string>
 
     <string name="help_title_disconnected">Disconnected</string>
-    <string name="help_disconnected">Tap to start searching.</string>
+    <string name="help_disconnected">Open \"Aerlink\" in your iOS device.</string>
     <string name="help">Help</string>
     <string name="help_how_to">- Install and launch \"Aerlink\" on your iOS Device.\n- Tap the previous card to search for the iOS device.</string>
 

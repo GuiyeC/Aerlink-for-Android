@@ -22,31 +22,20 @@ public class ConnectionHelper {
     private Context mContext;
     private ServiceUtils mServiceUtils;
 
-    private int bondPassKey = -1;
-    private ConnectionHandler.ConnectionState mState;
-
 
     public ConnectionHelper(Context context, ServiceUtils serviceUtils) {
         this.mContext = context;
         this.mServiceUtils = serviceUtils;
     }
 
-    public void setBondPassKey(int bondPassKey) {
-        this.bondPassKey = bondPassKey;
-
-        showHelpForState(mState);
-    }
-
     public void showHelpForState(ConnectionHandler.ConnectionState state) {
-        mState = state;
-
         //Bitmap background = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
         //background.eraseColor(0);
         Bitmap background = BitmapFactory.decodeResource(mContext.getResources(), R.drawable.bg_texture);
 
         Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
                 .setBackground(background);
-
+/*
         PendingIntent connectPendingIntent = null;
         if (state == ConnectionHandler.ConnectionState.Disconnected) {
             // Build pending intent for when the user swipes the card away
@@ -60,6 +49,7 @@ public class ConnectionHelper {
                             .setContentText(mContext.getString(R.string.help_how_to))
                             .build());
         }
+        */
 
         String title = null;
         String text = null;
@@ -70,34 +60,13 @@ public class ConnectionHelper {
                 text = mContext.getString(R.string.help_no_bluetooth);
                 break;
             case Disconnected:
+            case Connecting:
                 title = mContext.getString(R.string.help_title_disconnected);
                 text = mContext.getString(R.string.help_disconnected);
                 break;
-            case Scanning:
-                title = mContext.getString(R.string.help_title_scanning);
-                text = mContext.getString(R.string.help_scanning);
-                break;
-            case Pairing:
-                title = mContext.getString(R.string.help_title_Pairing);
-                text = mContext.getString(R.string.help_Pairing);
-                break;
-            case Connecting:
-                title = mContext.getString(R.string.help_title_connecting);
-                text = mContext.getString(R.string.help_connecting);
-                break;
-            case Preparing:
-                title = mContext.getString(R.string.help_title_preparing);
-                text = mContext.getString(R.string.help_preparing);
-                break;
             case Ready:
-                title = mContext.getString(R.string.help_title_ready);
-                text = mContext.getString(R.string.help_ready);
-                break;
-        }
-
-        if (bondPassKey != -1) {
-            text = "PIN: " + bondPassKey + "\n" + text;
-            bondPassKey = -1;
+                mServiceUtils.cancelNotification(null, NOTIFICATION_HELP);
+                return;
         }
 
         Notification.Builder builder = new Notification.Builder(mContext)
@@ -105,9 +74,10 @@ public class ConnectionHelper {
                 .setContentTitle(title)
                 .setContentText(text)
                 .setPriority(Notification.PRIORITY_MAX)
-                .setOngoing(state != ConnectionHandler.ConnectionState.Ready && state != ConnectionHandler.ConnectionState.NoBluetooth)
+                .setOngoing(state != ConnectionHandler.ConnectionState.NoBluetooth)
                 .extend(wearableExtender);
 
+        /*
         if (connectPendingIntent != null) {
             Notification.Action connectAction = new Notification.Action.Builder(
                     android.R.drawable.ic_menu_search,
@@ -117,20 +87,14 @@ public class ConnectionHelper {
             builder.addAction(connectAction);
         }
 
-
-        if (state == ConnectionHandler.ConnectionState.Ready) {
-            mServiceUtils.vibrate(CONNECTION_PATTERN, -1);
-
-            builder.setVibrate(CONNECTION_PATTERN);
-        }
-        else if (state == ConnectionHandler.ConnectionState.Disconnected || state == ConnectionHandler.ConnectionState.NoBluetooth) {
+        if (state == ConnectionHandler.ConnectionState.Disconnected || state == ConnectionHandler.ConnectionState.NoBluetooth) {
             mServiceUtils.vibrate(DISCONNECTION_PATTERN, -1);
 
             builder.setVibrate(DISCONNECTION_PATTERN);
         }
+*/
 
 
-        //notificationManager.cancel(NOTIFICATION_HELP);
         mServiceUtils.notify(null, NOTIFICATION_HELP, builder.build());
     }
 

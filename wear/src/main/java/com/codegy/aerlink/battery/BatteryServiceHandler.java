@@ -30,7 +30,6 @@ public class BatteryServiceHandler extends ServiceHandler {
     private ServiceUtils mServiceUtils;
 
     private int batteryLevel = -1;
-    private boolean completeBatteryInfo;
     private boolean batteryUpdates;
     private boolean batteryHidden = false;
 
@@ -41,7 +40,6 @@ public class BatteryServiceHandler extends ServiceHandler {
 
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
         batteryUpdates = sp.getBoolean(Constants.SPK_BATTERY_UPDATES, true);
-        completeBatteryInfo = sp.getBoolean(Constants.SPK_COMPLETE_BATTERY_INFO, false);
 
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(Constants.IA_HIDE_BATTERY);
@@ -89,7 +87,7 @@ public class BatteryServiceHandler extends ServiceHandler {
 
         batteryLevel = newBatteryLevel;
 
-        if (completeBatteryInfo || batteryLevel <= 25 || batteryLevel % 10 == 0) {
+        if ((batteryLevel <= 25 && batteryLevel % 5 == 0) || batteryLevel % 20 == 0) {
             batteryHidden = false;
         }
 
@@ -158,7 +156,6 @@ public class BatteryServiceHandler extends ServiceHandler {
             else if (action.equals(Constants.IA_BATTERY_UPDATES_CHANGED)) {
                 SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
                 batteryUpdates = sp.getBoolean(Constants.SPK_BATTERY_UPDATES, true);
-                completeBatteryInfo = sp.getBoolean(Constants.SPK_COMPLETE_BATTERY_INFO, false);
 
                 if (batteryUpdates) {
                     buildBatteryNotification();

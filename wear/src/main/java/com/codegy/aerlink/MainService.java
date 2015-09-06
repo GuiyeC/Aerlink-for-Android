@@ -13,9 +13,12 @@ import android.os.PowerManager;
 import android.os.Vibrator;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import com.codegy.aerlink.battery.BASConstants;
 import com.codegy.aerlink.battery.BatteryServiceHandler;
 import com.codegy.aerlink.cameraremote.CameraRemoteServiceHandler;
 import com.codegy.aerlink.connection.*;
+import com.codegy.aerlink.currenttime.CTSConstants;
+import com.codegy.aerlink.currenttime.CurrentTimeServiceHandler;
 import com.codegy.aerlink.media.AMSConstants;
 import com.codegy.aerlink.media.MediaServiceHandler;
 import com.codegy.aerlink.notifications.ANCSConstants;
@@ -46,8 +49,7 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
     private PowerManager.WakeLock wakeLock;
 
     private boolean colorBackgrounds;
-    private boolean mAerlinkAvailable;
-    
+
     private List<ServiceHandler> mServiceHandlers;
 
 
@@ -57,25 +59,13 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
 
         Log.i(LOG_TAG, "onCreate ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
-        /* // Could fix Moto 360
-        Notification notification = new Notification(R.mipmap.ic_launcher, getText(R.string.app_name),
-                System.currentTimeMillis());
-        notification.priority = Notification.PRIORITY_MIN;
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
-        notification.setLatestEventInfo(this, getText(R.string.app_name),
-                getText(R.string.app_name), pendingIntent);
-        startForeground(NOTIFICATION_SERVICE, notification);
-        */
-
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
-        colorBackgrounds = sp.getBoolean(Constants.SPK_COLOR_BACKGROUNDS, false);
+        colorBackgrounds = sp.getBoolean(Constants.SPK_COLOR_BACKGROUNDS, true);
 
 
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(Constants.IA_TRY_CONNECTING);
         intentFilter.addAction(Constants.IA_COLOR_BACKGROUNDS_CHANGED);
-        intentFilter.addAction("android.bluetooth.device.action.PAIRING_REQUEST");
         registerReceiver(mBroadcastReceiver, intentFilter);
 
 
@@ -112,22 +102,6 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
     }
 
     private void stop() {
-        mAerlinkAvailable = false;
-
-        /*
-        try {
-            PackageManager packageManager = getPackageManager();
-            packageManager.setComponentEnabledSetting(new ComponentName(getPackageName(), "com.codegy.aerlink.reminders.RemindersActivity"),
-                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                    PackageManager.DONT_KILL_APP);
-            packageManager.setComponentEnabledSetting(new ComponentName(getPackageName(), "com.codegy.aerlink.cameraremote.CameraRemoteActivity"),
-                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                    PackageManager.DONT_KILL_APP);
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }*/
-
         try {
             if (mServiceHandlers != null) {
                 for (ServiceHandler serviceHandler : mServiceHandlers) {
@@ -161,7 +135,7 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
     public ServiceHandler getServiceHandler(Class serviceHandlerClass) {
         ServiceHandler serviceHandler = null;
 
-        if (connectionHandler.getState() == ConnectionHandler.ConnectionState.Ready && mServiceHandlers != null) {
+        if (mServiceHandlers != null) {
             for (ServiceHandler handler : mServiceHandlers) {
                 if (handler.getClass().equals(serviceHandlerClass)) {
                     serviceHandler = handler;
@@ -229,7 +203,7 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
 
     @Override
     public void onConnectionStateChange(ConnectionHandler.ConnectionState state) {
-        if (state == ConnectionHandler.ConnectionState.Disconnected || state == ConnectionHandler.ConnectionState.NoBluetooth) {
+        if (state == null || state == ConnectionHandler.ConnectionState.NoBluetooth) {
             connectionHandler = null;
 
             stop();
@@ -238,32 +212,10 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
         if (state != ConnectionHandler.ConnectionState.Ready) {
             Intent stateIntent = new Intent(Constants.IA_SERVICE_NOT_READY);
             sendBroadcast(stateIntent);
-
-            /*
-            PackageManager packageManager = getPackageManager();
-            packageManager.setComponentEnabledSetting(new ComponentName(getPackageName(), "com.codegy.aerlink.reminders.RemindersActivity"),
-                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                    PackageManager.DONT_KILL_APP);
-            packageManager.setComponentEnabledSetting(new ComponentName(getPackageName(), "com.codegy.aerlink.cameraremote.CameraRemoteActivity"),
-                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                    PackageManager.DONT_KILL_APP);
-            */
         }
         else {
             Intent stateIntent = new Intent(Constants.IA_SERVICE_READY);
             sendBroadcast(stateIntent);
-
-            /*
-            if (mAerlinkAvailable) {
-                PackageManager packageManager = getPackageManager();
-                packageManager.setComponentEnabledSetting(new ComponentName(getPackageName(), "com.codegy.aerlink.reminders.RemindersActivity"),
-                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                        PackageManager.DONT_KILL_APP);
-                packageManager.setComponentEnabledSetting(new ComponentName(getPackageName(), "com.codegy.aerlink.cameraremote.CameraRemoteActivity"),
-                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                        PackageManager.DONT_KILL_APP);
-            }
-            */
         }
 
         if (connectionHelper == null) {
@@ -310,16 +262,20 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
             connectionHandler.addCommandToQueue(trackCommand);
             connectionHandler.addCommandToQueue(playerCommand);
         }
-        BluetoothGattService batteryService = bluetoothGatt.getService(ANCSConstants.SERVICE_UUID);
+        BluetoothGattService batteryService = bluetoothGatt.getService(BASConstants.SERVICE_UUID);
         if (batteryService != null) {
             if (getServiceHandler(BatteryServiceHandler.class) == null) {
                 mServiceHandlers.add(new BatteryServiceHandler(this, this));
             }
         }
+        BluetoothGattService currentTimeService = bluetoothGatt.getService(CTSConstants.SERVICE_UUID);
+        if (currentTimeService != null) {
+            if (getServiceHandler(CurrentTimeServiceHandler.class) == null) {
+                mServiceHandlers.add(new CurrentTimeServiceHandler(this, this));
+            }
+        }
         BluetoothGattService aerlinkService = bluetoothGatt.getService(ALSConstants.SERVICE_UUID);
         if (aerlinkService != null) {
-            mAerlinkAvailable = true;
-
             if (getServiceHandler(ReminderServiceHandler.class) == null) {
                 mServiceHandlers.add(new ReminderServiceHandler(this, this));
             }
@@ -328,17 +284,17 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
             }
         }
 
-        List<SubscribeRequest> requests = new ArrayList<>();
+        List<CharacteristicIdentifier> requests = new ArrayList<>();
 
         for (ServiceHandler serviceHandler : mServiceHandlers) {
             UUID serviceUUID = serviceHandler.getServiceUUID();
             List<String> characteristics = serviceHandler.getCharacteristicsToSubscribe();
 
             if (serviceUUID != null && characteristics != null) {
-                Log.i(LOG_TAG, "Addidng characteristics: " + serviceUUID.toString());
+                Log.i(LOG_TAG, "Adding characteristics: " + serviceUUID.toString());
 
                 for (String characteristic : characteristics) {
-                    requests.add(new SubscribeRequest(serviceUUID, characteristic));
+                    requests.add(new CharacteristicIdentifier(serviceUUID, characteristic));
                 }
             }
         }
@@ -366,22 +322,10 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
             
             if (action.equals(Constants.IA_COLOR_BACKGROUNDS_CHANGED)) {
                 SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
-                colorBackgrounds = sp.getBoolean(Constants.SPK_COLOR_BACKGROUNDS, false);
+                colorBackgrounds = sp.getBoolean(Constants.SPK_COLOR_BACKGROUNDS, true);
             }
             else if (action.equals(Constants.IA_TRY_CONNECTING)) {
                 start();
-            }
-            else if (intent.getAction().equals("android.bluetooth.device.action.PAIRING_REQUEST")) {
-                try {
-                    int bondPassKey = intent.getExtras().getInt("android.bluetooth.device.extra.PAIRING_KEY");
-                    Log.d(LOG_TAG, "Passkey: " + bondPassKey);
-
-                    if (connectionHelper != null) {
-                        connectionHelper.setBondPassKey(bondPassKey);
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
             }
         }
 
