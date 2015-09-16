@@ -118,6 +118,16 @@ public class NotificationDataExpander {
                 notificationData.setBackgroundColor(Color.rgb(238, 226, 0));
 
                 break;
+            case "com.supercell.reef": // Boom Beach
+                notificationData.setAppIcon(R.drawable.nic_boombeach);
+                notificationData.setBackgroundColor(Color.rgb(40, 61, 89));
+
+                break;
+            case "com.CloudMagic.Mail": // Cloud Magic
+                notificationData.setAppIcon(R.drawable.nic_cloudmagic);
+                notificationData.setBackgroundColor(Color.rgb(228, 240, 249));
+
+                break;
             case "com.viber":
                 notificationData.setAppIcon(R.drawable.nic_viber);
                 notificationData.setBackgroundColor(Color.rgb(180, 70, 195));

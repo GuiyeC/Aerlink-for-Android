@@ -191,6 +191,25 @@ public class MediaServiceHandler extends ServiceHandler {
         mServiceUtils.addCommandToQueue(remoteCommand);
     }
 
+    public void sendNext() {
+        Command remoteCommand = new Command(AMSConstants.SERVICE_UUID, AMSConstants.CHARACTERISTIC_REMOTE_COMMAND, new byte[]{
+                AMSConstants.RemoteCommandIDNextTrack
+        });
+        remoteCommand.setImportance(Command.IMPORTANCE_MIN);
+
+        mServiceUtils.addCommandToQueue(remoteCommand);
+    }
+
+
+    public void sendPrevious() {
+        Command remoteCommand = new Command(AMSConstants.SERVICE_UUID, AMSConstants.CHARACTERISTIC_REMOTE_COMMAND, new byte[]{
+                AMSConstants.RemoteCommandIDPreviousTrack
+        });
+        remoteCommand.setImportance(Command.IMPORTANCE_MIN);
+
+        mServiceUtils.addCommandToQueue(remoteCommand);
+    }
+
     private void buildMediaNotification() {
         mediaHidden = false;
 

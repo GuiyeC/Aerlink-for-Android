@@ -1,13 +1,8 @@
 package com.codegy.aerlink;
 
-import android.app.Activity;
-import android.app.ActivityManager;
 import android.content.*;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.v7.widget.CardView;
 import android.support.wearable.view.WatchViewStub;
@@ -17,7 +12,6 @@ import android.widget.*;
 import com.codegy.aerlink.battery.BatteryServiceHandler;
 import com.codegy.aerlink.media.MediaServiceHandler;
 import com.codegy.aerlink.utils.AerlinkActivity;
-import org.w3c.dom.Text;
 
 public class MainActivity extends AerlinkActivity {
 
@@ -30,7 +24,7 @@ public class MainActivity extends AerlinkActivity {
     private ImageView mConnectionInfoImageView;
     private TextView mBatteryInfoTextView;
 
-    private CardView mPlayMediaCardView;
+    private LinearLayout mMediaLayout;
 
 //    private Switch mColorBackgroundsSwitch;
 //    private Switch mBatteryUpdatesSwitch;
@@ -57,7 +51,7 @@ public class MainActivity extends AerlinkActivity {
                 mConnectionInfoImageView = (ImageView) stub.findViewById(R.id.connectionInfoImageView);
                 mBatteryInfoTextView = (TextView) stub.findViewById(R.id.batteryInfoTextView);
 
-                mPlayMediaCardView = (CardView) stub.findViewById(R.id.playMediaCardView);
+                mMediaLayout = (LinearLayout) stub.findViewById(R.id.mediaLayout);
 
                 mServiceSwitch = (Switch) stub.findViewById(R.id.serviceSwitch);
                 //   mColorBackgroundsSwitch = (Switch) stub.findViewById(R.id.colorBackgroundsSwitch);
@@ -194,6 +188,24 @@ public class MainActivity extends AerlinkActivity {
         }
     }
 
+    public void nextMedia(View view) {
+        if (getService() != null) {
+            MediaServiceHandler serviceHandler = (MediaServiceHandler) getService().getServiceHandler(MediaServiceHandler.class);
+            if (serviceHandler != null) {
+                serviceHandler.sendNext();
+            }
+        }
+    }
+
+    public void previousMedia(View view) {
+        if (getService() != null) {
+            MediaServiceHandler serviceHandler = (MediaServiceHandler) getService().getServiceHandler(MediaServiceHandler.class);
+            if (serviceHandler != null) {
+                serviceHandler.sendPrevious();
+            }
+        }
+    }
+
     private void updateBatteryLevel() {
         if (mBatteryInfoTextView != null && getService() != null) {
             BatteryServiceHandler serviceHandler = (BatteryServiceHandler) getService().getServiceHandler(BatteryServiceHandler.class);
@@ -209,7 +221,7 @@ public class MainActivity extends AerlinkActivity {
 
     @Override
     public void tryToConnect() {
-        if (mConnectionInfoTextView != null && mPlayMediaCardView != null) {
+        if (mConnectionInfoTextView != null && mMediaLayout != null) {
             boolean connected = false;
 
             if (getService() != null) {
@@ -219,7 +231,7 @@ public class MainActivity extends AerlinkActivity {
             mConnectionInfoTextView.setText(connected ? "Connected" : "Disconnected");
             mConnectionInfoTextView.setTextColor(getResources().getColor(connected ? R.color.green : R.color.red));
             mConnectionInfoImageView.setImageResource(connected ? R.drawable.status_connected : R.drawable.status_disconnected);
-            mPlayMediaCardView.setVisibility(connected ? View.VISIBLE : View.GONE);
+            mMediaLayout.setVisibility(connected ? View.VISIBLE : View.GONE);
 
             updateBatteryLevel();
         }
@@ -227,12 +239,12 @@ public class MainActivity extends AerlinkActivity {
 
     @Override
     public void showDisconnected() {
-        if (mConnectionInfoTextView != null && mPlayMediaCardView != null) {
+        if (mConnectionInfoTextView != null && mMediaLayout != null) {
             mConnectionInfoTextView.setText("Disconnected");
             mConnectionInfoTextView.setTextColor(getResources().getColor(R.color.red));
             mConnectionInfoImageView.setImageResource(R.drawable.status_disconnected);
             mBatteryInfoTextView.setVisibility(View.GONE);
-            mPlayMediaCardView.setVisibility(View.GONE);
+            mMediaLayout.setVisibility(View.GONE);
         }
     }
 }

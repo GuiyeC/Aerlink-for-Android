@@ -79,27 +79,81 @@
                 android:paddingBottom="8dp"
                 android:gravity="center">
 
-            <android.support.v7.widget.CardView
-                    android:id="@+id/playMediaCardView"
-                    android:layout_gravity="center"
+                <LinearLayout
+                    android:id="@+id/mediaLayout"
+                    android:visibility="gone"
                     android:layout_width="match_parent"
-                    android:layout_height="38dp"
-                    android:foreground="?android:attr/selectableItemBackground"
-                    android:clickable="true"
-                    card_view:cardCornerRadius="6dp"
-                    card_view:cardBackgroundColor="#1586dc"
-                    android:onClick="startMedia"
-                    android:visibility="gone">
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                        <android.support.v7.widget.CardView
+                            android:id="@+id/previousMediaCardView"
+                            android:layout_gravity="center"
+                            android:layout_weight="1"
+                            android:layout_width="0dp"
+                            android:layout_height="38dp"
+                            android:foreground="?android:attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:layout_marginRight="10dp"
+                            card_view:cardCornerRadius="6dp"
+                            card_view:cardBackgroundColor="#1586dc"
+                            android:onClick="previousMedia"
+                            tools:visibility="visible">
 
-                <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:paddingBottom="4dp"
-                        android:gravity="center"
-                        android:text="▶"
-                        android:textSize="26sp"
-                        android:textColor="@color/white"/>
-            </android.support.v7.widget.CardView>
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:paddingBottom="4dp"
+                                    android:gravity="center"
+                                    android:text="«"
+                                    android:textSize="26sp"
+                                    android:textColor="@color/white"/>
+                        </android.support.v7.widget.CardView>
+                        <android.support.v7.widget.CardView
+                            android:id="@+id/playMediaCardView"
+                            android:layout_gravity="center"
+                            android:layout_weight="1"
+                            android:layout_width="0dp"
+                            android:layout_height="38dp"
+                            android:foreground="?android:attr/selectableItemBackground"
+                            android:clickable="true"
+                            card_view:cardCornerRadius="6dp"
+                            card_view:cardBackgroundColor="#1586dc"
+                            android:onClick="startMedia"
+                            tools:visibility="visible">
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:paddingBottom="4dp"
+                                    android:gravity="center"
+                                    android:text="▶"
+                                    android:textSize="26sp"
+                                    android:textColor="@color/white"/>
+                        </android.support.v7.widget.CardView>
+                        <android.support.v7.widget.CardView
+                            android:id="@+id/nextMediaCardView"
+                            android:layout_gravity="center"
+                            android:layout_weight="1"
+                            android:layout_width="0dp"
+                            android:layout_height="38dp"
+                            android:layout_marginLeft="10dp"
+                            android:foreground="?android:attr/selectableItemBackground"
+                            android:clickable="true"
+                            card_view:cardCornerRadius="6dp"
+                            card_view:cardBackgroundColor="#1586dc"
+                            android:onClick="nextMedia"
+                            tools:visibility="visible">
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:paddingBottom="4dp"
+                                    android:gravity="center"
+                                    android:text="»"
+                                    android:textSize="26sp"
+                                    android:textColor="@color/white"/>
+                        </android.support.v7.widget.CardView>
+                </LinearLayout>
 
             <android.support.v7.widget.CardView
                     android:layout_gravity="center"
