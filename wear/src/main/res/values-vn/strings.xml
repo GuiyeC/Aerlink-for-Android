@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2014 The Android Open Source Project
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+<resources>
+    <!-- <string name="app_name">iOS Wear Connect</string> -->
+    <string name="app_name">Aerlink</string>
+
+    <string name="title_activity_phone">Gọi Điện</string>
+    <string name="battery_level">Mức Pin</string>
+    <string name="ios_service">Dịch vụ iOS</string>
+    <string name="color_backgrounds">Màu nền</string>
+    <string name="battery_updates">Cập nhật Pin</string>
+    <string name="complete_battery_info">Thông tin Pin</string>
+    <string name="moto_360_fix">Sửa Moto 360?</string>
+
+
+    <string name="help_title_no_bluetooth">Không có bluetooth</string>
+    <string name="help_no_bluetooth">Bluetooth không được hỗ trợ.</string>
+
+    <string name="help_title_disconnected">Mất kết nối</string>
+    <string name="help_disconnected">Mở \"Aerlink\" trên thiết bị iOS.</string>
+    <string name="help">Giúp đỡ</string>
+    <string name="help_how_to">- Cài đặt và mở \"Aerlink\" trên thiết bị iOS.\n- Chạm vào thẻ trước để tìm thiết bị iOS.</string>
+
+    <string name="help_title_scanning">Đang tìm…</string>
+    <string name="help_scanning">Đang tìm thiết bị iOS.</string>
+
+    <string name="help_title_Pairing">Đang kết nối…</string>
+    <string name="help_Pairing">Đang thử kết nối tới thiết bị iOS. Bạn cần mở Aerlink trên thiết bị iOS.\nNếu chờ lâu, hãy thử khởi động lại đồng hồ.</string>
+
+    <string name="help_title_connecting">Đang kết nối…</string>
+    <string name="help_connecting">Đang kết nối tới thiết bị iOS.</string>
+
+    <string name="help_title_preparing">Đang chuẩn bị…</string>
+    <string name="help_preparing">Đảm bảo mọi thứ hoạt động.</string>
+
+    <string name="help_title_ready">Sẵn sàng</string>
+    <string name="help_ready">Aerlink đã hoạt động.</string>
+
+    <string name="title_activity_camera_remote">Điều khiển Camera</string>
+    <string name="title_activity_reminders">Nhắc nhở</string>
+
+</resources>
