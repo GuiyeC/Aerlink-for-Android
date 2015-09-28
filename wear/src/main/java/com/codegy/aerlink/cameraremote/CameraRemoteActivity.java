@@ -7,6 +7,7 @@ import android.os.PowerManager;
 import android.support.wearable.view.WatchViewStub;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import com.codegy.aerlink.Constants;
@@ -21,6 +22,9 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
     private ImageView mShutterImageView;
     private TextView mCountdownTextView;
     private RelativeLayout mShutterRelativeLayout;
+    private LinearLayout mDisconnectedLinearLayout;
+    private TextView mCameraClosedTextView;
+
     private PowerManager.WakeLock wakeLock;
 
     @Override
@@ -32,9 +36,8 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
         stub.setOnLayoutInflatedListener(new WatchViewStub.OnLayoutInflatedListener() {
             @Override
             public void onLayoutInflated(WatchViewStub stub) {
-                setInfoTextView((TextView) stub.findViewById(R.id.infoTextView));
-
-                tryToConnect();
+                mDisconnectedLinearLayout = (LinearLayout) stub.findViewById(R.id.disconnectedLinearLayout);
+                mCameraClosedTextView = (TextView) stub.findViewById(R.id.cameraClosedTextView);
 
                 mShutterImageView = (ImageView) stub.findViewById(R.id.shutterImageView);
                 mCountdownTextView = (TextView) stub.findViewById(R.id.countdownTextView);
@@ -42,25 +45,27 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
                 mShutterRelativeLayout.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        if (getService() != null) {
-                            CameraRemoteServiceHandler serviceHandler = (CameraRemoteServiceHandler) getService().getServiceHandler(CameraRemoteServiceHandler.class);
-                            if (serviceHandler != null) {
-                                if (serviceHandler.isCameraOpen()) {
-                                    serviceHandler.takePicture();
-                                }
-                                else {
-                                    showCameraClosed();
-                                }
+                        CameraRemoteServiceHandler serviceHandler = (CameraRemoteServiceHandler) getServiceHandler(CameraRemoteServiceHandler.class);
+
+                        if (serviceHandler != null) {
+                            if (serviceHandler.isCameraOpen()) {
+                                serviceHandler.takePicture();
                             }
                             else {
-                                showDisconnected();
+                                cancelCountdownTask();
+
+                                if (mCameraClosedTextView != null) {
+                                    mCameraClosedTextView.setVisibility(View.VISIBLE);
+                                }
                             }
                         }
                         else {
-                            showDisconnected();
+                            onDisconnectedFromDevice();
                         }
                     }
                 });
+
+                updateInterface();
             }
         });
     }
@@ -95,76 +100,61 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
     }
 
     @Override
-    public void tryToConnect() {
-        if (getService() != null) {
-            CameraRemoteServiceHandler serviceHandler = (CameraRemoteServiceHandler) getService().getServiceHandler(CameraRemoteServiceHandler.class);
-            if (serviceHandler != null) {
-                serviceHandler.setCameraCallback(CameraRemoteActivity.this);
+    public void updateInterface() {
+        boolean connected = isConnected();
 
-                if (serviceHandler.isCameraOpen()) {
-                    hideInfoTextView();
-                } else {
-                    showCameraClosed();
-                }
-            }
-            else {
-                showDisconnected();
-            }
+        if (mDisconnectedLinearLayout != null) {
+            mDisconnectedLinearLayout.setVisibility(connected ? View.GONE : View.VISIBLE);
         }
-        else {
-            showDisconnected();
-        }
-    }
 
-    @Override
-    public void disconnect() {
-        mCountdown = 0;
         cancelCountdownTask();
-
-        if (getService() != null) {
-            CameraRemoteServiceHandler serviceHandler = (CameraRemoteServiceHandler) getService().getServiceHandler(CameraRemoteServiceHandler.class);
-            if (serviceHandler != null) {
-                serviceHandler.setCameraCallback(null);
-            }
-        }
-    }
-
-    @Override
-    public void hideInfoTextView() {
-        super.hideInfoTextView();
 
         if (mCountdownTextView != null && mShutterImageView != null) {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    mCountdownTextView.setVisibility(View.GONE);
-                    mShutterImageView.setVisibility(View.VISIBLE);
-                }
-            });
+            mCountdownTextView.setVisibility(View.GONE);
+            mShutterImageView.setVisibility(View.VISIBLE);
+        }
+
+        if (connected && mCameraClosedTextView != null) {
+            // We are connected, check if the camera is open or closed
+            CameraRemoteServiceHandler serviceHandler = (CameraRemoteServiceHandler) getServiceHandler(CameraRemoteServiceHandler.class);
+
+            if (serviceHandler != null) {
+                mCameraClosedTextView.setVisibility(serviceHandler.isCameraOpen() ? View.GONE : View.VISIBLE);
+            }
         }
     }
 
-    private void showCameraClosed() {
-        showInfoText("Camare closed.\nStart the camera on \"Aerlink\" on your iOS device.");
-        mCountdown = 0;
-        cancelCountdownTask();
+    @Override
+    public void onConnectedToDevice() {
+        super.onConnectedToDevice();
+
+        CameraRemoteServiceHandler serviceHandler = (CameraRemoteServiceHandler) getServiceHandler(CameraRemoteServiceHandler.class);
+
+        if (serviceHandler != null) {
+            serviceHandler.setCameraCallback(this);
+        }
+        else {
+            onDisconnectedFromDevice();
+        }
     }
 
     @Override
-    public void showDisconnected() {
-        super.showDisconnected();
+    public void onDisconnectedFromDevice() {
+        super.onDisconnectedFromDevice();
 
-        mCountdown = 0;
-        cancelCountdownTask();
+        CameraRemoteServiceHandler serviceHandler = (CameraRemoteServiceHandler) getServiceHandler(CameraRemoteServiceHandler.class);
+
+        if (serviceHandler != null) {
+            serviceHandler.setCameraCallback(null);
+        }
     }
 
     @Override
     public void onCameraChangedOpen(boolean open) {
-        if (open) {
-            hideInfoTextView();
-        }
-        else {
-            showCameraClosed();
+        cancelCountdownTask();
+
+        if (mCameraClosedTextView != null) {
+            mCameraClosedTextView.setVisibility(open ? View.GONE : View.VISIBLE);
         }
     }
 
@@ -192,7 +182,6 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
 
     @Override
     public void onImageTransferStarted() {
-        mCountdown = 0;
         cancelCountdownTask();
 
         runOnUiThread(new Runnable() {
@@ -215,6 +204,7 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
             }
         });
     }
+
 
     private ScheduledTask mCountdownTask;
 
@@ -251,6 +241,8 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
     }
 
     private void cancelCountdownTask() {
+        mCountdown = 0;
+
         if (mCountdownTask != null) {
             mCountdownTask.cancel();
         }

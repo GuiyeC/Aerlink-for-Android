@@ -2,6 +2,7 @@ package com.codegy.aerlink.connection;
 
 import android.bluetooth.*;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.util.Log;
 import com.codegy.aerlink.battery.BASConstants;
@@ -55,7 +56,7 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
         mBluetoothManager = (BluetoothManager) mContext.getSystemService(Context.BLUETOOTH_SERVICE);
 
         // Checks if Bluetooth is supported on the device.
-        if (mBluetoothManager != null) {
+        if (context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE) && mBluetoothManager != null) {
             setState(ConnectionState.Disconnected);
 
             mBluetoothAdapter = mBluetoothManager.getAdapter();

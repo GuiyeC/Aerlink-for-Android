@@ -5,10 +5,7 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.wearable.view.WatchViewStub;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.CheckBox;
-import android.widget.ListView;
-import android.widget.TextView;
+import android.widget.*;
 import com.codegy.aerlink.Constants;
 import com.codegy.aerlink.R;
 import com.codegy.aerlink.utils.AerlinkActivity;
@@ -23,6 +20,7 @@ public class RemindersActivity extends AerlinkActivity implements ReminderServic
 
     private TextView mTitleTextView;
     private ListView mListView;
+    private LinearLayout mDisconnectedLinearLayout;
 
 
     @Override
@@ -36,9 +34,7 @@ public class RemindersActivity extends AerlinkActivity implements ReminderServic
         stub.setOnLayoutInflatedListener(new WatchViewStub.OnLayoutInflatedListener() {
             @Override
             public void onLayoutInflated(WatchViewStub stub) {
-                setInfoTextView((TextView) stub.findViewById(R.id.infoTextView));
-
-                tryToConnect();
+                mDisconnectedLinearLayout = (LinearLayout) stub.findViewById(R.id.disconnectedLinearLayout);
 
                 mTitleTextView = (TextView) stub.findViewById(R.id.titleTextView);
 
@@ -49,15 +45,13 @@ public class RemindersActivity extends AerlinkActivity implements ReminderServic
                 mTitleTextView.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        if (getService() != null) {
-                            ReminderServiceHandler serviceHandler = (ReminderServiceHandler) getService().getServiceHandler(ReminderServiceHandler.class);
-                            if (serviceHandler != null) {
-                                serviceHandler.requestDataUpdate();
-                            } else {
-                                showDisconnected();
-                            }
-                        } else {
-                            showDisconnected();
+                        ReminderServiceHandler serviceHandler = (ReminderServiceHandler) getServiceHandler(ReminderServiceHandler.class);
+
+                        if (serviceHandler != null) {
+                            serviceHandler.requestDataUpdate();
+                        }
+                        else {
+                            onDisconnectedFromDevice();
                         }
                     }
                 });
@@ -67,36 +61,43 @@ public class RemindersActivity extends AerlinkActivity implements ReminderServic
                 if (remindersData != null) {
                     onRemindersUpdated(remindersData);
                 }
+
+
+                updateInterface();
             }
         });
     }
 
     @Override
-    public void tryToConnect() {
-        if (getService() != null) {
-            ReminderServiceHandler serviceHandler = (ReminderServiceHandler) getService().getServiceHandler(ReminderServiceHandler.class);
-            if (serviceHandler != null) {
-                serviceHandler.setRemindersCallback(RemindersActivity.this);
-                serviceHandler.requestDataUpdate();
-
-                hideInfoTextView();
-            }
-            else {
-                showDisconnected();
-            }
-        }
-        else {
-            showDisconnected();
+    public void updateInterface() {
+        if (mDisconnectedLinearLayout != null) {
+            mDisconnectedLinearLayout.setVisibility(isConnected() ? View.GONE : View.VISIBLE);
         }
     }
 
     @Override
-    public void disconnect() {
-        if (getService() != null) {
-            ReminderServiceHandler serviceHandler = (ReminderServiceHandler) getService().getServiceHandler(ReminderServiceHandler.class);
-            if (serviceHandler != null) {
-                serviceHandler.setRemindersCallback(null);
-            }
+    public void onConnectedToDevice() {
+        super.onConnectedToDevice();
+
+        ReminderServiceHandler serviceHandler = (ReminderServiceHandler) getServiceHandler(ReminderServiceHandler.class);
+
+        if (serviceHandler != null) {
+            serviceHandler.setRemindersCallback(this);
+            serviceHandler.requestDataUpdate();
+        }
+        else {
+            onDisconnectedFromDevice();
+        }
+    }
+
+    @Override
+    public void onDisconnectedFromDevice() {
+        super.onDisconnectedFromDevice();
+
+        ReminderServiceHandler serviceHandler = (ReminderServiceHandler) getServiceHandler(ReminderServiceHandler.class);
+
+        if (serviceHandler != null) {
+            serviceHandler.setRemindersCallback(null);
         }
     }
 
@@ -137,7 +138,8 @@ public class RemindersActivity extends AerlinkActivity implements ReminderServic
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        ReminderServiceHandler serviceHandler = (ReminderServiceHandler) getService().getServiceHandler(ReminderServiceHandler.class);
+        ReminderServiceHandler serviceHandler = (ReminderServiceHandler) getServiceHandler(ReminderServiceHandler.class);
+
         if (serviceHandler != null) {
             CheckBox checkBox = (CheckBox) view.findViewById(R.id.checkBox);
             if (checkBox != null) {
@@ -149,7 +151,7 @@ public class RemindersActivity extends AerlinkActivity implements ReminderServic
             }
         }
         else {
-            showDisconnected();
+            onDisconnectedFromDevice();
         }
     }
 

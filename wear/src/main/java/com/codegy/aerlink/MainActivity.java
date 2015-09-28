@@ -19,7 +19,7 @@ import com.codegy.aerlink.media.MediaServiceHandler;
 import com.codegy.aerlink.utils.AerlinkActivity;
 import org.w3c.dom.Text;
 
-public class MainActivity extends AerlinkActivity {
+public class MainActivity extends AerlinkActivity implements BatteryServiceHandler.BatteryCallback {
 
     private static final String LOG_TAG = "Aerlink.MainActivity";
 
@@ -32,22 +32,22 @@ public class MainActivity extends AerlinkActivity {
 
     private CardView mPlayMediaCardView;
 
-//    private Switch mColorBackgroundsSwitch;
-//    private Switch mBatteryUpdatesSwitch;
-   // private Switch mCompleteBatteryInfoSwitch;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
 
         Log.d(LOG_TAG, "-=-=-=-=-=-=-=-= onCreate MainActivity -=-=-=-=-=-=-=-=-=");
 
+        /*
         if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
             Log.d(LOG_TAG, "not supported ble");
-            finish();
+           // finish();
         }
+        */
 
+
+        setContentView(R.layout.activity_main);
         final WatchViewStub stub = (WatchViewStub) findViewById(R.id.watch_view_stub);
         stub.setOnLayoutInflatedListener(new WatchViewStub.OnLayoutInflatedListener() {
             @Override
@@ -60,20 +60,12 @@ public class MainActivity extends AerlinkActivity {
                 mPlayMediaCardView = (CardView) stub.findViewById(R.id.playMediaCardView);
 
                 mServiceSwitch = (Switch) stub.findViewById(R.id.serviceSwitch);
-                //   mColorBackgroundsSwitch = (Switch) stub.findViewById(R.id.colorBackgroundsSwitch);
-                //   mBatteryUpdatesSwitch = (Switch) stub.findViewById(R.id.batteryUpdatesSwitch);
-                //   mCompleteBatteryInfoSwitch = (Switch) stub.findViewById(R.id.completeBatteryInfoSwitch);
 
 
-                SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-                final boolean colorBackgrounds = sp.getBoolean(Constants.SPK_COLOR_BACKGROUNDS, false);
-                final boolean batteryUpdates = sp.getBoolean(Constants.SPK_BATTERY_UPDATES, true);
-                final boolean completeBatteryInfo = sp.getBoolean(Constants.SPK_COMPLETE_BATTERY_INFO, false);
                 final boolean serviceRunning = isServiceRunning();
 
 
                 mConnectionInfoLinearLayout.setVisibility(serviceRunning ? View.VISIBLE : View.GONE);
-                tryToConnect();
 
                 mServiceSwitch.setChecked(serviceRunning);
                 mServiceSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -91,73 +83,8 @@ public class MainActivity extends AerlinkActivity {
                     }
                 });
 
-/*
 
-                mColorBackgroundsSwitch.setChecked(colorBackgrounds);
-                mColorBackgroundsSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                    @Override
-                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-                        sp.edit().putBoolean(Constants.SPK_COLOR_BACKGROUNDS, isChecked).apply();
-
-                        MainActivity.this.sendBroadcast(new Intent(Constants.IA_COLOR_BACKGROUNDS_CHANGED));
-                    }
-                });
-
-
-                mBatteryUpdatesSwitch.setChecked(batteryUpdates);
-                mBatteryUpdatesSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                    @Override
-                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-                        sp.edit().putBoolean(Constants.SPK_BATTERY_UPDATES, isChecked).apply();
-
-                        MainActivity.this.sendBroadcast(new Intent(Constants.IA_BATTERY_UPDATES_CHANGED));
-                    }
-                });
-
-
-                mBatteryUpdatesSwitch.setChecked(batteryUpdates);
-                mBatteryUpdatesSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                    @Override
-                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-                        SharedPreferences.Editor editor = sp.edit();
-                        editor.putBoolean(Constants.SPK_BATTERY_UPDATES, isChecked);
-
-                        if (!isChecked) {
-                            editor.putBoolean(Constants.SPK_COMPLETE_BATTERY_INFO, false);
-                     //       mCompleteBatteryInfoSwitch.setChecked(false);
-                        }
-
-                        editor.apply();
-
-                        MainActivity.this.sendBroadcast(new Intent(Constants.IA_BATTERY_UPDATES_CHANGED));
-                    }
-                });
-
-                mCompleteBatteryInfoSwitch.setChecked(completeBatteryInfo);
-                mCompleteBatteryInfoSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                    @Override
-                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-                        SharedPreferences.Editor editor = sp.edit();
-                        editor.putBoolean(Constants.SPK_COMPLETE_BATTERY_INFO, isChecked);
-
-                        if (isChecked) {
-                            editor.putBoolean(Constants.SPK_BATTERY_UPDATES, true);
-                            mBatteryUpdatesSwitch.setChecked(true);
-                        }
-
-                        editor.apply();
-
-                        MainActivity.this.sendBroadcast(new Intent(Constants.IA_BATTERY_UPDATES_CHANGED));
-                    }
-                });
-*/
-
-//                TextView modelTextView = (TextView) stub.findViewById(R.id.modelTextView);
-//                modelTextView.setText(Build.MODEL);
+                updateInterface();
             }
         });
     }
@@ -180,26 +107,41 @@ public class MainActivity extends AerlinkActivity {
 
         if (mConnectionInfoLinearLayout != null) {
             mConnectionInfoLinearLayout.setVisibility(serviceRunning ? View.VISIBLE : View.GONE);
-
-            tryToConnect();
         }
     }
 
     public void startMedia(View view) {
-        if (getService() != null) {
-            MediaServiceHandler serviceHandler = (MediaServiceHandler) getService().getServiceHandler(MediaServiceHandler.class);
-            if (serviceHandler != null) {
-                serviceHandler.sendPlay();
-            }
+        MediaServiceHandler serviceHandler = (MediaServiceHandler) getServiceHandler(MediaServiceHandler.class);
+        if (serviceHandler != null) {
+            serviceHandler.sendPlay();
         }
     }
 
-    private void updateBatteryLevel() {
-        if (mBatteryInfoTextView != null && getService() != null) {
-            BatteryServiceHandler serviceHandler = (BatteryServiceHandler) getService().getServiceHandler(BatteryServiceHandler.class);
-            if (serviceHandler != null && serviceHandler.getBatteryLevel() != -1) {
-                mBatteryInfoTextView.setText(serviceHandler.getBatteryLevel()+"%");
-                mBatteryInfoTextView.setVisibility(View.VISIBLE);
+
+    @Override
+     public void updateInterface() {
+        boolean connected = isConnected();
+
+        if (mConnectionInfoLinearLayout != null) {
+            mConnectionInfoTextView.setText(connected ? "Connected" : "Disconnected");
+            mConnectionInfoTextView.setTextColor(getResources().getColor(connected ? R.color.green : R.color.red));
+        }
+
+        if (mConnectionInfoImageView != null) {
+            mConnectionInfoImageView.setImageResource(connected ? R.drawable.status_connected : R.drawable.status_disconnected);
+        }
+
+        if (mPlayMediaCardView != null) {
+            mPlayMediaCardView.setVisibility(connected ? View.VISIBLE : View.GONE);
+        }
+
+        if (mBatteryInfoTextView != null) {
+            if (connected) {
+                BatteryServiceHandler serviceHandler = (BatteryServiceHandler) getServiceHandler(BatteryServiceHandler.class);
+
+                if (serviceHandler != null) {
+                    onBatteryLevelChanged(serviceHandler.getBatteryLevel());
+                }
             }
             else {
                 mBatteryInfoTextView.setVisibility(View.GONE);
@@ -208,31 +150,50 @@ public class MainActivity extends AerlinkActivity {
     }
 
     @Override
-    public void tryToConnect() {
-        if (mConnectionInfoTextView != null && mPlayMediaCardView != null) {
-            boolean connected = false;
+    public void onConnectedToDevice() {
+        super.onConnectedToDevice();
 
-            if (getService() != null) {
-                connected = getService().isConnectionReady();
-            }
+        BatteryServiceHandler serviceHandler = (BatteryServiceHandler) getServiceHandler(BatteryServiceHandler.class);
 
-            mConnectionInfoTextView.setText(connected ? "Connected" : "Disconnected");
-            mConnectionInfoTextView.setTextColor(getResources().getColor(connected ? R.color.green : R.color.red));
-            mConnectionInfoImageView.setImageResource(connected ? R.drawable.status_connected : R.drawable.status_disconnected);
-            mPlayMediaCardView.setVisibility(connected ? View.VISIBLE : View.GONE);
-
-            updateBatteryLevel();
+        if (serviceHandler != null) {
+            serviceHandler.setBatteryCallback(this);
+        }
+        else {
+            onDisconnectedFromDevice();
         }
     }
 
     @Override
-    public void showDisconnected() {
-        if (mConnectionInfoTextView != null && mPlayMediaCardView != null) {
-            mConnectionInfoTextView.setText("Disconnected");
-            mConnectionInfoTextView.setTextColor(getResources().getColor(R.color.red));
-            mConnectionInfoImageView.setImageResource(R.drawable.status_disconnected);
-            mBatteryInfoTextView.setVisibility(View.GONE);
-            mPlayMediaCardView.setVisibility(View.GONE);
+    public void onDisconnectedFromDevice() {
+        super.onDisconnectedFromDevice();
+
+        BatteryServiceHandler serviceHandler = (BatteryServiceHandler) getServiceHandler(BatteryServiceHandler.class);
+
+        if (serviceHandler != null) {
+            serviceHandler.setBatteryCallback(null);
         }
+    }
+
+    @Override
+    public void onBatteryLevelChanged(final int batteryLevel) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (mBatteryInfoTextView != null) {
+                    if (batteryLevel != -1) {
+                        mBatteryInfoTextView.setText(batteryLevel + "%");
+                        mBatteryInfoTextView.setVisibility(View.VISIBLE);
+                    } else {
+                        mBatteryInfoTextView.setVisibility(View.GONE);
+                    }
+                }
+            }
+        });
+    }
+
+
+    public void goToSettings(View view) {
+        Intent intent = new Intent(this, SettingsActivity.class);
+        startActivity(intent);
     }
 }

@@ -268,12 +268,16 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
                 mServiceHandlers.add(new BatteryServiceHandler(this, this));
             }
         }
+        /*
+        TODO: Sync time with iPhone
+
         BluetoothGattService currentTimeService = bluetoothGatt.getService(CTSConstants.SERVICE_UUID);
         if (currentTimeService != null) {
             if (getServiceHandler(CurrentTimeServiceHandler.class) == null) {
                 mServiceHandlers.add(new CurrentTimeServiceHandler(this, this));
             }
         }
+        */
         BluetoothGattService aerlinkService = bluetoothGatt.getService(ALSConstants.SERVICE_UUID);
         if (aerlinkService != null) {
             if (getServiceHandler(ReminderServiceHandler.class) == null) {

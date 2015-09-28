@@ -14,35 +14,27 @@
  limitations under the License.
 -->
 <resources>
-    <string name="app_name">Aerlink</string>
 
-    <string name="title_activity_phone">Дзвінок</string>
-    <string name="battery_level">Рівень заряду</string>
+    <string name="app_name">Aerlink</string>
     <string name="ios_service">Сервіси iOS</string>
-    <string name="color_backgrounds">Кольоровий фон</string>
-    <string name="battery_updates">Статус батареї</string>
-    <string name="complete_battery_info">Актуальний статус батареї</string>
-    <string name="moto_360_fix">Фікс для Moto 360?</string>
+
+
+    <string name="general_connected">підключений</string>
+    <string name="general_disconnected">Відключено</string>
+    <string name="general_battery_level">Рівень заряду</string>
+
+
+    <string name="settings_black_notifications">чорні повідомлення</string>
+    <string name="settings_battery_updates">Статус батареї</string>
 
 
     <string name="help_title_no_bluetooth">Немає Bluetooth</string>
     <string name="help_no_bluetooth">Bluetooth не підтримується.</string>
 
     <string name="help_title_disconnected">Відключено</string>
-    <string name="help_disconnected">Натисніть для пошуку.</string>
+    <string name="help_disconnected">запустіть \"Aerlink\" на Вашому iOS Пристрої.</string>
+
     <string name="help">Допомога</string>
-    <string name="help_how_to">- Встановіть та запустіть \"Aerlink\" на Вашому iOS Пристрої.\n- Натисніть на попередню карточку для з\'єднання с iOS пристроєм.</string>
-
-    <string name="help_title_scanning">Пошук…</string>
-    <string name="help_scanning">Пошук iOS пристрою.</string>
-
-    <string name="help_title_connecting">З\'єднання…</string>
-    <string name="help_connecting">З\'єднання з iOS пристроєм.</string>
-
-    <string name="help_title_preparing">Підготовка…</string>
-    <string name="help_preparing">Перевіряємо, чи все працює.</string>
-
-    <string name="help_title_ready">Готово</string>
-    <string name="help_ready">Пристрої сполучені!</string>
+    <string name="help_how_to">- Встановіть та запустіть \"Aerlink\" на Вашому iOS Пристрої.</string>
 
 </resources>

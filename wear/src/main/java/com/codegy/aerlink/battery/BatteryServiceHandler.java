@@ -21,6 +21,10 @@ import java.util.UUID;
  */
 public class BatteryServiceHandler extends ServiceHandler {
 
+    public interface BatteryCallback {
+        void onBatteryLevelChanged(int batteryLevel);
+    }
+
     private static final String LOG_TAG = BatteryServiceHandler.class.getSimpleName();
 
     public static final int NOTIFICATION_BATTERY = 1002;
@@ -28,6 +32,7 @@ public class BatteryServiceHandler extends ServiceHandler {
 
     private Context mContext;
     private ServiceUtils mServiceUtils;
+    private BatteryCallback batteryCallback;
 
     private int batteryLevel = -1;
     private boolean batteryUpdates;
@@ -47,6 +52,9 @@ public class BatteryServiceHandler extends ServiceHandler {
         context.registerReceiver(mBroadcastReceiver, intentFilter);
     }
 
+    public void setBatteryCallback(BatteryCallback batteryCallback) {
+        this.batteryCallback = batteryCallback;
+    }
 
     @Override
     public void close() {
@@ -89,6 +97,10 @@ public class BatteryServiceHandler extends ServiceHandler {
 
         if ((batteryLevel <= 25 && batteryLevel % 5 == 0) || batteryLevel % 20 == 0) {
             batteryHidden = false;
+        }
+
+        if (batteryCallback != null) {
+            batteryCallback.onBatteryLevelChanged(batteryLevel);
         }
 
         buildBatteryNotification();
@@ -134,7 +146,7 @@ public class BatteryServiceHandler extends ServiceHandler {
         Notification.Builder builder = new Notification.Builder(mContext)
                 .setSmallIcon(batteryIcon)
                 .setDeleteIntent(deleteAction)
-                .setContentTitle(mContext.getString(R.string.battery_level))
+                .setContentTitle(mContext.getString(R.string.general_battery_level))
                 .setContentText(batteryLevel + "%")
                 .extend(wearableExtender)
                 .setPriority(Notification.PRIORITY_MIN);

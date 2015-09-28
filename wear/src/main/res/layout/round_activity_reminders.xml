@@ -8,18 +8,11 @@
               tools:context="com.codegy.aerlink.reminders.RemindersActivity"
               tools:deviceIds="wear_round">
 
-    <TextView
-            android:id="@+id/infoTextView"
-            android:paddingLeft="30dp"
-            android:paddingRight="30dp"
-            android:paddingTop="30dp"
-            android:paddingBottom="30dp"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:textSize="15sp"
-            tools:text="Test info"
-            android:visibility="gone"/>
+    <include layout="@layout/merge_disconnected_info"
+             android:layout_height="match_parent"
+             android:layout_width="match_parent"
+             android:layout_margin="30dp"
+             tools:visibility="gone" />
 
     <TextView
             android:id="@+id/titleTextView"

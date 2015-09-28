@@ -17,17 +17,33 @@ public class AerlinkActivity extends WearableActivity {
 
     private MainService service;
     private boolean mServiceBound = false;
+    private boolean connected = false;
 
-    private TextView infoTextView;
-
-
-    public void setInfoTextView(TextView infoTextView) {
-        this.infoTextView = infoTextView;
-    }
 
     public MainService getService() {
         return service;
     }
+
+    public boolean isConnected() {
+        return connected;
+    }
+
+    /***
+     * Request for a specific service handler
+     * @param serviceHandlerClass the class of the service handler requested
+     * @return if the service is available this returns the correct service handler,
+     * if not, it returns null
+     */
+    public ServiceHandler getServiceHandler(Class serviceHandlerClass) {
+        ServiceHandler serviceHandler = null;
+
+        if (getService() != null) {
+            serviceHandler = getService().getServiceHandler(serviceHandlerClass);
+        }
+
+        return serviceHandler;
+    }
+
 
 
     @Override
@@ -43,32 +59,32 @@ public class AerlinkActivity extends WearableActivity {
     @Override
     protected void onResume() {
         super.onResume();
-/*
-        if (!isServiceRunning()) {
-            startService(new Intent(this, MainService.class));
-        }
-        */
 
-        if (isServiceRunning() && !mServiceBound) {
-            Intent intent = new Intent(this, MainService.class);
-            bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+        if (isServiceRunning()) {
+            if (!mServiceBound){
+                Intent intent = new Intent(this, MainService.class);
+                bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+            }
         }
+        else if (mServiceBound) {
+            stopService();
+        }
+
+        updateInterface();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
 
-        unregisterReceiver(mBroadcastReceiver);
-
+        try {
+            unregisterReceiver(mBroadcastReceiver);
+        } catch (Exception e) {}
 
         if (mServiceBound) {
-            disconnect();
-
-            unbindService(serviceConnection);
-            mServiceBound = false;
-
-            showDisconnected();
+            try {
+                unbindService(serviceConnection);
+            } catch (Exception e) {}
         }
     }
 
@@ -80,71 +96,87 @@ public class AerlinkActivity extends WearableActivity {
     }
 
     public void stopService() {
-        stopService(new Intent(this, MainService.class));
-
         try {
             unbindService(serviceConnection);
         } catch (Exception e) {}
 
+        stopService(new Intent(this, MainService.class));
+
         mServiceBound = false;
+        connected = false;
     }
 
 
-    public void tryToConnect() { }
-
-    public void disconnect() { }
-
-    public void showDisconnected() {
-        showInfoText("Disconnected.\nConnect using \"Aerlink\" on your iOS device.");
+    /**
+     * Update interface on this method, for example: check for connection
+     */
+    public void updateInterface() {
     }
 
-    public void showInfoText(final String infoText) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if (infoTextView != null) {
-                    infoTextView.setText(infoText);
-                    infoTextView.setVisibility(View.VISIBLE);
-                }
-            }
-        });
-    }
-
-    public void hideInfoTextView() {
-        if (infoTextView == null || infoTextView.getVisibility() == View.GONE) {
-            return;
-        }
+    /***
+     * Called on connection to device, get everything ready here, set callbacks of service handlers
+     */
+    public void onConnectedToDevice() {
+        connected = true;
 
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                infoTextView.setVisibility(View.GONE);
+                updateInterface();
             }
         });
     }
+
+    /***
+     * Called on disconnection from device, clear everything on this method related to the previously connected device
+     */
+    public void onDisconnectedFromDevice() {
+        connected = false;
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                updateInterface();
+            }
+        });
+    }
+
+    // TEMP
+    /*
+    public void onServiceUnavailable() {
+        onDisconnectedFromDevice();
+    }
+    */
+
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
+            service = null;
             mServiceBound = false;
-            
-            disconnect();
 
-            showDisconnected();
+            onDisconnectedFromDevice();
         }
 
         @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            MainService.ServiceBinder binder = (MainService.ServiceBinder) service;
-            AerlinkActivity.this.service = binder.getService();
-
-            tryToConnect();
+        public void onServiceConnected(ComponentName name, IBinder serviceBinder) {
+            MainService.ServiceBinder binder = (MainService.ServiceBinder) serviceBinder;
+            service = binder.getService();
 
             mServiceBound = true;
+
+            // Bound to service, check if its connected to device
+            if (service.isConnectionReady()) {
+                onConnectedToDevice();
+            }
         }
     };
 
+
+    /***
+     * Receives notifications related to the connection to the iOS device
+     */
     private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
 
         @Override
@@ -152,16 +184,20 @@ public class AerlinkActivity extends WearableActivity {
             String action = intent.getAction();
 
             if (action.equals(Constants.IA_SERVICE_READY)) {
-                tryToConnect();
+                onConnectedToDevice();
             }
             else {
-                showDisconnected();
+                onDisconnectedFromDevice();
             }
         }
 
     };
 
 
+    /***
+     * Check if Aerlink's main service is running
+     * @return boolean indicating if the service is running or not
+     */
     public boolean isServiceRunning() {
         ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
         for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {

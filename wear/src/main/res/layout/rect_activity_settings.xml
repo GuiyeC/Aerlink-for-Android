@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<ScrollView
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:tools="http://schemas.android.com/tools"
+        xmlns:card_view="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:animateLayoutChanges="true"
+        android:background="#393939"
+        android:gravity="center"
+        tools:context="com.codegy.aerlink.SettingsActivity"
+        tools:deviceIds="wear_square">
+
+        <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:animateLayoutChanges="true"
+                android:orientation="vertical"
+                android:paddingTop="8dp"
+                android:paddingLeft="5dp"
+                android:paddingRight="5dp"
+                android:paddingBottom="8dp"
+                android:gravity="center">
+
+            <android.support.v7.widget.CardView
+                    android:layout_gravity="center"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    card_view:cardCornerRadius="6dp"
+                    card_view:cardBackgroundColor="#373737">
+
+                <Switch
+                        android:id="@+id/batteryUpdatesSwitch"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_marginTop="5dp"
+                        android:layout_marginBottom="5dp"
+                        android:layout_marginStart="8dp"
+                        android:layout_marginEnd="2dp"
+                        android:text="@string/settings_battery_updates"
+                        android:textColor="#fff"
+                        android:textSize="20sp"
+                        android:fontFamily="sans-serif-condensed"
+                        android:theme="@style/MaterialTheme"/>
+            </android.support.v7.widget.CardView>
+
+            <android.support.v7.widget.CardView
+                    android:layout_gravity="center"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    card_view:cardCornerRadius="6dp"
+                    card_view:cardBackgroundColor="#373737">
+
+                <Switch
+                        android:id="@+id/blackNotificationsSwitch"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_marginTop="5dp"
+                        android:layout_marginBottom="5dp"
+                        android:layout_marginStart="8dp"
+                        android:layout_marginEnd="2dp"
+                        android:text="@string/settings_black_notifications"
+                        android:textColor="#fff"
+                        android:textSize="20sp"
+                        android:fontFamily="sans-serif-condensed"
+                        android:theme="@style/MaterialTheme"/>
+            </android.support.v7.widget.CardView>
+
+            <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:textColor="#44ffffff"
+                    android:text="@string/app_version"/>
+
+        </LinearLayout>
+
+</ScrollView>

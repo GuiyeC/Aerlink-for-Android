@@ -29,27 +29,25 @@ public class ConnectionHelper {
     }
 
     public void showHelpForState(ConnectionHandler.ConnectionState state) {
-        //Bitmap background = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
-        //background.eraseColor(0);
+        if (state == ConnectionHandler.ConnectionState.Ready) {
+            mServiceUtils.cancelNotification(null, NOTIFICATION_HELP);
+            return;
+        }
+
+
         Bitmap background = BitmapFactory.decodeResource(mContext.getResources(), R.drawable.bg_texture);
 
         Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
                 .setBackground(background);
-/*
+
+        /*
         PendingIntent connectPendingIntent = null;
         if (state == ConnectionHandler.ConnectionState.Disconnected) {
             // Build pending intent for when the user swipes the card away
             Intent connectIntent = new Intent(Constants.IA_TRY_CONNECTING);
             connectPendingIntent = PendingIntent.getBroadcast(mContext, 0, connectIntent, 0);
 
-            // Add help page
-            wearableExtender.setContentAction(0).
-                    addPage(new Notification.Builder(mContext)
-                            .setContentTitle(mContext.getString(R.string.help))
-                            .setContentText(mContext.getString(R.string.help_how_to))
-                            .build());
-        }
-        */
+        }*/
 
         String title = null;
         String text = null;
@@ -63,10 +61,15 @@ public class ConnectionHelper {
             case Connecting:
                 title = mContext.getString(R.string.help_title_disconnected);
                 text = mContext.getString(R.string.help_disconnected);
+
+                // Add help page
+                wearableExtender.setContentAction(0).
+                        addPage(new Notification.Builder(mContext)
+                                .setContentTitle(mContext.getString(R.string.help))
+                                .setContentText(mContext.getString(R.string.help_how_to))
+                                .build());
+
                 break;
-            case Ready:
-                mServiceUtils.cancelNotification(null, NOTIFICATION_HELP);
-                return;
         }
 
         Notification.Builder builder = new Notification.Builder(mContext)
@@ -92,7 +95,7 @@ public class ConnectionHelper {
 
             builder.setVibrate(DISCONNECTION_PATTERN);
         }
-*/
+        */
 
 
         mServiceUtils.notify(null, NOTIFICATION_HELP, builder.build());

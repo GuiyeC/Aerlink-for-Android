@@ -14,25 +14,26 @@
  limitations under the License.
 -->
 <resources>
+
     <string name="app_name">Aerlink</string>
 
-    <string name="battery_level">バッテリーレベル</string>
-    <string name="battery_updates">バッテリーアップデート</string>
-    <string name="color_backgrounds">バックグラウンドカラー</string>
-    <string name="complete_battery_info">バッテリー情報</string>
-    <string name="help">ヘルプ</string>
-    <string name="help_connecting">iOSデバイスへ接続中</string>
-    <string name="help_disconnected">タップしてサーチを開始</string>
-    <string name="help_no_bluetooth">Bluetoothはサポートされていません</string>
-    <string name="help_scanning">iOSデバイスを検索中</string>
-    <string name="help_title_connecting">接続中…</string>
-    <string name="help_title_disconnected">切断されました</string>
+
+    <string name="general_connected">接続</string>
+    <string name="general_disconnected">切断</string>
+    <string name="general_battery_level">バッテリーレベル</string>
+
+
+    <string name="settings_black_notifications">ブラック通知</string>
+    <string name="settings_battery_updates">バッテリーアップデート</string>
+
+
     <string name="help_title_no_bluetooth">No bluetooth</string>
-    <string name="help_title_scanning">検索中…</string>
-    <string name="ios_service">iOS Service</string>
-    <string name="help_how_to">- iOSデバイスに \"Aerlink\" をインストールして起動して下さい。\n- iOSデバイスを検索するためにカードをタップして下さい。</string>
-    <string name="help_ready">利用可能です。Enjoy!</string>
-    <string name="help_preparing">準備が正常に完了しました</string>
-    <string name="help_title_preparing">準備中…</string>
-    <string name="help_title_ready">準備完了</string>
+    <string name="help_no_bluetooth">Bluetoothはサポートされていません</string>
+
+    <string name="help_title_disconnected">切断</string>
+    <string name="help_disconnected">iOSデバイスに \"Aerlink\" をスタートして下さい。</string>
+
+    <string name="help">ヘルプ</string>
+    <string name="help_how_to">- iOSデバイスに \"Aerlink\" をインストールして起動して下さい。</string>
+
 </resources>

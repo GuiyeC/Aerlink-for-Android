@@ -8,9 +8,12 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.SET_TIME"
-                     android:protectionLevel="signature|system"/>
-
+    <permission android:name="android.permission.MEDIA_CONTENT_CONTROL" />
+    <!--
+    <uses-permission
+        android:name="android.permission.SET_TIME"
+        android:protectionLevel="signature|system" />
+    -->
 
     <application
         android:allowBackup="true"
@@ -24,7 +27,7 @@
         <service
             android:name=".MainService"
             android:enabled="true"
-            android:exported="true" >
+            android:exported="false" >
         </service>
 
         <activity
@@ -39,14 +42,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
         <activity
             android:name=".notifications.PhoneActivity"
             android:label="@string/title_activity_phone"
             android:launchMode="singleTask"
             android:taskAffinity="com.codegy.aerlink.notifications.PhoneActivity" >
         </activity>
-
         <activity
             android:name=".reminders.RemindersActivity"
             android:icon="@mipmap/ic_launcher_reminders"
@@ -54,7 +55,6 @@
             android:launchMode="singleTask"
             android:taskAffinity="com.codegy.aerlink.reminders.RemindersActivity" >
         </activity>
-
         <activity
             android:name=".cameraremote.CameraRemoteActivity"
             android:icon="@mipmap/ic_launcher_camera"
@@ -62,37 +62,41 @@
             android:launchMode="singleTask"
             android:taskAffinity="com.codegy.aerlink.cameraremote.CameraRemoteActivity" >
         </activity>
-
         <activity
             android:name=".cameraremote.CameraImageActivity"
             android:label="@string/title_activity_camera_image"
-            android:launchMode="singleTop">
+            android:launchMode="singleTop" >
         </activity>
 
         <activity-alias
-                android:label="@string/title_activity_reminders"
-                android:icon="@mipmap/ic_launcher_reminders"
-                android:name=".reminders.RemindersActivity"
-                android:enabled="true"
-                android:targetActivity=".reminders.RemindersActivity">
+            android:name=".reminders.RemindersActivity"
+            android:enabled="true"
+            android:icon="@mipmap/ic_launcher_reminders"
+            android:label="@string/title_activity_reminders"
+            android:targetActivity=".reminders.RemindersActivity" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
-
         <activity-alias
-                android:label="@string/title_activity_camera_remote"
-                android:icon="@mipmap/ic_launcher_camera"
-                android:name=".cameraremote.CameraRemoteActivity"
-                android:enabled="true"
-                android:targetActivity=".cameraremote.CameraRemoteActivity">
+            android:name=".cameraremote.CameraRemoteActivity"
+            android:enabled="true"
+            android:icon="@mipmap/ic_launcher_camera"
+            android:label="@string/title_activity_camera_remote"
+            android:targetActivity=".cameraremote.CameraRemoteActivity" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
 
+        <activity
+            android:name=".SettingsActivity"
+            android:label="@string/title_activity_settings" >
+        </activity>
     </application>
 
 </manifest>
