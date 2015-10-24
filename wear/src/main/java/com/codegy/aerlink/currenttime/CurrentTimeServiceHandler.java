@@ -1,12 +1,12 @@
 package com.codegy.aerlink.currenttime;
 
-import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.os.SystemClock;
 import android.util.Log;
 import com.codegy.aerlink.Constants;
 import com.codegy.aerlink.R;
@@ -75,18 +75,20 @@ public class CurrentTimeServiceHandler extends ServiceHandler {
         }
         currentTime.set(year, month, day, hours, minutes, seconds);
 
-
-        try {
-            AlarmManager am = (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE);
-            am.setTime(currentTime.getTimeInMillis());
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
+        setCurrentTime(currentTime.getTimeInMillis());
 
         Log.d(LOG_TAG, "Current time: " + currentTime.toString());
 
        // buildCurrentTimeNotification();
+    }
+
+    public void setCurrentTime(long time) {
+        try {
+            // Set time here
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public Calendar getCurrentTime() {

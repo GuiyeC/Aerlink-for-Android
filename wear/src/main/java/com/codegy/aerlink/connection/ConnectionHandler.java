@@ -141,7 +141,9 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
         cancelConnectingTimeoutTask();
         cancelNextCommandTask();
 
-        mDiscoveryHelper.stopScanningAndAdvertising();
+        if (mDiscoveryHelper != null) {
+            mDiscoveryHelper.stopScanningAndAdvertising();
+        }
 
         try {
             if (mBluetoothGatt != null) {

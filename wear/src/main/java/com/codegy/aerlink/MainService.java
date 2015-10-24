@@ -239,6 +239,7 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
                 mServiceHandlers.add(new NotificationServiceHandler(this, this));
             }
         }
+
         BluetoothGattService mediaService = bluetoothGatt.getService(AMSConstants.SERVICE_UUID);
         if (mediaService != null) {
             if (getServiceHandler(MediaServiceHandler.class) == null) {
@@ -268,8 +269,8 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
                 mServiceHandlers.add(new BatteryServiceHandler(this, this));
             }
         }
-        /*
-        TODO: Sync time with iPhone
+
+        // TODO: Sync time with iPhone
 
         BluetoothGattService currentTimeService = bluetoothGatt.getService(CTSConstants.SERVICE_UUID);
         if (currentTimeService != null) {
@@ -277,7 +278,7 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
                 mServiceHandlers.add(new CurrentTimeServiceHandler(this, this));
             }
         }
-        */
+
         BluetoothGattService aerlinkService = bluetoothGatt.getService(ALSConstants.SERVICE_UUID);
         if (aerlinkService != null) {
             if (getServiceHandler(ReminderServiceHandler.class) == null) {
