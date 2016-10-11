@@ -12,7 +12,6 @@ public interface ServiceUtils {
     void notify(String tag, int id, Notification notification);
     void cancelNotification(String tag, int id);
     void vibrate(long[] pattern, int repeat);
-    void wakeScreen();
     boolean getColorBackgrounds();
 
 }

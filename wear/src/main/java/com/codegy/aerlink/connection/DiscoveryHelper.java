@@ -1,16 +1,12 @@
 package com.codegy.aerlink.connection;
 
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
+import android.bluetooth.*;
 import android.bluetooth.le.*;
 import android.content.Context;
 import android.os.Handler;
-import android.os.ParcelUuid;
 import android.util.Log;
-import com.codegy.aerlink.ALSConstants;
-import com.codegy.aerlink.utils.ScheduledTask;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -19,7 +15,7 @@ import java.util.List;
 public class DiscoveryHelper {
 
     public interface DiscoveryCallback {
-        void connectToDevice(BluetoothDevice device);
+        void onDeviceDiscovery(BluetoothDevice device);
     }
 
     private static final String LOG_TAG = DiscoveryHelper.class.getSimpleName();
@@ -29,37 +25,41 @@ public class DiscoveryHelper {
 
     private boolean mScanning;
 
-    private BluetoothManager mBluetoothManager;
     private BluetoothAdapter mBluetoothAdapter;
 
+    private List<String> mAllowedDevices;
     private ScanSettings mScanSettings;
     private BluetoothLeScanner mScanner;
 
-    private AdvertiseData mAdvertiseData;
-    private AdvertiseSettings mAdvertiseSettings;
-    private BluetoothLeAdvertiser mAdvertiser;
 
-
-    public DiscoveryHelper(Context mContext, DiscoveryCallback mCallback) {
+    public DiscoveryHelper(Context mContext, DiscoveryCallback mCallback, BluetoothManager bluetoothManager) {
         this.mContext = mContext;
         this.mCallback = mCallback;
 
-        mBluetoothManager = (BluetoothManager) mContext.getSystemService(Context.BLUETOOTH_SERVICE);
-        mBluetoothAdapter = mBluetoothManager.getAdapter();
+
+        this.mAllowedDevices = new ArrayList<>(3);
+        this.mAllowedDevices.add("Aerlink");
+        this.mAllowedDevices.add("BLE Utility");
+        this.mAllowedDevices.add("Blank");
+
+
+        mBluetoothAdapter = bluetoothManager.getAdapter();
+
+        /* Start server to be discovered by advertising
+            if (mBluetoothGattServer == null) {
+                mBluetoothGattServer = bluetoothManager.openGattServer(mContext, mGattServerCallback);
+            }
+         */
     }
 
-    public void close() {
-        stopScanningAndAdvertising();
-    }
 
-
-    public void startScanningAndAdvertising() {
+    public void startDiscovery() {
         // If disabled -> enable bluetooth
         if (!mBluetoothAdapter.isEnabled()) {
             mBluetoothAdapter.enable();
             Log.wtf(LOG_TAG, "Bluetooth was disabled");
 
-            stopScanningAndAdvertising();
+            stopDiscovery();
         }
         else if (mScanning && mScanner != null) {
             // Scanner is already running
@@ -81,6 +81,7 @@ public class DiscoveryHelper {
 
 
         if (mScanning) {
+            /*
             try {
                 startAdvertising();
             }
@@ -89,6 +90,7 @@ public class DiscoveryHelper {
 
                 stopAdvertising();
             }
+            */
         }
         else {
             // Scanning did not work, try again in a moment
@@ -97,28 +99,29 @@ public class DiscoveryHelper {
             handler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    startScanningAndAdvertising();
+                    startDiscovery();
                 }
             }, 3000);
         }
     }
 
-    public void stopScanningAndAdvertising() {
+    public void stopDiscovery() {
         mScanning = false;
 
         stopScanning();
-        stopAdvertising();
+        //stopAdvertising();
     }
 
 
     private boolean startScanning() throws Exception {
-        boolean result = false;
-
         if (mScanning && mScanner != null) {
             // Scanner is already running
-            result = true;
+            return true;
         }
-        else {
+
+        boolean result = false;
+
+        synchronized (this) {
             mScanner = mBluetoothAdapter.getBluetoothLeScanner();
 
             // If bluetooth was disabled, the scanner may be null
@@ -127,16 +130,15 @@ public class DiscoveryHelper {
                     mScanSettings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER).build();
                 }
 
-                        try {
-                            mScanner.startScan(null, mScanSettings, mScanCallback);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
+                try {
+                    mScanner.startScan(null, mScanSettings, mScanCallback);
 
+                    Log.d(LOG_TAG, "Scanning started");
 
-                Log.d(LOG_TAG, "Scanning started");
-
-                result = true;
+                    result = true;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
 
@@ -145,16 +147,17 @@ public class DiscoveryHelper {
 
     private void stopScanning() {
         if (mScanner != null) {
-            try {
-                mScanner.stopScan(mScanCallback);
-            }
-            catch (Exception e) {
-                e.printStackTrace();
-            }
+            synchronized (this) {
+                try {
+                    mScanner.stopScan(mScanCallback);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
 
-            mScanner = null;
+                mScanner = null;
 
-            Log.d(LOG_TAG, "Scanning stopped");
+                Log.d(LOG_TAG, "Scanning stopped");
+            }
         }
     }
 
@@ -162,14 +165,16 @@ public class DiscoveryHelper {
     private final ScanCallback mScanCallback = new ScanCallback() {
 
         @Override
-        public void onScanResult(int callbackType, android.bluetooth.le.ScanResult result) {
+        public void onScanResult(int callbackType, ScanResult result) {
             Log.d(LOG_TAG, "Scan Result: " + result.toString());
 
             BluetoothDevice device = result.getDevice();
             String deviceName = device != null ? device.getName() : null;
 
-            if (mCallback != null && deviceName != null && (deviceName.equals("Aerlink") || deviceName.equals("BLE Utility") || deviceName.equals("Blank"))) {
-                mCallback.connectToDevice(device);
+            if (deviceName != null && mAllowedDevices.contains(deviceName)) {
+                mCallback.onDeviceDiscovery(device);
+
+                stopScanning();
             }
         }
 
@@ -184,11 +189,17 @@ public class DiscoveryHelper {
             Log.d(LOG_TAG, "Scan Failed: " + errorCode);
 
             stopScanning();
-            startScanningAndAdvertising();
+            startDiscovery();
         }
 
     };
 
+
+    /*
+
+    private AdvertiseData mAdvertiseData;
+    private AdvertiseSettings mAdvertiseSettings;
+    private BluetoothLeAdvertiser mAdvertiser;
 
     private boolean startAdvertising() throws Exception {
         boolean result = false;
@@ -219,14 +230,13 @@ public class DiscoveryHelper {
                 try {
                     mAdvertiser.stopAdvertising(mAdvertiseCallback);
                     mAdvertiser.startAdvertising(mAdvertiseSettings, mAdvertiseData, mAdvertiseCallback);
-                } catch (Exception e) {
+
+                    Log.d(LOG_TAG, "Advertising started");
+                    result = true;
+                }
+                catch (Exception e) {
                     e.printStackTrace();
                 }
-
-
-                Log.d(LOG_TAG, "Advertising started");
-
-                result = true;
             }
         }
 
@@ -270,5 +280,52 @@ public class DiscoveryHelper {
             Log.v(LOG_TAG, "Broadcasting");
         }
     };
+
+    private BluetoothGattServer mBluetoothGattServer;
+    private final BluetoothGattServerCallback mGattServerCallback = new BluetoothGattServerCallback() {
+        @Override
+        public void onConnectionStateChange(BluetoothDevice device, final int status, int newState) {
+            super.onConnectionStateChange(device, status, newState);
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                if (newState == BluetoothGatt.STATE_CONNECTED) {
+                    Log.i(LOG_TAG, "Connected to device: " + device.getAddress());
+
+                    mCallback.onDeviceDiscovery(device);
+                }
+                else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
+                    Log.v(LOG_TAG, "Disconnected from device");
+                }
+            }
+            else {
+                Log.e(LOG_TAG, "Error when connecting: " + status);
+            }
+        }
+
+        @Override
+        public void onCharacteristicReadRequest(BluetoothDevice device, int requestId, int offset,
+                                                BluetoothGattCharacteristic characteristic) {
+            super.onCharacteristicReadRequest(device, requestId, offset, characteristic);
+        }
+
+        @Override
+        public void onNotificationSent(BluetoothDevice device, int status) {
+            super.onNotificationSent(device, status);
+        }
+
+        @Override
+        public void onCharacteristicWriteRequest(BluetoothDevice device, int requestId,
+                                                 BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded,
+                                                 int offset, byte[] value) {
+            super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite,
+                    responseNeeded, offset, value);
+            Log.v(LOG_TAG, "Characteristic Write request: " + Arrays.toString(value));
+            if (responseNeeded) {
+                mBluetoothGattServer.sendResponse(device, requestId, 0,
+                        0, // No need to respond with an offset
+                        null); // No need to respond with a value
+            }
+        }
+    };
+    */
 
 }

@@ -88,6 +88,7 @@ public class MediaServiceHandler extends ServiceHandler {
         List<String> characteristics = new ArrayList<>();
 
         characteristics.add(AMSConstants.CHARACTERISTIC_ENTITY_UPDATE);
+//        characteristics.add(AMSConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE);
 
         return characteristics;
     }

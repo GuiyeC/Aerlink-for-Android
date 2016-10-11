@@ -3,14 +3,11 @@ package com.codegy.aerlink;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Service;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattService;
+import android.bluetooth.*;
 import android.content.*;
+import android.content.pm.PackageManager;
 import android.os.Binder;
 import android.os.IBinder;
-import android.os.PowerManager;
-import android.os.Vibrator;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import com.codegy.aerlink.battery.BASConstants;
@@ -27,56 +24,43 @@ import com.codegy.aerlink.reminders.ReminderServiceHandler;
 import com.codegy.aerlink.utils.ServiceHandler;
 import com.codegy.aerlink.utils.ServiceUtils;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 
-public class MainService extends Service implements ServiceUtils, ConnectionHandlerCallback {
+public class MainService extends Service implements ServiceUtils, ConnectionHandlerCallback, DiscoveryHelper.DiscoveryCallback {
 
     private static final String LOG_TAG = MainService.class.getSimpleName();
-
-    private static final long SCREEN_TIME_OUT = 1000;
 
 
     private IBinder mBinder = new ServiceBinder();
 
+    private ConnectionState state = ConnectionState.Disconnected;
+
+    private DiscoveryHelper discoveryHelper;
     private ConnectionHelper connectionHelper;
     private ConnectionHandler connectionHandler;
     private NotificationManager notificationManager;
 
-    private Vibrator vibrator;
-    private PowerManager.WakeLock wakeLock;
-
     private boolean colorBackgrounds;
 
-    private List<ServiceHandler> mServiceHandlers;
+    private Map<Class, ServiceHandler> mServiceHandlers;
 
 
     @Override
     public void onCreate() {
         super.onCreate();
 
-        Log.i(LOG_TAG, "onCreate ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+        Log.i(LOG_TAG, "-=-=-=-=-=-=-=-=-=  Service created  =-=-=-=-=-=-=-=-=-");
 
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
         colorBackgrounds = sp.getBoolean(Constants.SPK_COLOR_BACKGROUNDS, true);
-
-
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(Constants.IA_TRY_CONNECTING);
-        intentFilter.addAction(Constants.IA_COLOR_BACKGROUNDS_CHANGED);
-        registerReceiver(mBroadcastReceiver, intentFilter);
-
 
         start();
     }
 
     @Override
     public void onDestroy() {
-        Log.d(LOG_TAG, "~~~~~~~~ service onDestroy");
-
-        unregisterReceiver(mBroadcastReceiver);
+        Log.e(LOG_TAG, "xXxXxXxXxXxXxXxXxX Service destroyed XxXxXxXxXxXxXxXxXx");
 
         stop();
 
@@ -87,24 +71,40 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
 
     @Override
     public IBinder onBind(Intent intent) {
-        Log.v(LOG_TAG, "in onBind");
+        Log.v(LOG_TAG, "onBind");
         return mBinder;
     }
 
 
     private void start() {
+        Log.v(LOG_TAG, "Starting...");
         // Just in case, try to close everything
-        stop();
+        //stop();
 
-        mServiceHandlers = new ArrayList<>();
+        BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
 
-        connectionHandler = new ConnectionHandler(this, this);
+
+        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE) || bluetoothManager == null) {
+            setState(ConnectionState.NoBluetooth);
+            return;
+        }
+
+        discoveryHelper = new DiscoveryHelper(this, this, bluetoothManager);
+        connectionHandler = new ConnectionHandler(this, this, bluetoothManager.getAdapter());
+
+        setState(ConnectionState.Disconnected);
+
+        mServiceHandlers = new HashMap<>();
+
+        Log.v(LOG_TAG, "Started");
     }
 
     private void stop() {
+        Log.v(LOG_TAG, "Stopping...");
+
         try {
             if (mServiceHandlers != null) {
-                for (ServiceHandler serviceHandler : mServiceHandlers) {
+                for (ServiceHandler serviceHandler : mServiceHandlers.values()) {
                     serviceHandler.close();
                 }
 
@@ -116,6 +116,10 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
             e.printStackTrace();
         }
 
+        if (discoveryHelper != null) {
+            discoveryHelper.stopDiscovery();
+            discoveryHelper = null;
+        }
 
         try {
             if (connectionHandler != null) {
@@ -126,22 +130,80 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
         catch (Exception e) {
             e.printStackTrace();
         }
+
+        Log.v(LOG_TAG, "Stopped");
+    }
+
+
+    private void checkForBondedDevice() {
+        Log.i(LOG_TAG, "Checking for previously bonded device");
+    }
+
+    public void setState(ConnectionState state) {
+        this.state = state;
+
+        switch (state) {
+            case NoBluetooth:
+                Log.wtf(LOG_TAG, "State: Bluetooth not supported");
+                connectionHandler = null;
+
+                stop();
+
+                break;
+            case Stopped:
+                Log.i(LOG_TAG, "State: Stopped");
+                break;
+            case Ready:
+                Log.i(LOG_TAG, "State: Ready");
+                break;
+            case Disconnected:
+                Log.i(LOG_TAG, "State: Disconnected");
+
+                // discoveryHelper.startDiscovery();
+
+                BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+                BluetoothDevice device = BluetoothUtils.getBondedDevice(bluetoothManager.getAdapter());
+
+                if (device == null) {
+                    Log.i(LOG_TAG, "Starting discovery");
+                    discoveryHelper.startDiscovery();
+                }
+                else {
+                    Log.i(LOG_TAG, "Connecting to previously bonded device");
+                    connectionHandler.connectToDevice(device);
+                }
+
+                break;
+            case Connecting:
+                Log.i(LOG_TAG, "State: Connecting");
+                break;
+        }
+
+        if (state != ConnectionState.Ready) {
+            Intent stateIntent = new Intent(Constants.IA_SERVICE_NOT_READY);
+            sendBroadcast(stateIntent);
+        }
+        else {
+            Intent stateIntent = new Intent(Constants.IA_SERVICE_READY);
+            sendBroadcast(stateIntent);
+        }
+
+        if (connectionHelper == null) {
+            connectionHelper = new ConnectionHelper(this, this);
+        }
+
+        connectionHelper.showHelpForState(state);
     }
 
     public boolean isConnectionReady() {
-        return (connectionHandler != null && connectionHandler.getState() == ConnectionHandler.ConnectionState.Ready);
+        return state == ConnectionState.Ready;
     }
 
     public ServiceHandler getServiceHandler(Class serviceHandlerClass) {
         ServiceHandler serviceHandler = null;
 
         if (mServiceHandlers != null) {
-            for (ServiceHandler handler : mServiceHandlers) {
-                if (handler.getClass().equals(serviceHandlerClass)) {
-                    serviceHandler = handler;
-                    break;
-                }
-            }
+            serviceHandler = mServiceHandlers.get(serviceHandlerClass);
         }
 
         return serviceHandler;
@@ -175,24 +237,6 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
 
     @Override
     public void vibrate(long[] pattern, int repeat) {
-        if (vibrator == null) {
-            vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
-        }
-
-        vibrator.vibrate(pattern, repeat);
-    }
-
-    @Override
-    public void wakeScreen() {
-        if (wakeLock == null) {
-            PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-            wakeLock = powerManager.newWakeLock((PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.FULL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP), "Aerlink_TAG");
-        }
-
-        if (!wakeLock.isHeld()) {
-            Log.i(LOG_TAG, "Waking Screen");
-            wakeLock.acquire(SCREEN_TIME_OUT);
-        }
     }
 
     @Override
@@ -200,50 +244,37 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
         return colorBackgrounds;
     }
 
+    @Override
+    public ConnectionState getState() {
+        return state;
+    }
 
     @Override
-    public void onConnectionStateChange(ConnectionHandler.ConnectionState state) {
-        if (state == null || state == ConnectionHandler.ConnectionState.NoBluetooth) {
-            connectionHandler = null;
-
-            stop();
-        }
-
-        if (state != ConnectionHandler.ConnectionState.Ready) {
-            Intent stateIntent = new Intent(Constants.IA_SERVICE_NOT_READY);
-            sendBroadcast(stateIntent);
-        }
-        else {
-            Intent stateIntent = new Intent(Constants.IA_SERVICE_READY);
-            sendBroadcast(stateIntent);
-        }
-
-        if (connectionHelper == null) {
-            connectionHelper = new ConnectionHelper(this, this);
-        }
-
-        connectionHelper.showHelpForState(state);
+    public void onConnectionStateChange(ConnectionState state) {
+        setState(state);
     }
 
     @Override
     public void onReadyToSubscribe(BluetoothGatt bluetoothGatt) {
         Log.i(LOG_TAG, "Ready to Subscribe");
-        for (ServiceHandler handler : mServiceHandlers) {
+        for (ServiceHandler handler : mServiceHandlers.values()) {
             handler.reset();
         }
 
 
         BluetoothGattService notificationService = bluetoothGatt.getService(ANCSConstants.SERVICE_UUID);
         if (notificationService != null) {
-            if (getServiceHandler(NotificationServiceHandler.class) == null) {
-                mServiceHandlers.add(new NotificationServiceHandler(this, this));
+            Log.i(LOG_TAG, "Notification Service available");
+            if (!mServiceHandlers.containsKey(NotificationServiceHandler.class)) {
+                mServiceHandlers.put(NotificationServiceHandler.class, new NotificationServiceHandler(this, this));
             }
         }
 
         BluetoothGattService mediaService = bluetoothGatt.getService(AMSConstants.SERVICE_UUID);
         if (mediaService != null) {
-            if (getServiceHandler(MediaServiceHandler.class) == null) {
-                mServiceHandlers.add(new MediaServiceHandler(this, this));
+            Log.i(LOG_TAG, "Media Service available");
+            if (!mServiceHandlers.containsKey(MediaServiceHandler.class)) {
+                mServiceHandlers.put(MediaServiceHandler.class, new MediaServiceHandler(this, this));
             }
 
             Command trackCommand = new Command(AMSConstants.SERVICE_UUID, AMSConstants.CHARACTERISTIC_ENTITY_UPDATE, new byte[] {
@@ -265,8 +296,9 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
         }
         BluetoothGattService batteryService = bluetoothGatt.getService(BASConstants.SERVICE_UUID);
         if (batteryService != null) {
-            if (getServiceHandler(BatteryServiceHandler.class) == null) {
-                mServiceHandlers.add(new BatteryServiceHandler(this, this));
+            Log.i(LOG_TAG, "Battery Service available");
+            if (!mServiceHandlers.containsKey(BatteryServiceHandler.class)) {
+                mServiceHandlers.put(BatteryServiceHandler.class, new BatteryServiceHandler(this, this));
             }
         }
 
@@ -274,24 +306,26 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
 
         BluetoothGattService currentTimeService = bluetoothGatt.getService(CTSConstants.SERVICE_UUID);
         if (currentTimeService != null) {
-            if (getServiceHandler(CurrentTimeServiceHandler.class) == null) {
-                mServiceHandlers.add(new CurrentTimeServiceHandler(this, this));
+            Log.i(LOG_TAG, "Current Time Service available");
+            if (!mServiceHandlers.containsKey(CurrentTimeServiceHandler.class)) {
+                mServiceHandlers.put(CurrentTimeServiceHandler.class, new CurrentTimeServiceHandler(this, this));
             }
         }
 
         BluetoothGattService aerlinkService = bluetoothGatt.getService(ALSConstants.SERVICE_UUID);
         if (aerlinkService != null) {
-            if (getServiceHandler(ReminderServiceHandler.class) == null) {
-                mServiceHandlers.add(new ReminderServiceHandler(this, this));
+            Log.i(LOG_TAG, "Aerlink Service available");
+            if (!mServiceHandlers.containsKey(ReminderServiceHandler.class)) {
+                mServiceHandlers.put(ReminderServiceHandler.class, new ReminderServiceHandler(this, this));
             }
-            if (getServiceHandler(CameraRemoteServiceHandler.class) == null) {
-                mServiceHandlers.add(new CameraRemoteServiceHandler(this, this));
+            if (!mServiceHandlers.containsKey(CameraRemoteServiceHandler.class)) {
+                mServiceHandlers.put(CameraRemoteServiceHandler.class, new CameraRemoteServiceHandler(this, this));
             }
         }
 
         List<CharacteristicIdentifier> requests = new ArrayList<>();
 
-        for (ServiceHandler serviceHandler : mServiceHandlers) {
+        for (ServiceHandler serviceHandler : mServiceHandlers.values()) {
             UUID serviceUUID = serviceHandler.getServiceUUID();
             List<String> characteristics = serviceHandler.getCharacteristicsToSubscribe();
 
@@ -310,7 +344,7 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
     @Override
     public void onCharacteristicChanged(BluetoothGattCharacteristic characteristic) {
         if (mServiceHandlers != null) {
-            for (ServiceHandler serviceHandler : mServiceHandlers) {
+            for (ServiceHandler serviceHandler : mServiceHandlers.values()) {
                 if (serviceHandler.canHandleCharacteristic(characteristic)) {
                     serviceHandler.handleCharacteristic(characteristic);
                     break;
@@ -318,23 +352,14 @@ public class MainService extends Service implements ServiceUtils, ConnectionHand
             }
         }
     }
-    
 
-    private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            
-            if (action.equals(Constants.IA_COLOR_BACKGROUNDS_CHANGED)) {
-                SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
-                colorBackgrounds = sp.getBoolean(Constants.SPK_COLOR_BACKGROUNDS, true);
-            }
-            else if (action.equals(Constants.IA_TRY_CONNECTING)) {
-                start();
-            }
-        }
+    @Override
+    public void onDeviceDiscovery(BluetoothDevice device) {
+        Log.v(LOG_TAG, "Device discovered");
 
-    };
+        connectionHandler.connectToDevice(device);
+    }
+
 
     public class ServiceBinder extends Binder {
         public MainService getService() {

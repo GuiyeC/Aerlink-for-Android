@@ -8,7 +8,8 @@ import android.bluetooth.BluetoothGattCharacteristic;
  */
 public interface ConnectionHandlerCallback {
 
-    void onConnectionStateChange(ConnectionHandler.ConnectionState state);
+    ConnectionState getState();
+    void onConnectionStateChange(ConnectionState state);
     void onReadyToSubscribe(BluetoothGatt bluetoothGatt);
     void onCharacteristicChanged(BluetoothGattCharacteristic characteristic);
 

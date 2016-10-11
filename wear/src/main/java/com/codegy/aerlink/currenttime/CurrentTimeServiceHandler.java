@@ -13,6 +13,8 @@ import com.codegy.aerlink.R;
 import com.codegy.aerlink.utils.ServiceHandler;
 import com.codegy.aerlink.utils.ServiceUtils;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -21,8 +23,6 @@ import java.util.*;
 public class CurrentTimeServiceHandler extends ServiceHandler {
 
     private static final String LOG_TAG = CurrentTimeServiceHandler.class.getSimpleName();
-
-    public static final int NOTIFICATION_CURRENT_TIME = 1003;
 
     private Context mContext;
     private ServiceUtils mServiceUtils;
@@ -75,52 +75,42 @@ public class CurrentTimeServiceHandler extends ServiceHandler {
         }
         currentTime.set(year, month, day, hours, minutes, seconds);
 
-        setCurrentTime(currentTime.getTimeInMillis());
+        // Add 3 seconds to compensate the delay of the update process
+        currentTime.add(Calendar.SECOND, 3);
+
+        updateSystemTime();
 
         Log.d(LOG_TAG, "Current time: " + currentTime.toString());
-
-       // buildCurrentTimeNotification();
     }
 
-    public void setCurrentTime(long time) {
+    private void updateSystemTime() {
         try {
-            // Set time here
+            Process process = Runtime.getRuntime().exec("su");
+            DataOutputStream os = new DataOutputStream(process.getOutputStream());
+
+            String command = "date -s " + String.format("%d%02d%02d.%02d%02d%02d",
+                    currentTime.get(Calendar.YEAR),
+                    currentTime.get(Calendar.MONTH),
+                    currentTime.get(Calendar.DAY_OF_MONTH),
+                    currentTime.get(Calendar.HOUR_OF_DAY),
+                    currentTime.get(Calendar.MINUTE),
+                    currentTime.get(Calendar.SECOND)
+            ) + "\n";
+
+            Log.e("command",command);
+            os.writeBytes(command);
+            os.flush();
+            os.writeBytes("exit\n");
+            os.flush();
+            process.waitFor();
         }
-        catch (Exception e) {
-            e.printStackTrace();
+        catch (InterruptedException | IOException e) {
+            Log.e(LOG_TAG, "Can't update current time");
         }
     }
 
     public Calendar getCurrentTime() {
         return currentTime;
-    }
-
-    private void buildCurrentTimeNotification() {
-        if (currentTime == null) {
-            return;
-        }
-
-        Bitmap background = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
-        background.eraseColor(0);
-
-
-        // Build pending intent for when the user swipes the card away
-        Intent deleteIntent = new Intent(Constants.IA_HIDE_BATTERY);
-        PendingIntent deleteAction = PendingIntent.getBroadcast(mContext, 0, deleteIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-
-        Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
-                .setBackground(background);
-
-        Notification.Builder builder = new Notification.Builder(mContext)
-                .setSmallIcon(R.drawable.nic_notification)
-                .setDeleteIntent(deleteAction)
-                .setContentTitle("Time")
-                .setContentText(String.format("%d:%02d", currentTime.get(Calendar.HOUR), currentTime.get(Calendar.MINUTE)))
-                .extend(wearableExtender)
-                .setPriority(Notification.PRIORITY_MIN);
-
-        //notificationManager.cancel(NOTIFICATION_BATTERY);
-        mServiceUtils.notify(null, NOTIFICATION_CURRENT_TIME, builder.build());
     }
 
 }

@@ -28,8 +28,8 @@ public class ConnectionHelper {
         this.mServiceUtils = serviceUtils;
     }
 
-    public void showHelpForState(ConnectionHandler.ConnectionState state) {
-        if (state == ConnectionHandler.ConnectionState.Ready) {
+    public void showHelpForState(ConnectionState state) {
+        if (state == ConnectionState.Ready) {
             mServiceUtils.cancelNotification(null, NOTIFICATION_HELP);
             return;
         }
@@ -77,7 +77,7 @@ public class ConnectionHelper {
                 .setContentTitle(title)
                 .setContentText(text)
                 .setPriority(Notification.PRIORITY_MAX)
-                .setOngoing(state != ConnectionHandler.ConnectionState.NoBluetooth)
+                .setOngoing(state != ConnectionState.NoBluetooth)
                 .extend(wearableExtender);
 
         /*

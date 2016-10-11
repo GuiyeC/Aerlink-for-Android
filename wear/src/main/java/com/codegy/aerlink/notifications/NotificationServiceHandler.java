@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.Icon;
 import android.util.Log;
 import com.codegy.aerlink.Constants;
 import com.codegy.aerlink.R;
@@ -280,28 +281,29 @@ public class NotificationServiceHandler extends ServiceHandler {
         if (notificationData.getPositiveAction() != null) {
             Intent positiveIntent = new Intent(Constants.IA_POSITIVE);
             positiveIntent.putExtra(Constants.IE_NOTIFICATION_UID, notificationData.getUID());
-            PendingIntent positiveAction = PendingIntent.getBroadcast(mContext, mNotificationNumber, positiveIntent, 0);
+            PendingIntent positiveActionIntent = PendingIntent.getBroadcast(mContext, mNotificationNumber, positiveIntent, 0);
 
-            notificationBuilder.addAction(R.drawable.ic_action_accept, notificationData.getPositiveAction(), positiveAction);
+            Icon icon = Icon.createWithResource(mContext, R.drawable.ic_action_accept);
+            Notification.Action positiveAction = new Notification.Action.Builder(icon, notificationData.getPositiveAction(), positiveActionIntent).build();
+            notificationBuilder.addAction(positiveAction);
         }
         // Build negative action intent only if available
         if (notificationData.getNegativeAction() != null) {
             Intent negativeIntent = new Intent(Constants.IA_NEGATIVE);
             negativeIntent.putExtra(Constants.IE_NOTIFICATION_UID, notificationData.getUID());
-            PendingIntent negativeAction = PendingIntent.getBroadcast(mContext, mNotificationNumber, negativeIntent, 0);
+            PendingIntent negativeActionIntent = PendingIntent.getBroadcast(mContext, mNotificationNumber, negativeIntent, 0);
 
-            notificationBuilder.addAction(R.drawable.ic_action_remove, notificationData.getNegativeAction(), negativeAction);
+            Icon icon = Icon.createWithResource(mContext, R.drawable.ic_action_remove);
+            Notification.Action negativeAction = new Notification.Action.Builder(icon, notificationData.getNegativeAction(), negativeActionIntent).build();
+            notificationBuilder.addAction(negativeAction);
         }
 
         if (!notificationData.isPreExisting()) {
             if (!notificationData.isSilent()) {
-                //mServiceUtils.vibrate(VIBRATION_PATTERN, -1);
-                mServiceUtils.wakeScreen();
-
                 notificationBuilder.setVibrate(VIBRATION_PATTERN);
             }
             else {
-                mServiceUtils.vibrate(SILENT_VIBRATION_PATTERN, -1);
+                notificationBuilder.setVibrate(SILENT_VIBRATION_PATTERN);
             }
         }
 

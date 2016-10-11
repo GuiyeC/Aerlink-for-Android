@@ -2,119 +2,50 @@ package com.codegy.aerlink.connection;
 
 import android.bluetooth.*;
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.util.Log;
 import com.codegy.aerlink.battery.BASConstants;
 import com.codegy.aerlink.currenttime.CTSConstants;
 import com.codegy.aerlink.utils.ScheduledTask;
 
-import java.lang.reflect.Method;
 import java.util.*;
 
 /**
  * Created by Guiye on 18/5/15.
  */
-public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
+public class ConnectionHandler {
 
     private static final String LOG_TAG = ConnectionHandler.class.getSimpleName();
 
     private static final String DESCRIPTOR_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
-
-
-    public enum ConnectionState {
-        NoBluetooth,
-        Disconnected,
-        Connecting,
-        Ready
-    }
     
 
     private Context mContext;
     private ConnectionHandlerCallback mCallback;
 
-    private DiscoveryHelper mDiscoveryHelper;
 
-    private BluetoothManager mBluetoothManager;
     private BluetoothAdapter mBluetoothAdapter;
 
-    private ConnectionState state;
 
     private int mBondsFailed = 0;
     private int mConnectionsFailed = 0;
 
     private Command mCurrentCommand;
-    private List<Command> pendingCommands = new ArrayList<>();
-    private List<CharacteristicIdentifier> subscribeRequests;
-    private List<CharacteristicIdentifier> readRequests;
+    private Queue<Command> pendingCommands = new LinkedList<>();
+    private Queue<CharacteristicIdentifier> subscribeRequests;
+    private Queue<CharacteristicIdentifier> readRequests;
 
 
-    public ConnectionHandler(Context context, ConnectionHandlerCallback callback) {
+    public ConnectionHandler(Context context, ConnectionHandlerCallback callback, BluetoothAdapter bluetoothAdapter) {
         this.mContext = context;
         this.mCallback = callback;
-
-        mBluetoothManager = (BluetoothManager) mContext.getSystemService(Context.BLUETOOTH_SERVICE);
-
-        // Checks if Bluetooth is supported on the device.
-        if (context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE) && mBluetoothManager != null) {
-            setState(ConnectionState.Disconnected);
-
-            mBluetoothAdapter = mBluetoothManager.getAdapter();
-
-            if (mBluetoothGattServer == null) {
-                mBluetoothGattServer = mBluetoothManager.openGattServer(mContext, mGattServerCallback);
-            }
-
-            // Start by checking for bonded device
-            checkForBondedDevice();
-        }
-        else {
-            Log.w(LOG_TAG, "Bluetooth not supported");
-
-            setState(ConnectionState.NoBluetooth);
-        }
+        this.mBluetoothAdapter = bluetoothAdapter;
     }
-
-
-    public ConnectionState getState() {
-        return state;
-    }
-
-    public void setState(ConnectionState state) {
-        if (state == this.state) {
-            return;
-        }
-
-        this.state = state;
-
-        mCallback.onConnectionStateChange(state);
-    }
-
-
-    private void checkForBondedDevice() {
-        Log.i(LOG_TAG, "Checking for previously bonded device");
-
-        if (mDiscoveryHelper == null) {
-            mDiscoveryHelper = new DiscoveryHelper(mContext, this);
-        }
-/*
-        if (getBondedDevice() == null) {
-            // No previously bonded device, start bonding activity
-*/
-            mDiscoveryHelper.startScanningAndAdvertising();
-            /*
-        }
-        else {
-            mDiscoveryHelper.startScanningAndAdvertising();
-        }
-        */
-    }
-
 
 
     public void close() {
         // Check if already closed
-        if (mCallback == null && state == null) {
+        if (mCallback == null) {
             return;
         }
 
@@ -125,28 +56,20 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
         mNextCommandTask = null;
         mConnectingTimeoutTask = null;
 
-        if (mDiscoveryHelper != null) {
-            mDiscoveryHelper.close();
-            mDiscoveryHelper = null;
-        }
-
-        state = null;
 
         mCallback = null;
     }
 
     private void reset() {
-        setState(ConnectionState.Disconnected);
+        //setState(ConnectionState.Disconnected);
 
         cancelConnectingTimeoutTask();
         cancelNextCommandTask();
 
-        if (mDiscoveryHelper != null) {
-            mDiscoveryHelper.stopScanningAndAdvertising();
-        }
 
         try {
             if (mBluetoothGatt != null) {
+                mBluetoothGatt.disconnect();
                 mBluetoothGatt.close();
             }
         }
@@ -168,16 +91,14 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
         }
 
         readRequests = null;
+
+
+        mCallback.onConnectionStateChange(ConnectionState.Disconnected);
     }
 
 
-    @Override
     public void connectToDevice(final BluetoothDevice device) {
-        if (mDiscoveryHelper != null) {
-            mDiscoveryHelper.stopScanningAndAdvertising();
-        }
-
-        if (state == ConnectionState.Disconnected) {
+        if (mCallback.getState() == ConnectionState.Disconnected) {
             try {
                 if (mBluetoothGatt != null) {
                     mBluetoothGatt.close();
@@ -191,62 +112,16 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
             handler.post(new Runnable() {
                 @Override
                 public void run() {
-                    mBluetoothGatt = device.connectGatt(mContext, false, mBluetoothGattCallback);
+                    mBluetoothGatt = device.connectGatt(mContext, true, mBluetoothGattCallback);
                 }
             });
 
             Log.i(LOG_TAG, "Connecting...: " + device.getName());
-            setState(ConnectionState.Connecting);
+            mCallback.onConnectionStateChange(ConnectionState.Connecting);
 
-            scheduleConnectingTimeoutTask();
+            //scheduleConnectingTimeoutTask();
         }
     }
-
-    private BluetoothGattServer mBluetoothGattServer;
-    private final BluetoothGattServerCallback mGattServerCallback = new BluetoothGattServerCallback() {
-        @Override
-        public void onConnectionStateChange(BluetoothDevice device, final int status, int newState) {
-            super.onConnectionStateChange(device, status, newState);
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                if (newState == BluetoothGatt.STATE_CONNECTED) {
-                    Log.i(LOG_TAG, "Connected to device: " + device.getAddress());
-
-                    connectToDevice(device);
-                }
-                else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
-                    Log.v(LOG_TAG, "Disconnected from device");
-                }
-            }
-            else {
-                Log.e(LOG_TAG, "Error when connecting: " + status);
-            }
-        }
-
-        @Override
-        public void onCharacteristicReadRequest(BluetoothDevice device, int requestId, int offset,
-                                                BluetoothGattCharacteristic characteristic) {
-            super.onCharacteristicReadRequest(device, requestId, offset, characteristic);
-        }
-
-        @Override
-        public void onNotificationSent(BluetoothDevice device, int status) {
-            super.onNotificationSent(device, status);
-        }
-
-        @Override
-        public void onCharacteristicWriteRequest(BluetoothDevice device, int requestId,
-                                                 BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded,
-                                                 int offset, byte[] value) {
-            super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite,
-                    responseNeeded, offset, value);
-            Log.v(LOG_TAG, "Characteristic Write request: " + Arrays.toString(value));
-            if (responseNeeded) {
-                mBluetoothGattServer.sendResponse(device, requestId, 0,
-            /* No need to respond with an offset */ 0,
-            /* No need to respond with a value */ null);
-            }
-        }
-    };
 
     private BluetoothGatt mBluetoothGatt;
     private final BluetoothGattCallback mBluetoothGattCallback = new BluetoothGattCallback() {
@@ -269,14 +144,16 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
 
                     // TODO: check if the disconnection is started by the user
                     reset();
-                    checkForBondedDevice();
+                    //checkForBondedDevice();
                 }
             }
             else {
                 Log.wtf(LOG_TAG, "ON CONNECTION STATE CHANGED ERROR: " + status);
 
+                BluetoothUtils.disableBluetooth(mBluetoothAdapter);
+                //BluetoothUtils.resetBondedDevices(mBluetoothAdapter);
                 reset();
-                checkForBondedDevice();
+                //checkForBondedDevice();
             }
         }
 
@@ -311,7 +188,7 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
 
                 mConnectionsFailed = 0;
 
-                unpairDevice(gatt.getDevice());
+                BluetoothUtils.unpairDevice(gatt.getDevice());
                 gatt.getDevice().createBond();
 
                 // Check if bond is successful
@@ -376,16 +253,16 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
 
     public void addSubscribeRequests(List<CharacteristicIdentifier> requests) {
         if (requests != null && requests.size() > 0) {
-            subscribeRequests = new ArrayList<>(requests);
+            subscribeRequests = new LinkedList<>(requests);
         }
 
         subscribeNextRequest();
     }
 
     private void subscribeNextRequest() {
+        Log.d(LOG_TAG, "Subscribe Requests: " + (subscribeRequests == null ? -1 :subscribeRequests.size()));
         if (subscribeRequests != null && subscribeRequests.size() > 0) {
-            CharacteristicIdentifier characteristicIdentifier = subscribeRequests.get(0);
-            subscribeRequests.remove(0);
+            CharacteristicIdentifier characteristicIdentifier = subscribeRequests.remove();
 
             subscribeCharacteristic(mBluetoothGatt, characteristicIdentifier.getServiceUUID(), characteristicIdentifier.getCharacteristicUUID());
 
@@ -394,7 +271,7 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
         else {
             Log.i(LOG_TAG, "Ready");
 
-            setState(ConnectionState.Ready);
+            mCallback.onConnectionStateChange(ConnectionState.Ready);
 
             cancelConnectingTimeoutTask();
             mConnectingTimeoutTask = null;
@@ -414,7 +291,7 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
 
     public void addCharacteristicReadRequest(CharacteristicIdentifier characteristicIdentifier) {
         if (readRequests == null) {
-            readRequests = new ArrayList<>();
+            readRequests = new LinkedList<>();
         }
 
         readRequests.add(characteristicIdentifier);
@@ -431,12 +308,12 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
     private void sendNextCommand() {
         cancelNextCommandTask();
 
-        if (state != ConnectionState.Ready || pendingCommands.size() == 0) {
+        if (mCallback.getState() != ConnectionState.Ready || pendingCommands.size() == 0) {
             mCurrentCommand = null;
             return;
         }
 
-        mCurrentCommand = pendingCommands.get(0);
+        mCurrentCommand = pendingCommands.element();
 
         try {
             BluetoothGattService service = mBluetoothGatt.getService(mCurrentCommand.getServiceUUID());
@@ -468,8 +345,7 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
 
     private void readNextCharacteristic() {
         if (readRequests != null && readRequests.size() > 0) {
-            CharacteristicIdentifier characteristicIdentifier = readRequests.get(0);
-            readRequests.remove(0);
+            CharacteristicIdentifier characteristicIdentifier = readRequests.remove();
 
             try {
                 BluetoothGattService service = mBluetoothGatt.getService(characteristicIdentifier.getServiceUUID());
@@ -506,16 +382,21 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
             BluetoothGattService service = bluetoothGatt.getService(serviceUUID);
 
             if (service != null) {
+                Log.d(LOG_TAG, "Service available");
                 BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID.fromString(characteristicUUIDString));
 
                 if (characteristic != null) {
+                    Log.d(LOG_TAG, "Characteristic available");
                     bluetoothGatt.setCharacteristicNotification(characteristic, subscribe);
 
                     BluetoothGattDescriptor descriptor = characteristic.getDescriptor(UUID.fromString(DESCRIPTOR_CONFIG));
 
                     if (descriptor != null) {
+                        Log.d(LOG_TAG, "Descriptor available");
                         descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                        //descriptor.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
                         bluetoothGatt.writeDescriptor(descriptor);
+                        Log.d(LOG_TAG, "Started writing descriptor");
                     }
 
                 }
@@ -526,104 +407,6 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
         }
     }
 
-
-    /**
-     * Last resort to prepare for a new connection
-     *
-     * Reset bonded devices
-     * Switch bluetooth off and on
-     */
-    public void connectionHardReset() {
-        resetBondedDevices();
-
-        try {
-            if (mBluetoothAdapter != null) {
-                if (mBluetoothAdapter.isEnabled()) {
-                    mBluetoothAdapter.disable();
-
-                    Log.d(LOG_TAG, "Bluetooth disabled");
-                }
-
-                mBluetoothAdapter.enable();
-
-                Log.d(LOG_TAG, "Bluetooth enabled");
-            }
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-
-    private BluetoothDevice getBondedDevice() {
-        BluetoothDevice bondedDevice = null;
-
-        if (mBluetoothAdapter != null) {
-            try {
-                Set<BluetoothDevice> devices = mBluetoothAdapter.getBondedDevices();
-                if (devices != null) {
-                    for (BluetoothDevice device : devices) {
-                        String deviceName = device.getName();
-                        if (deviceName != null && (deviceName.equals("Aerlink") || deviceName.equals("BLE Utility") || deviceName.equals("Blank"))) {
-                            bondedDevice = device;
-                            break;
-                        }
-                    }
-                }
-            }
-            catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-
-        return bondedDevice;
-    }
-
-    private void resetBondedDevices() {
-        if (mBluetoothAdapter != null) {
-            try {
-                Set<BluetoothDevice> devices = mBluetoothAdapter.getBondedDevices();
-                if (devices != null) {
-                    for (BluetoothDevice device : devices) {
-                        String deviceName = device.getName();
-                        if (deviceName != null && (deviceName.equals("Aerlink") || deviceName.equals("BLE Utility") || deviceName.equals("Blank"))) {
-                            unpairDevice(device);
-                        }
-                    }
-                }
-
-                Log.d(LOG_TAG, "Bonded devices reset");
-            }
-            catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private void unpairDevice(BluetoothDevice device) {
-        Log.d(LOG_TAG, device.getName() + ": Unpairing...");
-
-        try {
-            Method m = device.getClass().getMethod("removeBond", (Class[]) null);
-            m.invoke(device, (Object[]) null);
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void disableBluetooth() {
-        try {
-            if (mBluetoothAdapter != null && mBluetoothAdapter.isEnabled()) {
-                mBluetoothAdapter.disable();
-
-                Log.d(LOG_TAG, "Disabling bluetooth");
-            }
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
 
     // TASKS
@@ -635,7 +418,7 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
             mConnectingTimeoutTask = new ScheduledTask(5000, mContext.getMainLooper(), new Runnable() {
                 @Override
                 public void run() {
-                    if (state == ConnectionState.Connecting) {
+                    if (mCallback.getState() == ConnectionState.Connecting) {
                         Log.w(LOG_TAG, "Connecting timed out");
 
                         if (mBluetoothGatt != null && mBluetoothGatt.getDevice() != null) {
@@ -657,25 +440,27 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
                                 mBondsFailed = 0;
                                 mConnectionsFailed++;
 
-                                reset();
+//                                reset();
 
-                                if (mConnectionsFailed < 10) {
-                                    disableBluetooth();
-                                }
-                                else {
+                                if (mConnectionsFailed >= 10) {
                                     mConnectionsFailed = 0;
 
-                                    connectionHardReset();
+                                    // Last resort to prepare for a new connection
+                                    // Reset bonded devices
+                                    BluetoothUtils.resetBondedDevices(mBluetoothAdapter);
                                 }
 
-                                checkForBondedDevice();
+                                BluetoothUtils.disableBluetooth(mBluetoothAdapter);
+
+                                reset();
+//                                checkForBondedDevice();
                             }
                         }
                         else {
                             Log.w(LOG_TAG, "Start scanning again");
 
                             reset();
-                            checkForBondedDevice();
+//                            checkForBondedDevice();
                         }
                     }
                     else {
@@ -702,7 +487,7 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
     private ScheduledTask mNextCommandTask;
 
     private void scheduleNextCommandTask() {
-        if (state != ConnectionState.Ready || pendingCommands.size() == 0) {
+        if (mCallback.getState() != ConnectionState.Ready || pendingCommands.size() == 0) {
             return;
         }
 
@@ -727,5 +512,5 @@ public class ConnectionHandler implements DiscoveryHelper.DiscoveryCallback {
             mNextCommandTask.cancel();
         }
     }
-    
+
 }

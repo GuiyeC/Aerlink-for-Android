@@ -37,7 +37,7 @@ public class MainActivity extends AerlinkActivity implements BatteryServiceHandl
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        Log.d(LOG_TAG, "-=-=-=-=-=-=-=-= onCreate MainActivity -=-=-=-=-=-=-=-=-=");
+        Log.i(LOG_TAG, "-=-=-=-=-=-=-=-=-=  MainActivity created  =-=-=-=-=-=-=-=-=-");
 
         /*
         if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
@@ -92,7 +92,7 @@ public class MainActivity extends AerlinkActivity implements BatteryServiceHandl
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        Log.d(LOG_TAG, "-=-=-=-=-=-=-=-= onDestroy MainActivity -=-=-=-=-=-=-=-=-=");
+        Log.e(LOG_TAG, "xXxXxXxXxXxXxXxXxX MainActivity destroyed XxXxXxXxXxXxXxXxXx");
     }
 
     @Override

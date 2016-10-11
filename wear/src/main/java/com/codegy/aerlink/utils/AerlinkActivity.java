@@ -1,24 +1,33 @@
 package com.codegy.aerlink.utils;
 
+import android.Manifest;
 import android.app.ActivityManager;
 import android.content.*;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
 import android.support.wearable.activity.WearableActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 import com.codegy.aerlink.Constants;
 import com.codegy.aerlink.MainService;
+import com.codegy.aerlink.connection.ConnectionHandler;
 
 /**
  * Created by Guiye on 29/5/15.
  */
-public class AerlinkActivity extends WearableActivity {
+public abstract class AerlinkActivity extends WearableActivity {
+
+    private static final String LOG_TAG = AerlinkActivity.class.getSimpleName();
 
     private MainService service;
     private boolean mServiceBound = false;
     private boolean connected = false;
 
+    private final int PERMISSIONS_REQUEST_CODE = 1;
 
     public MainService getService() {
         return service;
@@ -89,6 +98,13 @@ public class AerlinkActivity extends WearableActivity {
     }
 
     public void startService() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{ Manifest.permission.ACCESS_COARSE_LOCATION },
+                    PERMISSIONS_REQUEST_CODE);
+            return;
+        }
+
         startService(new Intent(this, MainService.class));
 
         Intent intent = new Intent(this, MainService.class);
@@ -107,16 +123,42 @@ public class AerlinkActivity extends WearableActivity {
     }
 
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == PERMISSIONS_REQUEST_CODE) {
+            boolean success = true;
+
+            if (grantResults.length == permissions.length) {
+                for (int result : grantResults) {
+                    if (result != PackageManager.PERMISSION_GRANTED) {
+                        success = false;
+                        break;
+                    }
+                }
+            }
+            else {
+                success = false;
+            }
+
+            if (success) {
+                startService();
+            }
+            else {
+                stopService();
+            }
+        }
+    }
+
     /**
      * Update interface on this method, for example: check for connection
      */
-    public void updateInterface() {
-    }
+    public abstract void updateInterface();
 
     /***
      * Called on connection to device, get everything ready here, set callbacks of service handlers
      */
     public void onConnectedToDevice() {
+        Log.i(LOG_TAG, "Connected");
         connected = true;
 
         runOnUiThread(new Runnable() {
@@ -131,6 +173,7 @@ public class AerlinkActivity extends WearableActivity {
      * Called on disconnection from device, clear everything on this method related to the previously connected device
      */
     public void onDisconnectedFromDevice() {
+        Log.i(LOG_TAG, "Disconnected");
         connected = false;
 
         runOnUiThread(new Runnable() {
@@ -153,6 +196,8 @@ public class AerlinkActivity extends WearableActivity {
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
+            Log.i(LOG_TAG, "Service disconnected");
+
             service = null;
             mServiceBound = false;
 
@@ -161,6 +206,8 @@ public class AerlinkActivity extends WearableActivity {
 
         @Override
         public void onServiceConnected(ComponentName name, IBinder serviceBinder) {
+            Log.i(LOG_TAG, "Service connected");
+
             MainService.ServiceBinder binder = (MainService.ServiceBinder) serviceBinder;
             service = binder.getService();
 
