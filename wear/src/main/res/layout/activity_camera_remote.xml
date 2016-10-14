@@ -8,6 +8,6 @@
         android:layout_height="match_parent"
         app:rectLayout="@layout/rect_activity_camera_remote"
         app:roundLayout="@layout/round_activity_camera_remote"
-        tools:context="com.codegy.aerlink.cameraremote.CameraRemoteActivity"
+        tools:context=".services.aerlink.cameraremote.CameraRemoteActivity"
         tools:deviceIds="wear">
 </android.support.wearable.view.WatchViewStub>

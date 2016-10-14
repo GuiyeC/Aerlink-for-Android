@@ -10,11 +10,8 @@ import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.wearable.activity.WearableActivity;
 import android.util.Log;
-import android.view.View;
-import android.widget.TextView;
 import com.codegy.aerlink.Constants;
 import com.codegy.aerlink.MainService;
-import com.codegy.aerlink.connection.ConnectionHandler;
 
 /**
  * Created by Guiye on 29/5/15.

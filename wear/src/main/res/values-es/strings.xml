@@ -22,6 +22,7 @@
     <string name="general_connected">Conectado</string>
     <string name="general_disconnected">Desconectado</string>
     <string name="general_disconnected_help">Conéctate con \"Aerlink\" en tu dispositivo iOS.</string>
+    <string name="general_low_battery">Batería baja</string>
     <string name="general_battery_level">Batería</string>
 
 

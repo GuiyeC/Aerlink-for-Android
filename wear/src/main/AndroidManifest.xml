@@ -39,27 +39,27 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".notifications.PhoneActivity"
+            android:name=".services.notifications.PhoneActivity"
             android:label="@string/title_activity_phone"
             android:launchMode="singleTask"
             android:taskAffinity="com.codegy.aerlink.notifications.PhoneActivity" >
         </activity>
         <activity
-            android:name=".reminders.RemindersActivity"
+            android:name=".services.aerlink.reminders.RemindersActivity"
             android:icon="@mipmap/ic_launcher_reminders"
             android:label="@string/title_activity_reminders"
             android:launchMode="singleTask"
             android:taskAffinity="com.codegy.aerlink.reminders.RemindersActivity" >
         </activity>
         <activity
-            android:name=".cameraremote.CameraRemoteActivity"
+            android:name=".services.aerlink.cameraremote.CameraRemoteActivity"
             android:icon="@mipmap/ic_launcher_camera"
             android:label="@string/title_activity_camera_remote"
             android:launchMode="singleTask"
             android:taskAffinity="com.codegy.aerlink.cameraremote.CameraRemoteActivity" >
         </activity>
         <activity
-            android:name=".cameraremote.CameraImageActivity"
+            android:name=".services.aerlink.cameraremote.CameraImageActivity"
             android:label="@string/title_activity_camera_image"
             android:launchMode="singleTop" >
         </activity>
@@ -69,7 +69,7 @@
             android:enabled="true"
             android:icon="@mipmap/ic_launcher_reminders"
             android:label="@string/title_activity_reminders"
-            android:targetActivity=".reminders.RemindersActivity" >
+            android:targetActivity=".services.aerlink.reminders.RemindersActivity" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -81,7 +81,7 @@
             android:enabled="true"
             android:icon="@mipmap/ic_launcher_camera"
             android:label="@string/title_activity_camera_remote"
-            android:targetActivity=".cameraremote.CameraRemoteActivity" >
+            android:targetActivity=".services.aerlink.cameraremote.CameraRemoteActivity" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

@@ -12,8 +12,8 @@ public abstract class ServiceHandler {
 
     public void close() {}
     public void reset() {}
-    public UUID getServiceUUID() { return null; }
-    public List<String> getCharacteristicsToSubscribe() { return null; }
+    public abstract UUID getServiceUUID();
+    public abstract List<String> getCharacteristicsToSubscribe();
     public boolean canHandleCharacteristic(BluetoothGattCharacteristic characteristic) { return false; }
     public void handleCharacteristic(BluetoothGattCharacteristic characteristic) {}
 }

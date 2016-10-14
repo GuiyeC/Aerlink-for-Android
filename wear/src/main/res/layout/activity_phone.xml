@@ -8,6 +8,6 @@
         android:layout_height="match_parent"
         app:rectLayout="@layout/rect_activity_phone"
         app:roundLayout="@layout/round_activity_phone"
-        tools:context="com.codegy.aerlink.notifications.PhoneActivity"
+        tools:context=".services.notifications.PhoneActivity"
         tools:deviceIds="wear">
 </android.support.wearable.view.WatchViewStub>

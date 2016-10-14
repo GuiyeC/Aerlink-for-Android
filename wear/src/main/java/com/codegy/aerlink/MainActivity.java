@@ -1,25 +1,17 @@
 package com.codegy.aerlink;
 
-import android.app.Activity;
-import android.app.ActivityManager;
 import android.content.*;
-import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.IBinder;
-import android.preference.PreferenceManager;
 import android.support.v7.widget.CardView;
 import android.support.wearable.view.WatchViewStub;
 import android.util.Log;
 import android.view.View;
 import android.widget.*;
-import com.codegy.aerlink.battery.BatteryServiceHandler;
-import com.codegy.aerlink.media.MediaServiceHandler;
+import com.codegy.aerlink.services.battery.BatteryServiceHandler;
+import com.codegy.aerlink.services.media.MediaServiceHandler;
 import com.codegy.aerlink.utils.AerlinkActivity;
-import org.w3c.dom.Text;
 
-public class MainActivity extends AerlinkActivity implements BatteryServiceHandler.BatteryCallback {
+public class MainActivity extends AerlinkActivity implements BatteryServiceHandler.BatteryObserver {
 
     private static final String LOG_TAG = "Aerlink.MainActivity";
 
@@ -156,7 +148,7 @@ public class MainActivity extends AerlinkActivity implements BatteryServiceHandl
         BatteryServiceHandler serviceHandler = (BatteryServiceHandler) getServiceHandler(BatteryServiceHandler.class);
 
         if (serviceHandler != null) {
-            serviceHandler.setBatteryCallback(this);
+            serviceHandler.setBatteryObserver(this);
         }
         else {
             onDisconnectedFromDevice();
@@ -170,7 +162,7 @@ public class MainActivity extends AerlinkActivity implements BatteryServiceHandl
         BatteryServiceHandler serviceHandler = (BatteryServiceHandler) getServiceHandler(BatteryServiceHandler.class);
 
         if (serviceHandler != null) {
-            serviceHandler.setBatteryCallback(null);
+            serviceHandler.setBatteryObserver(null);
         }
     }
 

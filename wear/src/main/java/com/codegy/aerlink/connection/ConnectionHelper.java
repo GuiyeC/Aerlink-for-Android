@@ -15,9 +15,10 @@ import com.codegy.aerlink.utils.ServiceUtils;
  */
 public class ConnectionHelper {
 
-    public static final int NOTIFICATION_HELP = 2000;
+    private static final int NOTIFICATION_HELP = 2000;
     private static final long CONNECTION_PATTERN[] = { 80, 60 };
     private static final long DISCONNECTION_PATTERN[] = { 80, 90 };
+
 
     private Context mContext;
     private ServiceUtils mServiceUtils;
@@ -35,19 +36,10 @@ public class ConnectionHelper {
         }
 
 
-        Bitmap background = BitmapFactory.decodeResource(mContext.getResources(), R.drawable.bg_texture);
+        Bitmap background = BitmapFactory.decodeResource(mContext.getResources(), R.drawable.bg_aerlink);
 
         Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
                 .setBackground(background);
-
-        /*
-        PendingIntent connectPendingIntent = null;
-        if (state == ConnectionHandler.ConnectionState.Disconnected) {
-            // Build pending intent for when the user swipes the card away
-            Intent connectIntent = new Intent(Constants.IA_TRY_CONNECTING);
-            connectPendingIntent = PendingIntent.getBroadcast(mContext, 0, connectIntent, 0);
-
-        }*/
 
         String title = null;
         String text = null;
@@ -80,22 +72,10 @@ public class ConnectionHelper {
                 .setOngoing(state != ConnectionState.NoBluetooth)
                 .extend(wearableExtender);
 
-        /*
-        if (connectPendingIntent != null) {
-            Notification.Action connectAction = new Notification.Action.Builder(
-                    android.R.drawable.ic_menu_search,
-                    "Reconnect",
-                    connectPendingIntent
-            ).build();
-            builder.addAction(connectAction);
-        }
 
-        if (state == ConnectionHandler.ConnectionState.Disconnected || state == ConnectionHandler.ConnectionState.NoBluetooth) {
-            mServiceUtils.vibrate(DISCONNECTION_PATTERN, -1);
-
+        if (state == ConnectionState.Disconnected || state == ConnectionState.NoBluetooth) {
             builder.setVibrate(DISCONNECTION_PATTERN);
         }
-        */
 
 
         mServiceUtils.notify(null, NOTIFICATION_HELP, builder.build());

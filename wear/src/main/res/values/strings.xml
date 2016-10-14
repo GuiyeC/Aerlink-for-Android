@@ -16,7 +16,7 @@
 <resources>
 
     <string name="app_name">Aerlink</string>
-    <string name="app_version">Aerlink 2.0-b4</string>
+    <string name="app_version">Aerlink 2.0-b6</string>
     <string name="ios_service">iOS Service</string>
 
 
@@ -30,6 +30,7 @@
     <string name="general_connected">Connected</string>
     <string name="general_disconnected">Disconnected</string>
     <string name="general_disconnected_help">Connect using \"Aerlink\" on your iOS device.</string>
+    <string name="general_low_battery">Low battery</string>
     <string name="general_battery_level">Battery level</string>
 
 

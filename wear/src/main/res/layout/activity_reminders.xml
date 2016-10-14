@@ -8,6 +8,6 @@
         android:layout_height="match_parent"
         app:rectLayout="@layout/rect_activity_reminders"
         app:roundLayout="@layout/round_activity_reminders"
-        tools:context="com.codegy.aerlink.reminders.RemindersActivity"
+        tools:context=".services.aerlink.reminders.RemindersActivity"
         tools:deviceIds="wear">
 </android.support.wearable.view.WatchViewStub>

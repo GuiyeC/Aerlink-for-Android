@@ -21,6 +21,7 @@
     <string name="general_connected">接続</string>
     <string name="general_disconnected">切断</string>
     <string name="general_battery_level">バッテリーレベル</string>
+    <string name="general_low_battery">Low battery</string>
 
 
     <string name="settings_black_notifications">ブラック通知</string>

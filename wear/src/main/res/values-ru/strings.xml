@@ -22,6 +22,7 @@
     <string name="general_connected">Связанный</string>
     <string name="general_disconnected">Отключено</string>
     <string name="general_battery_level">Уровень заряда</string>
+    <string name="general_low_battery">Low battery</string>
 
 
     <string name="settings_black_notifications">Черные уведомления</string>

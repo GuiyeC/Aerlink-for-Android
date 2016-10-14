@@ -22,6 +22,7 @@
     <string name="general_connected">підключений</string>
     <string name="general_disconnected">Відключено</string>
     <string name="general_battery_level">Рівень заряду</string>
+    <string name="general_low_battery">Low battery</string>
 
 
     <string name="settings_black_notifications">чорні повідомлення</string>
