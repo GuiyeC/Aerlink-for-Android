@@ -55,6 +55,7 @@ Change log
  - Major changes.
  - Better connection and reconnection.
  - Improved design.
+ - More app icons.
  - Reminders and Camera Remote greatly improved (Requires Aerlink on the iOS device).
  - Shows correct color for every notification (Requires Aerlink on the iOS device).
  - Time sync with the iOS device (Requires rooted watch).
