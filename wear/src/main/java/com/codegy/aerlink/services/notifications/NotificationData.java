@@ -1,6 +1,5 @@
 package com.codegy.aerlink.services.notifications;
 
-import android.graphics.Bitmap;
 import android.graphics.Color;
 import com.codegy.aerlink.R;
 

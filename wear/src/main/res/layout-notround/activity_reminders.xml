@@ -4,13 +4,14 @@
               android:layout_width="match_parent"
               android:layout_height="match_parent"
               android:orientation="vertical"
-              tools:context="com.codegy.aerlink.services.aerlink.reminders.CalendarsActivity"
+              android:gravity="center_horizontal"
+              tools:context="com.codegy.aerlink.services.aerlink.reminders.RemindersActivity"
               tools:deviceIds="wear_square">
 
     <include layout="@layout/merge_disconnected_info"
              android:layout_height="match_parent"
              android:layout_width="match_parent"
-             android:layout_margin="20dp"
+             android:layout_margin="16dp"
              tools:visibility="gone" />
 
     <include layout="@layout/merge_connection_error"
@@ -23,16 +24,31 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
+        <TextView
+                android:id="@+id/titleTextView"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="8dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="20sp"
+                android:fontFamily="sans-serif-condensed"
+                tools:text="Test title"/>
+
         <ListView
                 android:id="@+id/listView"
+                android:layout_below="@id/titleTextView"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:divider="@null"/>
+                android:divider="@null"
+                tools:listitem="@layout/list_item_reminder"/>
 
         <include layout="@layout/merge_loading"
                  android:layout_height="match_parent"
                  android:layout_width="match_parent"
                  android:visibility="gone" />
+
     </RelativeLayout>
 
 </LinearLayout>

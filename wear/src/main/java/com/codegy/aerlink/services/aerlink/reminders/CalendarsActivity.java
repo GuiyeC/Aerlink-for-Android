@@ -1,26 +1,16 @@
 package com.codegy.aerlink.services.aerlink.reminders;
 
-import android.app.Activity;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.os.Handler;
-import android.preference.PreferenceManager;
 import android.support.wearable.view.ProgressSpinner;
-import android.support.wearable.view.WatchViewStub;
-import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import com.codegy.aerlink.Constants;
 import com.codegy.aerlink.R;
-import com.codegy.aerlink.connection.ConnectionState;
 import com.codegy.aerlink.utils.AerlinkActivity;
-import org.json.JSONArray;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class CalendarsActivity extends AerlinkActivity implements ReminderServiceHandler.CalendarsCallback, AdapterView.OnItemClickListener {
@@ -32,25 +22,21 @@ public class CalendarsActivity extends AerlinkActivity implements ReminderServic
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        setContentView(R.layout.activity_calendars);
         setAmbientEnabled();
 
-        setContentView(R.layout.activity_calendars);
-        final WatchViewStub stub = (WatchViewStub) findViewById(R.id.watch_view_stub);
-        stub.setOnLayoutInflatedListener(new WatchViewStub.OnLayoutInflatedListener() {
-            @Override
-            public void onLayoutInflated(WatchViewStub stub) {
-                mDisconnectedLayout = stub.findViewById(R.id.disconnectedLinearLayout);
-                mConnectionInfoTextView = (TextView) stub.findViewById(R.id.connectionInfoTextView);
 
-                mConnectionErrorLayout = stub.findViewById(R.id.connectionErrorLinearLayout);
+        mDisconnectedLayout = findViewById(R.id.disconnectedLinearLayout);
+        mConnectionInfoTextView = (TextView) findViewById(R.id.connectionInfoTextView);
 
-                mLoadingLayout = stub.findViewById(R.id.loadingLayout);
-                mLoadingSpinner = (ProgressSpinner) stub.findViewById(R.id.loadingSpinner);
+        mConnectionErrorLayout = findViewById(R.id.connectionErrorLinearLayout);
 
-                mListView = (ListView) stub.findViewById(R.id.listView);
-                mListView.setAdapter(new CalendarsListAdapter(CalendarsActivity.this, null));
-                mListView.setOnItemClickListener(CalendarsActivity.this);
+        mLoadingLayout = findViewById(R.id.loadingLayout);
+        mLoadingSpinner = (ProgressSpinner) findViewById(R.id.loadingSpinner);
+
+        mListView = (ListView) findViewById(R.id.listView);
+        mListView.setAdapter(new CalendarsListAdapter(CalendarsActivity.this, null));
+        mListView.setOnItemClickListener(CalendarsActivity.this);
 
                 /*
                 SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(CalendarsActivity.this);
@@ -60,11 +46,7 @@ public class CalendarsActivity extends AerlinkActivity implements ReminderServic
                 }
                 */
 
-                updateInterface();
-                updateLoadingInterface();
-                updateErrorInterface();
-            }
-        });
+        updateInterface();
     }
 
     @Override

@@ -8,7 +8,6 @@ import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.os.Vibrator;
-import android.support.wearable.view.WatchViewStub;
 import android.view.View;
 import android.widget.TextView;
 import com.codegy.aerlink.Constants;
@@ -36,23 +35,18 @@ public class PhoneActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_phone);
 
-        final Intent intent = getIntent();
+        Intent intent = getIntent();
 
-        final String callerId = intent.getStringExtra(Constants.IE_NOTIFICATION_TITLE);
-        final String message = intent.getStringExtra(Constants.IE_NOTIFICATION_MESSAGE);
+        String callerId = intent.getStringExtra(Constants.IE_NOTIFICATION_TITLE);
+        String message = intent.getStringExtra(Constants.IE_NOTIFICATION_MESSAGE);
         callUID = intent.getByteArrayExtra(Constants.IE_NOTIFICATION_UID);
 
-        final WatchViewStub stub = (WatchViewStub) findViewById(R.id.watch_view_stub);
-        stub.setOnLayoutInflatedListener(new WatchViewStub.OnLayoutInflatedListener() {
-            @Override
-            public void onLayoutInflated(WatchViewStub stub) {
-                mCallerIdTextView = (TextView) stub.findViewById(R.id.callerIdTextView);
-                mMessageTextView = (TextView) stub.findViewById(R.id.messageTextView);
 
-                mCallerIdTextView.setText(callerId);
-                mMessageTextView.setText(message);
-            }
-        });
+        mCallerIdTextView = (TextView) findViewById(R.id.callerIdTextView);
+        mMessageTextView = (TextView) findViewById(R.id.messageTextView);
+
+        mCallerIdTextView.setText(callerId);
+        mMessageTextView.setText(message);
 
 
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);

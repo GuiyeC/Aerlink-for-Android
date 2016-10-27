@@ -8,7 +8,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.CheckBox;
-import android.widget.TextView;
 import com.codegy.aerlink.R;
 
 import java.util.ArrayList;
@@ -92,7 +91,7 @@ public class ReminderListAdapter extends BaseAdapter {
                 holder.checkBox.setTextColor(Color.WHITE);
             }
         }
-        catch (IndexOutOfBoundsException e) {}
+        catch (IndexOutOfBoundsException ignored) {}
 
         return convertView;
     }

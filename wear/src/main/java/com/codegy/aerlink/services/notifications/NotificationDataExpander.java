@@ -1,14 +1,7 @@
 package com.codegy.aerlink.services.notifications;
 
-import android.content.Context;
-import android.content.ContextWrapper;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import com.codegy.aerlink.R;
-
-import java.io.File;
-import java.io.FileInputStream;
 
 /**
  * Created by Guiye on 18/5/15.
@@ -73,14 +66,14 @@ public class NotificationDataExpander {
                 notificationData.setBackgroundColor(Color.rgb(117, 180, 235));
 
                 break;
-            /*case "ph.telegra.Telegraph":
+            case "ph.telegra.Telegraph":
                 notificationData.setAppIcon(R.drawable.nic_telegram);
                 notificationData.setBackgroundColor(Color.rgb(41, 161, 218));
 
                 messageApp = true;
 
                 break;
-            */case "net.whatsapp.WhatsApp":
+            case "net.whatsapp.WhatsApp":
                 notificationData.setAppIcon(R.drawable.nic_whatsapp);
                 notificationData.setBackgroundColor(Color.rgb(67, 195, 84));
 

@@ -109,7 +109,7 @@ public class DiscoveryManager {
     }
 
 
-    private synchronized boolean startScanning() throws Exception {
+    private synchronized boolean startScanning() {
         boolean result = false;
 
         mScanner = mBluetoothAdapter.getBluetoothLeScanner();

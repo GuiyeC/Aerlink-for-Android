@@ -4,7 +4,6 @@ import android.content.*;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.widget.CardView;
-import android.support.wearable.view.WatchViewStub;
 import android.util.Log;
 import android.view.View;
 import android.widget.*;
@@ -29,46 +28,39 @@ public class MainActivity extends AerlinkActivity implements BatteryServiceHandl
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
 
         Log.i(LOG_TAG, "-=-=-=-=-=-=-=-=-=  MainActivity created  =-=-=-=-=-=-=-=-=-");
 
+        mConnectionInfoLinearLayout = (LinearLayout) findViewById(R.id.connectionInfoLinearLayout);
+        mConnectionInfoTextView = (TextView) findViewById(R.id.connectionInfoTextView);
+        mConnectionInfoImageView = (ImageView) findViewById(R.id.connectionInfoImageView);
+        mBatteryInfoTextView = (TextView) findViewById(R.id.batteryInfoTextView);
 
-        setContentView(R.layout.activity_main);
-        final WatchViewStub stub = (WatchViewStub) findViewById(R.id.watch_view_stub);
-        stub.setOnLayoutInflatedListener(new WatchViewStub.OnLayoutInflatedListener() {
+        mPlayMediaCardView = (CardView) findViewById(R.id.playMediaCardView);
+        mServiceSwitch = (Switch) findViewById(R.id.serviceSwitch);
+
+        boolean serviceRunning = isServiceRunning();
+
+        mConnectionInfoLinearLayout.setVisibility(serviceRunning ? View.VISIBLE : View.GONE);
+
+        mServiceSwitch.setChecked(serviceRunning);
+        mServiceSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
-            public void onLayoutInflated(WatchViewStub stub) {
-                mConnectionInfoLinearLayout = (LinearLayout) stub.findViewById(R.id.connectionInfoLinearLayout);
-                mConnectionInfoTextView = (TextView) stub.findViewById(R.id.connectionInfoTextView);
-                mConnectionInfoImageView = (ImageView) stub.findViewById(R.id.connectionInfoImageView);
-                mBatteryInfoTextView = (TextView) stub.findViewById(R.id.batteryInfoTextView);
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (isChecked) {
+                    mConnectionInfoLinearLayout.setVisibility(View.VISIBLE);
 
-                mPlayMediaCardView = (CardView) stub.findViewById(R.id.playMediaCardView);
-                mServiceSwitch = (Switch) stub.findViewById(R.id.serviceSwitch);
+                    startService();
+                } else {
+                    mConnectionInfoLinearLayout.setVisibility(View.GONE);
 
-                boolean serviceRunning = isServiceRunning();
-
-                mConnectionInfoLinearLayout.setVisibility(serviceRunning ? View.VISIBLE : View.GONE);
-
-                mServiceSwitch.setChecked(serviceRunning);
-                mServiceSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                    @Override
-                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                        if (isChecked) {
-                            mConnectionInfoLinearLayout.setVisibility(View.VISIBLE);
-
-                            startService();
-                        } else {
-                            mConnectionInfoLinearLayout.setVisibility(View.GONE);
-
-                            stopService();
-                        }
-                    }
-                });
-
-                updateInterface();
+                    stopService();
+                }
             }
         });
+
+        updateInterface();
     }
 
     @Override

@@ -5,10 +5,8 @@ import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.support.wearable.view.ProgressSpinner;
-import android.support.wearable.view.WatchViewStub;
 import android.view.View;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import com.codegy.aerlink.Constants;
@@ -16,15 +14,12 @@ import com.codegy.aerlink.R;
 import com.codegy.aerlink.utils.AerlinkActivity;
 import com.codegy.aerlink.utils.ScheduledTask;
 
-import java.util.Locale;
-
 public class CameraRemoteActivity extends AerlinkActivity implements CameraRemoteServiceHandler.CameraRemoteCallback {
 
     private int mCountdown = 0;
 
     private ImageView mShutterImageView;
     private TextView mCountdownTextView;
-    private RelativeLayout mShutterRelativeLayout;
     private TextView mCameraClosedTextView;
 
     private PowerManager.WakeLock wakeLock;
@@ -32,64 +27,56 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         setContentView(R.layout.activity_camera_remote);
-        final WatchViewStub stub = (WatchViewStub) findViewById(R.id.watch_view_stub);
-        stub.setOnLayoutInflatedListener(new WatchViewStub.OnLayoutInflatedListener() {
+        
+        mDisconnectedLayout = findViewById(R.id.disconnectedLinearLayout);
+        mConnectionInfoTextView = (TextView) findViewById(R.id.connectionInfoTextView);
+
+        mConnectionErrorLayout = findViewById(R.id.connectionErrorLinearLayout);
+
+        mLoadingLayout = findViewById(R.id.loadingLayout);
+        mLoadingSpinner = (ProgressSpinner) findViewById(R.id.loadingSpinner);
+
+        mCameraClosedTextView = (TextView) findViewById(R.id.cameraClosedTextView);
+
+        mShutterImageView = (ImageView) findViewById(R.id.shutterImageView);
+        mCountdownTextView = (TextView) findViewById(R.id.countdownTextView);
+        RelativeLayout shutterRelativeLayout = (RelativeLayout) findViewById(R.id.shutterRelativeLayout);
+        shutterRelativeLayout.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onLayoutInflated(WatchViewStub stub) {
-                mDisconnectedLayout = stub.findViewById(R.id.disconnectedLinearLayout);
-                mConnectionInfoTextView = (TextView) stub.findViewById(R.id.connectionInfoTextView);
+            public void onClick(View v) {
+                CameraRemoteServiceHandler serviceHandler = (CameraRemoteServiceHandler) getServiceHandler(CameraRemoteServiceHandler.class);
 
-                mConnectionErrorLayout = stub.findViewById(R.id.connectionErrorLinearLayout);
+                if (serviceHandler != null) {
+                    if (serviceHandler.isCameraOpen()) {
+                        setLoading(true);
+                        scheduleTimeOutTask();
 
-                mLoadingLayout = stub.findViewById(R.id.loadingLayout);
-                mLoadingSpinner = (ProgressSpinner) stub.findViewById(R.id.loadingSpinner);
+                        serviceHandler.takePicture(new Runnable() {
+                            @Override
+                            public void run() {
+                                cancelTimeOutTask();
+                                setLoading(false);
 
-                mCameraClosedTextView = (TextView) stub.findViewById(R.id.cameraClosedTextView);
-
-                mShutterImageView = (ImageView) stub.findViewById(R.id.shutterImageView);
-                mCountdownTextView = (TextView) stub.findViewById(R.id.countdownTextView);
-                mShutterRelativeLayout = (RelativeLayout) stub.findViewById(R.id.shutterRelativeLayout);
-                mShutterRelativeLayout.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        CameraRemoteServiceHandler serviceHandler = (CameraRemoteServiceHandler) getServiceHandler(CameraRemoteServiceHandler.class);
-
-                        if (serviceHandler != null) {
-                            if (serviceHandler.isCameraOpen()) {
-                                setLoading(true);
-                                scheduleTimeOutTask();
-
-                                serviceHandler.takePicture(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        cancelTimeOutTask();
-                                        setLoading(false);
-
-                                        showErrorInterface(true);
-                                    }
-                                });
+                                showErrorInterface(true);
                             }
-                            else {
-                                cancelCountdownTask();
+                        });
+                    }
+                    else {
+                        cancelCountdownTask();
 
-                                if (mCameraClosedTextView != null) {
-                                    mCameraClosedTextView.setVisibility(View.VISIBLE);
-                                }
-                            }
-                        }
-                        else {
-                            onDisconnectedFromDevice();
+                        if (mCameraClosedTextView != null) {
+                            mCameraClosedTextView.setVisibility(View.VISIBLE);
                         }
                     }
-                });
-
-                updateInterface();
-                updateLoadingInterface();
-                updateErrorInterface();
+                }
+                else {
+                    onDisconnectedFromDevice();
+                }
             }
         });
+
+        updateInterface();
     }
 
     @Override

@@ -1,16 +1,10 @@
 package com.codegy.aerlink.services.aerlink;
 
-import android.app.Notification;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Context;
 import android.content.ContextWrapper;
-import android.content.SharedPreferences;
 import android.graphics.Bitmap;
-import android.graphics.drawable.Icon;
-import android.preference.PreferenceManager;
 import android.util.Log;
-import com.codegy.aerlink.Constants;
-import com.codegy.aerlink.services.notifications.NotificationServiceHandler;
 import com.codegy.aerlink.utils.PacketProcessor;
 import com.codegy.aerlink.utils.ServiceHandler;
 import com.codegy.aerlink.utils.ServiceUtils;
@@ -104,7 +98,7 @@ public class UtilsServiceHandler extends ServiceHandler {
         mPacketProcessor = null;
     }
 
-    private String saveToInternalStorage(Bitmap bitmap, String bundleIdentifier) {
+    private void saveToInternalStorage(Bitmap bitmap, String bundleIdentifier) {
         Log.i(LOG_TAG, "Saving icon");
 
         ContextWrapper cw = new ContextWrapper(mContext);
@@ -119,8 +113,6 @@ public class UtilsServiceHandler extends ServiceHandler {
         catch (Exception e) {
             e.printStackTrace();
         }
-
-        return directory.getAbsolutePath();
     }
 
 }

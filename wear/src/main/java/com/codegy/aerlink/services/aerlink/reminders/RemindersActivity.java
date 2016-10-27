@@ -1,21 +1,18 @@
 package com.codegy.aerlink.services.aerlink.reminders;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.support.wearable.view.ProgressSpinner;
-import android.support.wearable.view.WatchViewStub;
 import android.view.View;
-import android.widget.*;
+import android.widget.AdapterView;
+import android.widget.CheckBox;
+import android.widget.ListView;
+import android.widget.TextView;
 import com.codegy.aerlink.Constants;
 import com.codegy.aerlink.R;
-import com.codegy.aerlink.connection.command.Command;
 import com.codegy.aerlink.utils.AerlinkActivity;
-import org.json.JSONArray;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class RemindersActivity extends AerlinkActivity implements ReminderServiceHandler.RemindersCallback, AdapterView.OnItemClickListener {
@@ -31,57 +28,51 @@ public class RemindersActivity extends AerlinkActivity implements ReminderServic
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        setContentView(R.layout.activity_reminders);
         setAmbientEnabled();
 
-        final Intent intent = getIntent();
-
+        Intent intent = getIntent();
         mCalendar = intent.getParcelableExtra(Constants.IE_CALENDAR);
 
-        setContentView(R.layout.activity_reminders);
-        final WatchViewStub stub = (WatchViewStub) findViewById(R.id.watch_view_stub);
-        stub.setOnLayoutInflatedListener(new WatchViewStub.OnLayoutInflatedListener() {
+        mDisconnectedLayout = findViewById(R.id.disconnectedLinearLayout);
+        mConnectionInfoTextView = (TextView) findViewById(R.id.connectionInfoTextView);
+
+        mConnectionErrorLayout = findViewById(R.id.connectionErrorLinearLayout);
+
+        int calendarColor = Color.parseColor("#"+mCalendar.getColor());
+
+        mLoadingLayout = findViewById(R.id.loadingLayout);
+        mLoadingSpinner = (ProgressSpinner) findViewById(R.id.loadingSpinner);
+        mLoadingSpinner.setColors(new int[] { calendarColor });
+
+        mTitleTextView = (TextView) findViewById(R.id.titleTextView);
+        mTitleTextView.setText(mCalendar.getTitle());
+        mTitleTextView.setTextColor(calendarColor);
+
+        mListView = (ListView) findViewById(R.id.listView);
+        mListView.setAdapter(new ReminderListAdapter(RemindersActivity.this, null));
+        mListView.setOnItemClickListener(RemindersActivity.this);
+
+        mTitleTextView.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onLayoutInflated(WatchViewStub stub) {
-                mDisconnectedLayout = stub.findViewById(R.id.disconnectedLinearLayout);
-                mConnectionInfoTextView = (TextView) stub.findViewById(R.id.connectionInfoTextView);
+            public void onClick(View v) {
+                ReminderServiceHandler serviceHandler = (ReminderServiceHandler) getServiceHandler(ReminderServiceHandler.class);
 
-                mConnectionErrorLayout = stub.findViewById(R.id.connectionErrorLinearLayout);
+                if (serviceHandler != null) {
+                    serviceHandler.requestRemindersUpdate(false, new Runnable() {
+                        @Override
+                        public void run() {
+                            setLoading(false);
 
-                int calendarColor = Color.parseColor("#"+mCalendar.getColor());
-
-                mLoadingLayout = stub.findViewById(R.id.loadingLayout);
-                mLoadingSpinner = (ProgressSpinner) stub.findViewById(R.id.loadingSpinner);
-                mLoadingSpinner.setColors(new int[] { calendarColor });
-
-                mTitleTextView = (TextView) stub.findViewById(R.id.titleTextView);
-                mTitleTextView.setText(mCalendar.getTitle());
-                mTitleTextView.setTextColor(calendarColor);
-
-                mListView = (ListView) stub.findViewById(R.id.listView);
-                mListView.setAdapter(new ReminderListAdapter(RemindersActivity.this, null));
-                mListView.setOnItemClickListener(RemindersActivity.this);
-
-                mTitleTextView.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        ReminderServiceHandler serviceHandler = (ReminderServiceHandler) getServiceHandler(ReminderServiceHandler.class);
-
-                        if (serviceHandler != null) {
-                            serviceHandler.requestRemindersUpdate(false, new Runnable() {
-                                @Override
-                                public void run() {
-                                    setLoading(false);
-
-                                    showErrorInterface(true);
-                                }
-                            });
+                            showErrorInterface(true);
                         }
-                        else {
-                            onDisconnectedFromDevice();
-                        }
-                    }
-                });
+                    });
+                }
+                else {
+                    onDisconnectedFromDevice();
+                }
+            }
+        });
 
                 /*
                 SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(RemindersActivity.this);
@@ -91,11 +82,7 @@ public class RemindersActivity extends AerlinkActivity implements ReminderServic
                 }
                 */
 
-                updateInterface();
-                updateLoadingInterface();
-                updateErrorInterface();
-            }
-        });
+        updateInterface();
     }
 
     @Override

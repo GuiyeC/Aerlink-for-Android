@@ -24,6 +24,7 @@ public class CharacteristicSubscriberThread extends Thread {
     private CharacteristicSubscriber subscriber;
     private Queue<CharacteristicIdentifier> subscribeRequests;
     private volatile boolean run = true;
+    private boolean wait = false;
     private State state = State.Connecting;
 
     private final Object lock = new Object();
@@ -41,12 +42,14 @@ public class CharacteristicSubscriberThread extends Thread {
                 synchronized (lock) {
                     switch (state) {
                         case ErrorConnecting:
+                            wait = true;
                             subscriber.onConnectionFailed();
-                            lock.wait();
+                            while (wait) { lock.wait(); }
                             break;
                         case ErrorSubscribing:
+                            wait = true;
                             subscriber.onSubscribingFailed();
-                            lock.wait();
+                            while (wait) { lock.wait(); }
                             break;
                         case Connecting:
                             state = State.ErrorConnecting;
@@ -102,7 +105,8 @@ public class CharacteristicSubscriberThread extends Thread {
         synchronized(lock) {
             state = State.Connecting;
 
-            lock.notify();
+            wait = false;
+            lock.notifyAll();
         }
     }
 
@@ -110,7 +114,8 @@ public class CharacteristicSubscriberThread extends Thread {
         synchronized(lock) {
             state = State.Discovering;
 
-            lock.notify();
+            wait = false;
+            lock.notifyAll();
         }
     }
 
@@ -124,7 +129,8 @@ public class CharacteristicSubscriberThread extends Thread {
                 state = State.ErrorSubscribing;
             }
 
-            lock.notify();
+            wait = false;
+            lock.notifyAll();
         }
     }
 
@@ -144,7 +150,8 @@ public class CharacteristicSubscriberThread extends Thread {
                 state = State.Ready;
             }
 
-            lock.notify();
+            wait = false;
+            lock.notifyAll();
         }
     }
 

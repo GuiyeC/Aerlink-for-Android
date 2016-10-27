@@ -134,15 +134,15 @@ public class CommandQueueThread extends Thread {
         synchronized(lock) {
             if (currentCommand != null) {
                 if (currentCommand.shouldRetryAgain()) {
+                    Log.d(LOG_TAG, "Command moved to back");
                     queue.offer(currentCommand);
                 }
                 else {
+                    Log.d(LOG_TAG, "Command failed too many times");
                     currentCommand.completeWithFailure();
                 }
             }
             currentCommand = null;
-
-            Log.d(LOG_TAG, "Command moved to back");
         }
     }
 

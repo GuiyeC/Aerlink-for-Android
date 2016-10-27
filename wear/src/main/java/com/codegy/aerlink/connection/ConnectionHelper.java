@@ -1,12 +1,9 @@
 package com.codegy.aerlink.connection;
 
 import android.app.Notification;
-import android.app.PendingIntent;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import com.codegy.aerlink.Constants;
 import com.codegy.aerlink.R;
 import com.codegy.aerlink.utils.ServiceUtils;
 
@@ -16,7 +13,7 @@ import com.codegy.aerlink.utils.ServiceUtils;
 public class ConnectionHelper {
 
     private static final int NOTIFICATION_HELP = 2000;
-    private static final long CONNECTION_PATTERN[] = { 80, 60 };
+    // private static final long CONNECTION_PATTERN[] = { 80, 60 };
     private static final long DISCONNECTION_PATTERN[] = { 80, 90 };
 
 

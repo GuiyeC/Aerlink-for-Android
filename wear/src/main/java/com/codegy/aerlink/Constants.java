@@ -1,7 +1,5 @@
 package com.codegy.aerlink;
 
-import java.util.UUID;
-
 /**
  * Created by Guiye on 19/5/15.
  */

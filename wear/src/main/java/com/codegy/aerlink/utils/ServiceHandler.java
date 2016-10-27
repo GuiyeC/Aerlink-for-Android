@@ -1,7 +1,6 @@
 package com.codegy.aerlink.utils;
 
 import android.bluetooth.BluetoothGattCharacteristic;
-import com.codegy.aerlink.connection.command.Command;
 
 import java.util.List;
 import java.util.UUID;
