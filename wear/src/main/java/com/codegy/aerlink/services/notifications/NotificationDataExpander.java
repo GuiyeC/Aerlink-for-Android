@@ -135,7 +135,7 @@ public class NotificationDataExpander {
                 notificationData.setBackgroundColor(Color.rgb(0, 150, 204));
 
                 break;
-            case "com.youtube.ios.youtube":
+            case "com.google.ios.youtube":
                 notificationData.setAppIcon(R.drawable.nic_youtube);
                 notificationData.setBackgroundColor(Color.rgb(204, 35, 27));
 
