@@ -143,6 +143,10 @@ public class MediaServiceHandler extends ServiceHandler {
                                     attributeCommand.setImportance(Command.IMPORTANCE_MIN);
 
                                     mServiceUtils.addCommandToQueue(attributeCommand);
+
+                                    Command readAttributeCommand = new Command(AMSConstants.SERVICE_UUID, AMSConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE);
+                                    readAttributeCommand.setImportance(Command.IMPORTANCE_MIN);
+                                    mServiceUtils.addCommandToQueue(readAttributeCommand);
                                 }
                                 else if (attribute.length() == 0) {
                                     mediaArtist = null;
@@ -161,6 +165,10 @@ public class MediaServiceHandler extends ServiceHandler {
                                     attributeCommand.setImportance(Command.IMPORTANCE_MIN);
 
                                     mServiceUtils.addCommandToQueue(attributeCommand);
+
+                                    Command readAttributeCommand = new Command(AMSConstants.SERVICE_UUID, AMSConstants.CHARACTERISTIC_ENTITY_ATTRIBUTE);
+                                    readAttributeCommand.setImportance(Command.IMPORTANCE_MIN);
+                                    mServiceUtils.addCommandToQueue(readAttributeCommand);
                                 }
                                 else if (attribute.length() == 0) {
                                     mediaTitle = null;

@@ -31,6 +31,11 @@ public class ScheduledTask {
         */
     }
 
+
+    public void schedule(int delay) {
+        mHandler.postDelayed(mRunnable, delay);
+    }
+
     public void cancel() {
         mHandler.removeCallbacksAndMessages(null);
     }

@@ -1,5 +1,6 @@
 package com.codegy.aerlink.services.notifications;
 
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import com.codegy.aerlink.R;
 
@@ -11,6 +12,7 @@ import java.util.Arrays;
 public class NotificationData {
 
     private int appIcon = R.drawable.nic_notification;
+    private boolean unknown;
     private int background = -1;
     //    private int backgroundColor = Color.rgb(140, 140, 145);
     private int backgroundColor = Color.rgb(0, 0, 0);
@@ -155,6 +157,14 @@ public class NotificationData {
 
     public boolean hasNegativeAction() {
         return hasNegativeAction;
+    }
+
+    public boolean isUnknown() {
+        return unknown;
+    }
+
+    public void setUnknown(boolean unknown) {
+        this.unknown = unknown;
     }
 
     public boolean compareUID(byte[] UID) {

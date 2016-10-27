@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:tools="http://schemas.android.com/tools"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              tools:context="com.codegy.aerlink.services.aerlink.reminders.CalendarsActivity"
+              tools:deviceIds="wear_round">
+
+    <include layout="@layout/merge_disconnected_info"
+             android:layout_height="match_parent"
+             android:layout_width="match_parent"
+             android:layout_margin="30dp"
+             tools:visibility="gone" />
+
+    <include layout="@layout/merge_connection_error"
+             android:layout_height="match_parent"
+             android:layout_width="match_parent"
+             android:layout_marginTop="12dp"
+             android:layout_marginRight="28dp"
+             android:layout_marginLeft="28dp"
+             android:layout_marginBottom="32dp"
+             android:visibility="gone" />
+
+    <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+        <ListView
+                android:id="@+id/listView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingTop="32dp"
+                android:paddingLeft="28dp"
+                android:paddingRight="28dp"
+                android:paddingBottom="32dp"
+                android:clipToPadding="false"
+                android:scrollbars="none"
+                android:divider="@null"/>
+
+        <include layout="@layout/merge_loading"
+                 android:layout_height="match_parent"
+                 android:layout_width="match_parent"
+                 android:visibility="gone" />
+    </RelativeLayout>
+
+</LinearLayout>

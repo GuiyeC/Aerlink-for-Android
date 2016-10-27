@@ -46,29 +46,6 @@
                         android:theme="@style/MaterialTheme"/>
             </android.support.v7.widget.CardView>
 
-            <android.support.v7.widget.CardView
-                    android:layout_gravity="center"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    card_view:cardCornerRadius="6dp"
-                    card_view:cardBackgroundColor="#373737">
-
-                <Switch
-                        android:id="@+id/blackNotificationsSwitch"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:layout_marginTop="5dp"
-                        android:layout_marginBottom="5dp"
-                        android:layout_marginStart="8dp"
-                        android:layout_marginEnd="2dp"
-                        android:text="@string/settings_black_notifications"
-                        android:textColor="#fff"
-                        android:textSize="20sp"
-                        android:fontFamily="sans-serif-condensed"
-                        android:theme="@style/MaterialTheme"/>
-            </android.support.v7.widget.CardView>
-
             <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

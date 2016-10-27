@@ -16,8 +16,11 @@ public class Command {
     private UUID characteristic;
     private byte[] packet;
     private boolean writeCommand;
+    private boolean notifySuccess;
     private int retryCount = 0;
     private int importance = IMPORTANCE_NORMAL;
+    private Runnable successBlock;
+    private Runnable failureBlock;
     //private int writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
 
     public Command(UUID serviceUUID, String characteristic) {
@@ -51,12 +54,40 @@ public class Command {
         return writeCommand;
     }
 
+    public boolean isNotifySuccess() {
+        return notifySuccess;
+    }
+
+    public void setNotifySuccess(boolean notifySuccess) {
+        this.notifySuccess = notifySuccess;
+    }
+
     public int getRetryCount() {
         return retryCount;
     }
 
     public void setImportance(int importance) {
         this.importance = importance;
+    }
+
+    public void setSuccessBlock(Runnable successBlock) {
+        this.successBlock = successBlock;
+    }
+
+    public void setFailureBlock(Runnable failureBlock) {
+        this.failureBlock = failureBlock;
+    }
+
+    public void completeWithSuccess() {
+        if (successBlock != null) {
+            successBlock.run();
+        }
+    }
+
+    public void completeWithFailure() {
+        if (failureBlock != null) {
+            failureBlock.run();
+        }
     }
 
     /*

@@ -13,7 +13,8 @@ public class CharacteristicSubscriberThread extends Thread {
     private static final String LOG_TAG = CharacteristicSubscriberThread.class.getSimpleName();
 
     public enum State {
-        Disconnected,
+        ErrorConnecting,
+        ErrorSubscribing,
         Connecting,
         Discovering,
         Subscribing,
@@ -22,7 +23,7 @@ public class CharacteristicSubscriberThread extends Thread {
 
     private CharacteristicSubscriber subscriber;
     private Queue<CharacteristicIdentifier> subscribeRequests;
-    private boolean run = true;
+    private volatile boolean run = true;
     private State state = State.Connecting;
 
     private final Object lock = new Object();
@@ -39,16 +40,20 @@ public class CharacteristicSubscriberThread extends Thread {
             try {
                 synchronized (lock) {
                     switch (state) {
-                        case Disconnected:
+                        case ErrorConnecting:
                             subscriber.onConnectionFailed();
                             lock.wait();
                             break;
+                        case ErrorSubscribing:
+                            subscriber.onSubscribingFailed();
+                            lock.wait();
+                            break;
                         case Connecting:
-                            state = State.Disconnected;
+                            state = State.ErrorConnecting;
                             lock.wait(5000);
                             break;
                         case Discovering:
-                            state = State.Disconnected;
+                            state = State.ErrorSubscribing;
                             lock.wait(2000);
                             break;
                         case Subscribing:
@@ -58,7 +63,7 @@ public class CharacteristicSubscriberThread extends Thread {
                             if (characteristic != null) {
                                 subscriber.subscribeCharacteristic(characteristic);
 
-                                state = State.Disconnected;
+                                state = State.ErrorSubscribing;
                                 lock.wait(2000);
 
                                 break;
@@ -112,7 +117,12 @@ public class CharacteristicSubscriberThread extends Thread {
     public void setSubscribeRequests(Queue<CharacteristicIdentifier> subscribeRequests) {
         synchronized(lock) {
             this.subscribeRequests = subscribeRequests;
-            state = State.Subscribing;
+            if (subscribeRequests.size() > 0) {
+                state = State.Subscribing;
+            }
+            else {
+                state = State.ErrorSubscribing;
+            }
 
             lock.notify();
         }

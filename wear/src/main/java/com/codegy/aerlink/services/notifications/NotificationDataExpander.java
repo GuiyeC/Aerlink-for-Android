@@ -1,7 +1,14 @@
 package com.codegy.aerlink.services.notifications;
 
+import android.content.Context;
+import android.content.ContextWrapper;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import com.codegy.aerlink.R;
+
+import java.io.File;
+import java.io.FileInputStream;
 
 /**
  * Created by Guiye on 18/5/15.
@@ -29,6 +36,7 @@ public class NotificationDataExpander {
                 break;
             case "com.apple.mobilemail":
                 notificationData.setAppIcon(R.drawable.nic_mail);
+                notificationData.setBackground(R.drawable.bg_email);
                 notificationData.setBackgroundColor(Color.rgb(228, 240, 249));
 
                 break;
@@ -39,6 +47,7 @@ public class NotificationDataExpander {
                 break;
             case "com.google.Gmail":
                 notificationData.setAppIcon(R.drawable.nic_gmail);
+                notificationData.setBackground(R.drawable.bg_email);
                 notificationData.setBackgroundColor(Color.rgb(232, 90, 77));
 
                 break;
@@ -64,18 +73,16 @@ public class NotificationDataExpander {
                 notificationData.setBackgroundColor(Color.rgb(117, 180, 235));
 
                 break;
-            case "ph.telegra.Telegraph":
+            /*case "ph.telegra.Telegraph":
                 notificationData.setAppIcon(R.drawable.nic_telegram);
                 notificationData.setBackgroundColor(Color.rgb(41, 161, 218));
 
                 messageApp = true;
 
                 break;
-            case "net.whatsapp.WhatsApp":
+            */case "net.whatsapp.WhatsApp":
                 notificationData.setAppIcon(R.drawable.nic_whatsapp);
                 notificationData.setBackgroundColor(Color.rgb(67, 195, 84));
-
-                messageApp = true;
 
                 break;
             case "com.vk.vkclient":
@@ -125,28 +132,65 @@ public class NotificationDataExpander {
                 messageApp = true;
 
                 break;
+            case "com.iwilab.KakaoTalk":
+                notificationData.setAppIcon(R.drawable.nic_kakaotalk);
+                notificationData.setBackgroundColor(Color.rgb(255, 204, 0));
+
+                break;
+            case "com.skype.skype":
+                notificationData.setAppIcon(R.drawable.nic_skype);
+                notificationData.setBackgroundColor(Color.rgb(0, 150, 204));
+
+                break;
+            case "com.youtube.ios.youtube":
+                notificationData.setAppIcon(R.drawable.nic_youtube);
+                notificationData.setBackgroundColor(Color.rgb(204, 35, 27));
+
+                break;
+            case "com.microsoft.Office.Outlook":
+                notificationData.setAppIcon(R.drawable.nic_outlook);
+                notificationData.setBackground(R.drawable.bg_email);
+                notificationData.setBackgroundColor(Color.rgb(0, 89, 153));
+
+                break;
+            case "com.nianticlabs.pokemongo":
+                notificationData.setAppIcon(R.drawable.nic_pokemongo);
+                notificationData.setBackgroundColor(Color.rgb(8, 22, 186));
+
+                break;
+            case "com.apple.reminders":
+                notificationData.setAppIcon(R.mipmap.ic_launcher_reminders);
+                notificationData.setBackground(R.drawable.bg_reminders);
+
+                break;
+            case "com.supercell.reef": // Boom Beach
+                notificationData.setAppIcon(R.drawable.nic_boombeach);
+                notificationData.setBackgroundColor(Color.rgb(40, 61, 89));
+
+                break;
+            case "com.CloudMagic.Mail": // Cloud Magic
+                notificationData.setAppIcon(R.drawable.nic_cloudmagic);
+                notificationData.setBackgroundColor(Color.rgb(228, 240, 249));
+
+                break;
             default:
+                notificationData.setUnknown(true);
+
                 break;
         }
 
         if (messageApp) {
             int index = notificationData.getMessage().indexOf(": ");
+            if (index <= 0) {
+                index = notificationData.getMessage().indexOf(":\n");
+            }
+
             if (index > 0) {
                 String title = notificationData.getMessage().substring(0, index);
                 String message = notificationData.getMessage().substring(index + 2);
 
                 notificationData.setTitle(title);
                 notificationData.setMessage(message);
-            }
-            else {
-                index = notificationData.getMessage().indexOf(":\n");
-                if (index > 0) {
-                    String title = notificationData.getMessage().substring(0, index);
-                    String message = notificationData.getMessage().substring(index + 2);
-
-                    notificationData.setTitle(title);
-                    notificationData.setMessage(message);
-                }
             }
         }
     }

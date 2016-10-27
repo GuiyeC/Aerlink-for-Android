@@ -1,13 +1,17 @@
 package com.codegy.aerlink.services.aerlink.reminders;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.wearable.view.ProgressSpinner;
 import android.support.wearable.view.WatchViewStub;
 import android.view.View;
 import android.widget.*;
 import com.codegy.aerlink.Constants;
 import com.codegy.aerlink.R;
+import com.codegy.aerlink.connection.command.Command;
 import com.codegy.aerlink.utils.AerlinkActivity;
 import org.json.JSONArray;
 
@@ -18,9 +22,10 @@ public class RemindersActivity extends AerlinkActivity implements ReminderServic
 
     private static final String TAG_LOG = RemindersActivity.class.getSimpleName();
 
+    private ReminderCalendar mCalendar;
+
     private TextView mTitleTextView;
     private ListView mListView;
-    private LinearLayout mDisconnectedLinearLayout;
 
 
     @Override
@@ -29,16 +34,31 @@ public class RemindersActivity extends AerlinkActivity implements ReminderServic
 
         setAmbientEnabled();
 
+        final Intent intent = getIntent();
+
+        mCalendar = intent.getParcelableExtra(Constants.IE_CALENDAR);
+
         setContentView(R.layout.activity_reminders);
         final WatchViewStub stub = (WatchViewStub) findViewById(R.id.watch_view_stub);
         stub.setOnLayoutInflatedListener(new WatchViewStub.OnLayoutInflatedListener() {
             @Override
             public void onLayoutInflated(WatchViewStub stub) {
-                mDisconnectedLinearLayout = (LinearLayout) stub.findViewById(R.id.disconnectedLinearLayout);
+                mDisconnectedLayout = stub.findViewById(R.id.disconnectedLinearLayout);
+                mConnectionInfoTextView = (TextView) stub.findViewById(R.id.connectionInfoTextView);
+
+                mConnectionErrorLayout = stub.findViewById(R.id.connectionErrorLinearLayout);
+
+                int calendarColor = Color.parseColor("#"+mCalendar.getColor());
+
+                mLoadingLayout = stub.findViewById(R.id.loadingLayout);
+                mLoadingSpinner = (ProgressSpinner) stub.findViewById(R.id.loadingSpinner);
+                mLoadingSpinner.setColors(new int[] { calendarColor });
 
                 mTitleTextView = (TextView) stub.findViewById(R.id.titleTextView);
+                mTitleTextView.setText(mCalendar.getTitle());
+                mTitleTextView.setTextColor(calendarColor);
 
-                mListView = (ListView) findViewById(R.id.listView);
+                mListView = (ListView) stub.findViewById(R.id.listView);
                 mListView.setAdapter(new ReminderListAdapter(RemindersActivity.this, null));
                 mListView.setOnItemClickListener(RemindersActivity.this);
 
@@ -48,7 +68,14 @@ public class RemindersActivity extends AerlinkActivity implements ReminderServic
                         ReminderServiceHandler serviceHandler = (ReminderServiceHandler) getServiceHandler(ReminderServiceHandler.class);
 
                         if (serviceHandler != null) {
-                            serviceHandler.requestDataUpdate();
+                            serviceHandler.requestRemindersUpdate(false, new Runnable() {
+                                @Override
+                                public void run() {
+                                    setLoading(false);
+
+                                    showErrorInterface(true);
+                                }
+                            });
                         }
                         else {
                             onDisconnectedFromDevice();
@@ -56,37 +83,57 @@ public class RemindersActivity extends AerlinkActivity implements ReminderServic
                     }
                 });
 
+                /*
                 SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(RemindersActivity.this);
-                String remindersData = sp.getString(Constants.SPK_REMINDERS_DATA, null);
+                String remindersData = sp.getString(Constants.SPK_REMINDER_ITEMS_DATA + mCalendar.getIdentifier(), null);
                 if (remindersData != null) {
                     onRemindersUpdated(remindersData);
                 }
-
+                */
 
                 updateInterface();
+                updateLoadingInterface();
+                updateErrorInterface();
             }
         });
     }
 
     @Override
-    public void updateInterface() {
-        if (mDisconnectedLinearLayout != null) {
-            mDisconnectedLinearLayout.setVisibility(isConnected() ? View.GONE : View.VISIBLE);
-        }
+    public void onEnterAmbient(Bundle ambientDetails) {
+        super.onEnterAmbient(ambientDetails);
+
+        mTitleTextView.setTextColor(Color.LTGRAY);
+        ((ReminderListAdapter) mListView.getAdapter()).setAmbient(true);
+    }
+
+    @Override
+    public void onExitAmbient() {
+        super.onExitAmbient();
+
+        mTitleTextView.setTextColor(Color.parseColor("#"+mCalendar.getColor()));
+        ((ReminderListAdapter) mListView.getAdapter()).setAmbient(false);
     }
 
     @Override
     public void onConnectedToDevice() {
-        super.onConnectedToDevice();
-
         ReminderServiceHandler serviceHandler = (ReminderServiceHandler) getServiceHandler(ReminderServiceHandler.class);
 
         if (serviceHandler != null) {
+            setLoading(true);
+            scheduleTimeOutTask();
+
             serviceHandler.setRemindersCallback(this);
-            serviceHandler.requestDataUpdate();
+            serviceHandler.requestRemindersUpdate(false, new Runnable() {
+                @Override
+                public void run() {
+                    setLoading(false);
+
+                    showErrorInterface(true);
+                }
+            });
         }
         else {
-            onDisconnectedFromDevice();
+            showErrorInterface(true);
         }
     }
 
@@ -102,35 +149,21 @@ public class RemindersActivity extends AerlinkActivity implements ReminderServic
     }
 
     @Override
-    public void onRemindersUpdated(final String remindersData) {
+    public void onDataTransferStarted() {
+        cancelTimeOutTask();
+    }
+
+    @Override
+    public void onRemindersUpdated(final List<ReminderItem> reminders) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                try {
-                    JSONArray jsonItems = new JSONArray(remindersData);
-                    String title = jsonItems.get(0).toString();
+                setLoading(false);
+                showErrorInterface(false);
+                cancelTimeOutTask();
 
-                    mTitleTextView.setText(title);
-
-                    List<ReminderItem> items = new ArrayList<>(jsonItems.length());
-
-                    int uncompleted = 0;
-                    for (int i = 1; i < jsonItems.length(); i++) {
-                        ReminderItem item = new ReminderItem(jsonItems.get(i).toString(), i - 1);
-
-                        if (item.isCompleted()) {
-                            items.add(item);
-                        }
-                        else {
-                            items.add(uncompleted, item);
-                            uncompleted++;
-                        }
-                    }
-
-                    ((ReminderListAdapter) mListView.getAdapter()).refresh(items);
-                }
-                catch (Exception e) {
-                    e.printStackTrace();
+                if (mListView != null) {
+                    ((ReminderListAdapter) mListView.getAdapter()).refresh(reminders);
                 }
             }
         });
@@ -138,16 +171,37 @@ public class RemindersActivity extends AerlinkActivity implements ReminderServic
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        ReminderServiceHandler serviceHandler = (ReminderServiceHandler) getServiceHandler(ReminderServiceHandler.class);
+        final ReminderServiceHandler serviceHandler = (ReminderServiceHandler) getServiceHandler(ReminderServiceHandler.class);
 
         if (serviceHandler != null) {
             CheckBox checkBox = (CheckBox) view.findViewById(R.id.checkBox);
             if (checkBox != null) {
-                checkBox.setChecked(!checkBox.isChecked());
+                final boolean completed = !checkBox.isChecked();
+                checkBox.setChecked(completed);
 
-                ReminderItem item = ((ReminderListAdapter) mListView.getAdapter()).getItem(position);
-                item.setCompleted(checkBox.isChecked());
-                serviceHandler.setReminderCompleted(item);
+                setLoading(true);
+
+                final ReminderItem item = ((ReminderListAdapter) mListView.getAdapter()).getItem(position);
+                item.setCompleted(completed);
+                serviceHandler.setReminderCompleted(item,
+                        new Runnable() { // success
+                            @Override
+                            public void run() {
+                                setLoading(false);
+                                showErrorInterface(false);
+
+                                serviceHandler.updateCachedData(mCalendar.getIdentifier(), item);
+                            }
+                        },
+                        new Runnable() { // failure
+                            @Override
+                            public void run() {
+                                setLoading(false);
+
+                                showErrorInterface(true);
+                            }
+                        }
+                );
             }
         }
         else {

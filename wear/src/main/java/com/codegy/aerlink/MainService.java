@@ -17,8 +17,11 @@ import com.codegy.aerlink.connection.*;
 import com.codegy.aerlink.connection.characteristic.CharacteristicIdentifier;
 import com.codegy.aerlink.connection.command.Command;
 import com.codegy.aerlink.utils.ServiceHandler;
+import com.codegy.aerlink.utils.ServiceObserver;
 import com.codegy.aerlink.utils.ServiceUtils;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Queue;
 
 
@@ -32,6 +35,7 @@ public class MainService extends Service implements ServiceUtils, ConnectionMana
     private ConnectionState state = ConnectionState.Disconnected;
     private int mBondedDeviceFailedConnections = 0;
 
+    private List<ServiceObserver> observers;
     private ConnectionHelper connectionHelper;
     private DiscoveryManager discoveryManager;
     private ConnectionManager connectionManager;
@@ -68,8 +72,8 @@ public class MainService extends Service implements ServiceUtils, ConnectionMana
 
     private void start() {
         Log.v(LOG_TAG, "Starting...");
-        // Just in case, try to close everything
-        //stop();
+
+        observers = new ArrayList<>();
 
         BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
 
@@ -79,6 +83,7 @@ public class MainService extends Service implements ServiceUtils, ConnectionMana
             return;
         }
 
+        connectionHelper = new ConnectionHelper(this, this);
         discoveryManager = new DiscoveryManager(this, this, bluetoothManager);
         connectionManager = new ConnectionManager(this, this, bluetoothManager.getAdapter());
         serviceHandlerManager = new ServiceHandlerManager(this, this);
@@ -109,6 +114,15 @@ public class MainService extends Service implements ServiceUtils, ConnectionMana
         Log.v(LOG_TAG, "Stopped");
     }
 
+    public void restartConnection() {
+        if (connectionManager == null) {
+            return;
+        }
+
+
+        connectionManager.tryToReconnect();
+    }
+
     public void setState(ConnectionState state) {
         switch (state) {
             case NoBluetooth:
@@ -131,7 +145,7 @@ public class MainService extends Service implements ServiceUtils, ConnectionMana
                 BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
                 BluetoothDevice device = BluetoothUtils.getBondedDevice(bluetoothManager.getAdapter());
 
-                if (device == null || mBondedDeviceFailedConnections >= 5) {
+                if (device == null || mBondedDeviceFailedConnections >= 3) {
                     Log.i(LOG_TAG, "Starting discovery");
                     discoveryManager.startDiscovery();
                 }
@@ -153,28 +167,30 @@ public class MainService extends Service implements ServiceUtils, ConnectionMana
 
         this.state = state;
 
-        if (state != ConnectionState.Ready) {
-            Intent stateIntent = new Intent(Constants.IA_SERVICE_NOT_READY);
-            sendBroadcast(stateIntent);
-        }
-        else {
-            Intent stateIntent = new Intent(Constants.IA_SERVICE_READY);
-            sendBroadcast(stateIntent);
-        }
-
-        if (connectionHelper == null) {
-            connectionHelper = new ConnectionHelper(this, this);
-        }
-
         connectionHelper.showHelpForState(state);
-    }
-
-    public boolean isConnectionReady() {
-        return state == ConnectionState.Ready;
+        notifyStateChange();
     }
 
     public ServiceHandler getServiceHandler(Class serviceHandlerClass) {
         return serviceHandlerManager.getServiceHandler(serviceHandlerClass);
+    }
+
+    public void addObserver(ServiceObserver observer) {
+        if (!observers.contains(observer)) {
+            observers.add(observer);
+        }
+
+        observer.onConnectionStateChanged(state);
+    }
+
+    public void removeObserver(ServiceObserver observer) {
+        observers.remove(observer);
+    }
+
+    private void notifyStateChange() {
+        for (ServiceObserver observer : observers) {
+            observer.onConnectionStateChanged(state);
+        }
     }
 
 
@@ -205,7 +221,9 @@ public class MainService extends Service implements ServiceUtils, ConnectionMana
     public void onDeviceDiscovery(BluetoothDevice device) {
         Log.v(LOG_TAG, "Device discovered");
 
-        connectionManager.connectToDevice(device);
+        if (connectionManager != null) {
+            connectionManager.connectToDevice(device);
+        }
     }
 
     @Override
@@ -225,7 +243,6 @@ public class MainService extends Service implements ServiceUtils, ConnectionMana
     public void onCharacteristicChanged(BluetoothGattCharacteristic characteristic) {
         serviceHandlerManager.handleCharacteristic(characteristic);
     }
-
 
     public class ServiceBinder extends Binder {
         public MainService getService() {

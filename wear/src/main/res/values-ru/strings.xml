@@ -15,17 +15,9 @@
 -->
 <resources>
 
-    <string name="app_name">Aerlink</string>
-    <string name="ios_service">Сервисы iOS</string>
-
-
     <string name="general_connected">Связанный</string>
     <string name="general_disconnected">Отключено</string>
-    <string name="general_battery_level">Уровень заряда</string>
-    <string name="general_low_battery">Low battery</string>
 
-
-    <string name="settings_black_notifications">Черные уведомления</string>
     <string name="settings_battery_updates">Статус батареи</string>
 
 

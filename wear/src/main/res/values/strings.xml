@@ -15,28 +15,34 @@
 -->
 <resources>
 
-    <string name="app_name">Aerlink</string>
-    <string name="app_version">Aerlink 2.0-b6</string>
-    <string name="ios_service">iOS Service</string>
+    <!-- Don't translate this -->
+    <string name="app_name" translatable="false">Aerlink</string>
+    <string name="app_version" translatable="false">3.0</string>
 
-
-    <string name="title_activity_settings">Settings</string>
-    <string name="title_activity_phone">Phone call</string>
-    <string name="title_activity_reminders">Reminders</string>
-    <string name="title_activity_camera_remote">Camera Remote</string>
-    <string name="title_activity_camera_image">Camera Image</string>
+    <string name="title_activity_settings" translatable="false">Settings</string>
+    <string name="title_activity_phone" translatable="false">Phone call</string>
+    <string name="title_activity_calendars" translatable="false">Calendars</string>
+    <string name="title_activity_reminders" translatable="false">Reminders</string>
+    <string name="title_activity_camera_remote" translatable="false">Camera Remote</string>
+    <string name="title_activity_camera_image" translatable="false">Camera Image</string>
+    <!-- Don't translate this -->
 
 
     <string name="general_connected">Connected</string>
+    <string name="general_connecting">Connecting…</string>
     <string name="general_disconnected">Disconnected</string>
     <string name="general_disconnected_help">Connect using \"Aerlink\" on your iOS device.</string>
+
+    <string name="general_connection_error">Error</string>
+    <string name="general_connection_error_help">Launch \"Aerlink\" on your iOS device before retrying.</string>
+    <string name="general_try_again">Try again</string>
+
     <string name="general_low_battery">Low battery</string>
-    <string name="general_battery_level">Battery level</string>
 
+    <string name="take_photo_title">Take photo</string>
+    <string name="take_photo_text">Tap to start capture</string>
 
-    <string name="settings_black_notifications">Black notifications</string>
     <string name="settings_battery_updates">Battery updates</string>
-
 
     <string name="help_title_no_bluetooth">No bluetooth</string>
     <string name="help_no_bluetooth">Bluetooth is not supported.</string>
@@ -46,7 +52,6 @@
 
     <string name="help">Help</string>
     <string name="help_how_to">- Install and launch \"Aerlink\" on your iOS Device.</string>
-
 
     <string name="camera_closed">Camera closed.\nOpen the camera on \"Aerlink\" on your iOS device.</string>
 

@@ -8,10 +8,13 @@ import java.util.UUID;
 public class Constants {
 
     // Shared Preferences Keys
-    public static final String SPK_COLOR_BACKGROUNDS         = "SPK_COLOR_BACKGROUNDS";
-    public static final String SPK_BATTERY_UPDATES             = "SPK_BATTERY_UPDATES";
-    public static final String SPK_COMPLETE_BATTERY_INFO = "SPK_COMPLETE_BATTERY_INFO";
-    public static final String SPK_REMINDERS_DATA               = "SPK_REMINDERS_DATA";
+    public static final String SPK_COLOR_BACKGROUNDS             = "SPK_COLOR_BACKGROUNDS";
+    public static final String SPK_BATTERY_UPDATES                 = "SPK_BATTERY_UPDATES";
+    public static final String SPK_COMPLETE_BATTERY_INFO     = "SPK_COMPLETE_BATTERY_INFO";
+    public static final String SPK_REMINDER_CALENDARS_DATA = "SPK_REMINDER_CALENDARS_DATA";
+    public static final String SPK_REMINDER_SELECTED_CALENDAR = "SPK_REMINDER_ITEMS_DATA_";
+    public static final String SPK_REMINDER_ITEMS_DATA        = "SPK_REMINDER_ITEMS_DATA_";
+    public static final String SPK_APP_ICON_DATA        = "SPK_APP_ICON_DATA_";
 
     // Intent Actions
     public static final String IA_SERVICE_READY                         = "com.codegy.IA_SERVICE_READY";
@@ -31,5 +34,6 @@ public class Constants {
     public static final String IE_NOTIFICATION_TITLE     = "IE_NOTIFICATION_TITLE";
     public static final String IE_NOTIFICATION_MESSAGE = "IE_NOTIFICATION_MESSAGE";
     public static final String IE_CAMERA_IMAGE = "IE_CAMERA_IMAGE";
+    public static final String IE_CALENDAR        = "IE_CALENDAR";
 
 }

@@ -2,11 +2,13 @@ package com.codegy.aerlink;
 
 import android.content.*;
 import android.os.Bundle;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.widget.CardView;
 import android.support.wearable.view.WatchViewStub;
 import android.util.Log;
 import android.view.View;
 import android.widget.*;
+import com.codegy.aerlink.connection.ConnectionState;
 import com.codegy.aerlink.services.battery.BatteryServiceHandler;
 import com.codegy.aerlink.services.media.MediaServiceHandler;
 import com.codegy.aerlink.utils.AerlinkActivity;
@@ -18,7 +20,6 @@ public class MainActivity extends AerlinkActivity implements BatteryServiceHandl
     private Switch mServiceSwitch;
 
     private LinearLayout mConnectionInfoLinearLayout;
-    private TextView mConnectionInfoTextView;
     private ImageView mConnectionInfoImageView;
     private TextView mBatteryInfoTextView;
 
@@ -30,13 +31,6 @@ public class MainActivity extends AerlinkActivity implements BatteryServiceHandl
         super.onCreate(savedInstanceState);
 
         Log.i(LOG_TAG, "-=-=-=-=-=-=-=-=-=  MainActivity created  =-=-=-=-=-=-=-=-=-");
-
-        /*
-        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
-            Log.d(LOG_TAG, "not supported ble");
-           // finish();
-        }
-        */
 
 
         setContentView(R.layout.activity_main);
@@ -50,12 +44,9 @@ public class MainActivity extends AerlinkActivity implements BatteryServiceHandl
                 mBatteryInfoTextView = (TextView) stub.findViewById(R.id.batteryInfoTextView);
 
                 mPlayMediaCardView = (CardView) stub.findViewById(R.id.playMediaCardView);
-
                 mServiceSwitch = (Switch) stub.findViewById(R.id.serviceSwitch);
 
-
-                final boolean serviceRunning = isServiceRunning();
-
+                boolean serviceRunning = isServiceRunning();
 
                 mConnectionInfoLinearLayout.setVisibility(serviceRunning ? View.VISIBLE : View.GONE);
 
@@ -74,7 +65,6 @@ public class MainActivity extends AerlinkActivity implements BatteryServiceHandl
                         }
                     }
                 });
-
 
                 updateInterface();
             }
@@ -102,25 +92,24 @@ public class MainActivity extends AerlinkActivity implements BatteryServiceHandl
         }
     }
 
-    public void startMedia(View view) {
-        MediaServiceHandler serviceHandler = (MediaServiceHandler) getServiceHandler(MediaServiceHandler.class);
-        if (serviceHandler != null) {
-            serviceHandler.sendPlay();
-        }
-    }
-
-
     @Override
      public void updateInterface() {
+        super.updateInterface();
+
         boolean connected = isConnected();
 
-        if (mConnectionInfoLinearLayout != null) {
-            mConnectionInfoTextView.setText(connected ? "Connected" : "Disconnected");
-            mConnectionInfoTextView.setTextColor(getResources().getColor(connected ? R.color.green : R.color.red));
-        }
-
         if (mConnectionInfoImageView != null) {
-            mConnectionInfoImageView.setImageResource(connected ? R.drawable.status_connected : R.drawable.status_disconnected);
+            switch (state) {
+                case Ready:
+                    mConnectionInfoImageView.setImageResource(R.drawable.status_connected);
+                    break;
+                case Connecting:
+                    mConnectionInfoImageView.setImageResource(R.drawable.status_connecting);
+                    break;
+                default:
+                    mConnectionInfoImageView.setImageResource(R.drawable.status_disconnected);
+                    break;
+            }
         }
 
         if (mPlayMediaCardView != null) {
@@ -132,7 +121,7 @@ public class MainActivity extends AerlinkActivity implements BatteryServiceHandl
                 BatteryServiceHandler serviceHandler = (BatteryServiceHandler) getServiceHandler(BatteryServiceHandler.class);
 
                 if (serviceHandler != null) {
-                    onBatteryLevelChanged(serviceHandler.getBatteryLevel());
+                    serviceHandler.setBatteryObserver(this);
                 }
             }
             else {
@@ -143,22 +132,19 @@ public class MainActivity extends AerlinkActivity implements BatteryServiceHandl
 
     @Override
     public void onConnectedToDevice() {
-        super.onConnectedToDevice();
-
         BatteryServiceHandler serviceHandler = (BatteryServiceHandler) getServiceHandler(BatteryServiceHandler.class);
 
         if (serviceHandler != null) {
             serviceHandler.setBatteryObserver(this);
         }
         else {
-            onDisconnectedFromDevice();
+            onConnectionStateChanged(ConnectionState.Disconnected);
+            restartConnection();
         }
     }
 
     @Override
     public void onDisconnectedFromDevice() {
-        super.onDisconnectedFromDevice();
-
         BatteryServiceHandler serviceHandler = (BatteryServiceHandler) getServiceHandler(BatteryServiceHandler.class);
 
         if (serviceHandler != null) {
@@ -172,10 +158,18 @@ public class MainActivity extends AerlinkActivity implements BatteryServiceHandl
             @Override
             public void run() {
                 if (mBatteryInfoTextView != null) {
-                    if (batteryLevel != -1) {
+                    if (batteryLevel > -1) {
                         mBatteryInfoTextView.setText(batteryLevel + "%");
                         mBatteryInfoTextView.setVisibility(View.VISIBLE);
-                    } else {
+
+                        if (batteryLevel > 20) {
+                            mConnectionInfoTextView.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.connected));
+                        }
+                        else {
+                            mConnectionInfoTextView.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.disconnected));
+                        }
+                    }
+                    else {
                         mBatteryInfoTextView.setVisibility(View.GONE);
                     }
                 }
@@ -183,6 +177,18 @@ public class MainActivity extends AerlinkActivity implements BatteryServiceHandl
         });
     }
 
+
+    public void startMedia(View view) {
+        MediaServiceHandler serviceHandler = (MediaServiceHandler) getServiceHandler(MediaServiceHandler.class);
+
+        if (serviceHandler != null) {
+            serviceHandler.sendPlay();
+        }
+        else {
+            onConnectionStateChanged(ConnectionState.Disconnected);
+            restartConnection();
+        }
+    }
 
     public void goToSettings(View view) {
         Intent intent = new Intent(this, SettingsActivity.class);

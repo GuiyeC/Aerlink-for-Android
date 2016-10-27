@@ -19,8 +19,8 @@ public class CommandQueueThread extends Thread {
     private Command currentCommand;
     private BlockingQueue<Command> queue = new LinkedBlockingDeque<>();
 
-    private boolean run = true;
-    private boolean ready = false;
+    private volatile boolean run = true;
+    private volatile boolean ready = false;
 
     private final Object lock = new Object();
 
@@ -118,7 +118,10 @@ public class CommandQueueThread extends Thread {
         synchronized(lock) {
             Log.d(LOG_TAG, "Command sent");
 
-            currentCommand = null;
+            if (currentCommand != null) {
+                currentCommand.completeWithSuccess();
+                currentCommand = null;
+            }
 
             lock.notify();
         }
@@ -129,8 +132,13 @@ public class CommandQueueThread extends Thread {
      */
     public void moveToBack() {
         synchronized(lock) {
-            if (currentCommand != null && currentCommand.shouldRetryAgain()) {
-                queue.offer(currentCommand);
+            if (currentCommand != null) {
+                if (currentCommand.shouldRetryAgain()) {
+                    queue.offer(currentCommand);
+                }
+                else {
+                    currentCommand.completeWithFailure();
+                }
             }
             currentCommand = null;
 

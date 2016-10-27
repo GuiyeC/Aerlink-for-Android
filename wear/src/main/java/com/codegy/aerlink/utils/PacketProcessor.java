@@ -13,25 +13,27 @@ import java.math.BigInteger;
 public class PacketProcessor {
 
     private ByteArrayOutputStream processingData;
+    private int action;
     private int status;
     // The number of bytes left to process
     private int bytesLeftToProcess;
 
     public PacketProcessor(byte[] packet) {
-        if (packet.length > 3) {
-            status = packet[0];
+        if (packet.length >= 2) {
+            action = packet[0];
+            status = packet[1];
 
-            if (status == 0x01) {
-                byte[] byteLength = {packet[2], packet[1]};
+            if (status != 0x00 && packet.length > 4) {
+                byte[] byteLength = {packet[2], packet[3]};
                 BigInteger length = new BigInteger(byteLength);
                 bytesLeftToProcess = length.intValue();
 
                 Log.d("PacketProcessor", "DATA length " + length);
 
                 processingData = new ByteArrayOutputStream();
-                processingData.write(packet, 3, packet.length - 3);
+                processingData.write(packet, 4, packet.length - 4);
 
-                bytesLeftToProcess -= (packet.length - 3);
+                bytesLeftToProcess -= (packet.length - 4);
             }
         }
     }
@@ -41,12 +43,20 @@ public class PacketProcessor {
         bytesLeftToProcess -= packet.length;
     }
 
+    public int getAction() {
+        return action;
+    }
+
     public int getStatus() {
         return status;
     }
 
     public boolean isFinished() {
         return bytesLeftToProcess <= 0;
+    }
+
+    public byte[] getValue() {
+        return processingData.toByteArray();
     }
 
     public String getStringValue() {

@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.PowerManager;
+import android.support.wearable.view.ProgressSpinner;
 import android.support.wearable.view.WatchViewStub;
 import android.view.View;
 import android.widget.ImageView;
@@ -15,6 +16,8 @@ import com.codegy.aerlink.R;
 import com.codegy.aerlink.utils.AerlinkActivity;
 import com.codegy.aerlink.utils.ScheduledTask;
 
+import java.util.Locale;
+
 public class CameraRemoteActivity extends AerlinkActivity implements CameraRemoteServiceHandler.CameraRemoteCallback {
 
     private int mCountdown = 0;
@@ -22,7 +25,6 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
     private ImageView mShutterImageView;
     private TextView mCountdownTextView;
     private RelativeLayout mShutterRelativeLayout;
-    private LinearLayout mDisconnectedLinearLayout;
     private TextView mCameraClosedTextView;
 
     private PowerManager.WakeLock wakeLock;
@@ -36,7 +38,14 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
         stub.setOnLayoutInflatedListener(new WatchViewStub.OnLayoutInflatedListener() {
             @Override
             public void onLayoutInflated(WatchViewStub stub) {
-                mDisconnectedLinearLayout = (LinearLayout) stub.findViewById(R.id.disconnectedLinearLayout);
+                mDisconnectedLayout = stub.findViewById(R.id.disconnectedLinearLayout);
+                mConnectionInfoTextView = (TextView) stub.findViewById(R.id.connectionInfoTextView);
+
+                mConnectionErrorLayout = stub.findViewById(R.id.connectionErrorLinearLayout);
+
+                mLoadingLayout = stub.findViewById(R.id.loadingLayout);
+                mLoadingSpinner = (ProgressSpinner) stub.findViewById(R.id.loadingSpinner);
+
                 mCameraClosedTextView = (TextView) stub.findViewById(R.id.cameraClosedTextView);
 
                 mShutterImageView = (ImageView) stub.findViewById(R.id.shutterImageView);
@@ -49,7 +58,18 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
 
                         if (serviceHandler != null) {
                             if (serviceHandler.isCameraOpen()) {
-                                serviceHandler.takePicture();
+                                setLoading(true);
+                                scheduleTimeOutTask();
+
+                                serviceHandler.takePicture(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        cancelTimeOutTask();
+                                        setLoading(false);
+
+                                        showErrorInterface(true);
+                                    }
+                                });
                             }
                             else {
                                 cancelCountdownTask();
@@ -66,6 +86,8 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
                 });
 
                 updateInterface();
+                updateLoadingInterface();
+                updateErrorInterface();
             }
         });
     }
@@ -74,12 +96,9 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
     protected void onResume() {
         super.onResume();
 
-        try {
+        if (mCountdownTextView != null && mShutterImageView != null) {
             mCountdownTextView.setVisibility(View.GONE);
             mShutterImageView.setVisibility(View.VISIBLE);
-        }
-        catch (Exception e) {
-            e.printStackTrace();
         }
 
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
@@ -101,11 +120,9 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
 
     @Override
     public void updateInterface() {
-        boolean connected = isConnected();
+        super.updateInterface();
 
-        if (mDisconnectedLinearLayout != null) {
-            mDisconnectedLinearLayout.setVisibility(connected ? View.GONE : View.VISIBLE);
-        }
+        boolean connected = isConnected();
 
         cancelCountdownTask();
 
@@ -126,15 +143,24 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
 
     @Override
     public void onConnectedToDevice() {
-        super.onConnectedToDevice();
-
         CameraRemoteServiceHandler serviceHandler = (CameraRemoteServiceHandler) getServiceHandler(CameraRemoteServiceHandler.class);
 
         if (serviceHandler != null) {
+            setLoading(true);
+            scheduleTimeOutTask();
+
             serviceHandler.setCameraCallback(this);
+            serviceHandler.requestState(new Runnable() {
+                @Override
+                public void run() {
+                    setLoading(false);
+
+                    showErrorInterface(true);
+                }
+            });
         }
         else {
-            onDisconnectedFromDevice();
+            showErrorInterface(true);
         }
     }
 
@@ -150,34 +176,42 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
     }
 
     @Override
-    public void onCameraChangedOpen(boolean open) {
-        cancelCountdownTask();
+    public void onCameraChangedOpen(final boolean open) {
+        setLoading(false);
 
-        if (mCameraClosedTextView != null) {
-            mCameraClosedTextView.setVisibility(open ? View.GONE : View.VISIBLE);
-        }
+        cancelCountdownTask();
+        cancelTimeOutTask();
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (mCameraClosedTextView != null) {
+                    mCameraClosedTextView.setVisibility(open ? View.GONE : View.VISIBLE);
+                }
+            }
+        });
     }
 
     @Override
     public void onCountdownStarted(int countdown) {
         mCountdown = countdown;
+        cancelTimeOutTask();
 
-        try {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
+        setLoading(false);
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (mCountdownTextView != null && mShutterImageView != null) {
                     mCountdownTextView.setText(Integer.toString(mCountdown));
 
                     mCountdownTextView.setVisibility(View.VISIBLE);
                     mShutterImageView.setVisibility(View.GONE);
                 }
-            });
+            }
+        });
 
-            scheduleCountdownTask();
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
+        scheduleCountdownTask();
     }
 
     @Override
@@ -187,6 +221,8 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                setLoading(true);
+
                 mCountdownTextView.setVisibility(View.GONE);
                 mShutterImageView.setVisibility(View.GONE);
             }
@@ -198,6 +234,8 @@ public class CameraRemoteActivity extends AerlinkActivity implements CameraRemot
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                setLoading(false);
+
                 Intent cameraImageIntent = new Intent(CameraRemoteActivity.this, CameraImageActivity.class);
                 cameraImageIntent.putExtra(Constants.IE_CAMERA_IMAGE, cameraImage);
                 startActivity(cameraImageIntent);

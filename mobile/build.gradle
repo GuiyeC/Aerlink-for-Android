@@ -1,18 +1,15 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 24
-    buildToolsVersion "24.0.3"
+    compileSdkVersion 25
+    buildToolsVersion "25.0.0"
 
     defaultConfig {
         applicationId "com.codegy.wearconnectforios"
         minSdkVersion 14
-        targetSdkVersion 24
-        versionCode 16
-        versionName "2.0-b6"
-
-        // Enabling multidex support.
-        multiDexEnabled true
+        targetSdkVersion 25
+        versionCode 28
+        versionName "3.0-RC1"
     }
     buildTypes {
         release {
@@ -20,16 +17,11 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-
-    dexOptions {
-        javaMaxHeapSize "4g"
-    }
 }
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     wearApp project(':wear')
-    compile 'com.android.support:appcompat-v7:24.2.1'
-    compile 'com.google.android.gms:play-services:9.6.1'
-    compile 'com.android.support:multidex:1.0.1'
+    compile 'com.google.android.gms:play-services-wearable:9.6.1'
+    compile 'com.android.support:appcompat-v7:25.0.0'
 }

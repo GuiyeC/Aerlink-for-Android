@@ -1,7 +1,7 @@
 <resources>
-    <string name="app_name">Aerlink</string>
 
     <string name="title">Відкрийте програму на Вашому годиннику</string>
-    <string name="description">Увімкніть опцію \"iOS Service\". Картка на домашньому екрані допоможе синхронізуватися з телефоном.</string>
-    <string name="twitter_help">Twitter: @GuiyeC</string>
+    <string name="description">Увімкніть опцію \"Aerlink\". Картка на домашньому екрані допоможе синхронізуватися з
+        телефоном.
+    </string>
 </resources>

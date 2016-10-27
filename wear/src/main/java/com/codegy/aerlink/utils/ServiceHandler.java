@@ -1,6 +1,7 @@
 package com.codegy.aerlink.utils;
 
 import android.bluetooth.BluetoothGattCharacteristic;
+import com.codegy.aerlink.connection.command.Command;
 
 import java.util.List;
 import java.util.UUID;
@@ -16,4 +17,5 @@ public abstract class ServiceHandler {
     public abstract List<String> getCharacteristicsToSubscribe();
     public boolean canHandleCharacteristic(BluetoothGattCharacteristic characteristic) { return false; }
     public void handleCharacteristic(BluetoothGattCharacteristic characteristic) {}
+
 }

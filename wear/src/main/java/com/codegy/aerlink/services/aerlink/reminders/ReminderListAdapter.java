@@ -1,6 +1,8 @@
 package com.codegy.aerlink.services.aerlink.reminders;
 
 import android.content.Context;
+import android.graphics.Color;
+import android.support.v7.widget.CardView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -20,12 +22,11 @@ public class ReminderListAdapter extends BaseAdapter {
     private static final int layoutResourceId = R.layout.list_item_reminder;
 
     private List<ReminderItem> mItems;
-    private final Context mContext;
     private final LayoutInflater mInflater;
+    private boolean ambient;
 
     // Provide a suitable constructor (depends on the kind of dataset)
     public ReminderListAdapter(Context context, List<ReminderItem> items) {
-        mContext = context;
         mInflater = LayoutInflater.from(context);
 
         if (items != null) {
@@ -34,6 +35,13 @@ public class ReminderListAdapter extends BaseAdapter {
         else {
             mItems = new ArrayList<>();
         }
+    }
+
+
+    public void setAmbient(boolean ambient) {
+        this.ambient = ambient;
+
+        notifyDataSetChanged();
     }
 
     @Override
@@ -74,8 +82,15 @@ public class ReminderListAdapter extends BaseAdapter {
 
         try {
             ReminderItem item = getItem(position);
-            holder.textView.setText(item.getTitle());
+            holder.checkBox.setText(item.getTitle());
             holder.checkBox.setChecked(item.isCompleted());
+
+            if (ambient) {
+                holder.checkBox.setTextColor(Color.LTGRAY);
+            }
+            else {
+                holder.checkBox.setTextColor(Color.WHITE);
+            }
         }
         catch (IndexOutOfBoundsException e) {}
 
@@ -84,18 +99,17 @@ public class ReminderListAdapter extends BaseAdapter {
 
     // Provide a reference to the type of views you're using
     public static class ItemViewHolder {
-        private TextView textView;
+        private CardView cardView;
         private CheckBox checkBox;
 
         public ItemViewHolder(View itemView) {
-            textView = (TextView) itemView.findViewById(R.id.textView);
+            cardView = (CardView) itemView.findViewById(R.id.cardView);
             checkBox = (CheckBox) itemView.findViewById(R.id.checkBox);
         }
     }
 
     public void refresh(List<ReminderItem> items) {
-        mItems.clear();
-        mItems.addAll(items);
+        mItems = items;
 
         notifyDataSetChanged();
     }

@@ -5,7 +5,7 @@
               android:layout_height="match_parent"
               android:orientation="vertical"
               android:gravity="center_horizontal"
-              tools:context=".services.aerlink.reminders.RemindersActivity"
+              tools:context="com.codegy.aerlink.services.aerlink.reminders.RemindersActivity"
               tools:deviceIds="wear_square">
 
     <include layout="@layout/merge_disconnected_info"
@@ -14,28 +14,41 @@
              android:layout_margin="20dp"
              tools:visibility="gone" />
 
-    <TextView
-            android:id="@+id/titleTextView"
-            android:paddingLeft="12dp"
-            android:paddingRight="12dp"
-            android:paddingTop="12dp"
-            android:paddingBottom="6dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="26sp"
-            android:fontFamily="sans-serif-condensed-light"
-            tools:text="Test title"/>
+    <include layout="@layout/merge_connection_error"
+             android:layout_height="match_parent"
+             android:layout_width="match_parent"
+             android:layout_margin="8dp"
+             android:visibility="gone" />
 
-    <View
+    <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="1px"
-            android:background="#333333"/>
+            android:layout_height="match_parent">
 
-    <ListView
-            android:id="@+id/listView"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_marginLeft="8dp"
-            android:divider="@null"/>
+        <TextView
+                android:id="@+id/titleTextView"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="8dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="20sp"
+                android:fontFamily="sans-serif-condensed"
+                tools:text="Test title"/>
+
+        <ListView
+                android:id="@+id/listView"
+                android:layout_below="@id/titleTextView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:divider="@null"
+                tools:listitem="@layout/list_item_reminder"/>
+
+        <include layout="@layout/merge_loading"
+                 android:layout_height="match_parent"
+                 android:layout_width="match_parent"
+                 android:visibility="gone" />
+
+    </RelativeLayout>
 
 </LinearLayout>

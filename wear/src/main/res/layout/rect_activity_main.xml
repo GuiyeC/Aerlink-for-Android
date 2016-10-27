@@ -8,60 +8,48 @@
         android:layout_height="match_parent"
         android:animateLayoutChanges="true"
         android:orientation="vertical"
-        android:background="#393939"
+        android:background="#002A4D"
         android:gravity="center"
-        tools:context=".MainActivity"
+        tools:context="com.codegy.aerlink.MainActivity"
         tools:deviceIds="wear_square">
 
     <LinearLayout
             android:id="@+id/connectionInfoLinearLayout"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingTop="8dp"
-            android:orientation="vertical"
-            android:gravity="center"
+            android:layout_height="40dp"
+            android:orientation="horizontal"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp"
+            android:gravity="center_vertical"
+            android:background="#003866"
             android:visibility="gone"
             tools:visibility="visible">
-
-        <LinearLayout
-                android:layout_width="match_parent"
+        <TextView
+                android:id="@+id/connectionInfoTextView"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingLeft="8dp"
-                android:paddingRight="8dp"
-                android:gravity="center">
-            <TextView
-                    android:id="@+id/connectionInfoTextView"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="start"
-                    android:text="Disconnected"
-                    android:textSize="19sp"
-                    android:textColor="@color/red"/>
-                <ImageView
-                        android:id="@+id/connectionInfoImageView"
-                        android:layout_width="wrap_content"
-                        android:layout_height="20dp"
-                        android:src="@drawable/status_disconnected"/>
-            <TextView
-                    android:id="@+id/batteryInfoTextView"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text="100%"
-                    android:textSize="15sp"
-                    android:textColor="@color/green"
-                    android:visibility="gone"/>
-        </LinearLayout>
-
-        <View
-                android:layout_width="match_parent"
-                android:layout_height="1px"
-                android:layout_marginLeft="5dp"
-                android:layout_marginRight="5dp"
-                android:layout_marginTop="6dp"
-                android:background="#666666"/>
+                android:layout_weight="1"
+                android:gravity="start"
+                android:text="@string/general_disconnected"
+                android:textSize="18sp"
+                android:textColor="@color/disconnected"
+                android:maxLines="1"/>
+        <ImageView
+                android:id="@+id/connectionInfoImageView"
+                android:layout_width="wrap_content"
+                android:layout_height="20dp"
+                android:layout_marginLeft="4dp"
+                android:layout_marginRight="4dp"
+                android:src="@drawable/status_disconnected"/>
+        <TextView
+                android:id="@+id/batteryInfoTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="100%"
+                android:textSize="16sp"
+                android:textColor="@color/connected"
+                android:visibility="gone"
+                tools:visibility="visible"/>
     </LinearLayout>
 
     <ScrollView
@@ -73,23 +61,23 @@
                 android:layout_height="wrap_content"
                 android:animateLayoutChanges="true"
                 android:orientation="vertical"
-                android:paddingTop="8dp"
-                android:paddingLeft="5dp"
-                android:paddingRight="5dp"
-                android:paddingBottom="8dp"
+                android:padding="8dp"
                 android:gravity="center">
 
             <android.support.v7.widget.CardView
                     android:id="@+id/playMediaCardView"
                     android:layout_gravity="center"
                     android:layout_width="match_parent"
-                    android:layout_height="38dp"
+                    android:layout_height="46dp"
+                    android:layout_marginTop="4dp"
                     android:foreground="?android:attr/selectableItemBackground"
                     android:clickable="true"
-                    card_view:cardCornerRadius="6dp"
-                    card_view:cardBackgroundColor="#1586dc"
+                    card_view:cardCornerRadius="23dp"
+                    card_view:cardBackgroundColor="@color/aerlink_blue"
                     android:onClick="startMedia"
-                    android:visibility="gone" card_view:cardElevation="3dp">
+                    android:visibility="gone"
+                    tools:visibility="visible"
+                    card_view:cardElevation="2dp">
 
                 <TextView
                         android:layout_width="match_parent"
@@ -104,10 +92,12 @@
             <android.support.v7.widget.CardView
                     android:layout_gravity="center"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    card_view:cardCornerRadius="6dp"
-                    card_view:cardBackgroundColor="#373737">
+                    android:layout_height="46dp"
+                    android:layout_marginTop="8dp"
+                    android:foreground="?android:attr/selectableItemBackground"
+                    card_view:cardCornerRadius="23dp"
+                    card_view:cardBackgroundColor="#0E3F66"
+                    card_view:cardElevation="0dp">
 
                 <Switch
                         android:id="@+id/serviceSwitch"
@@ -115,34 +105,33 @@
                         android:layout_height="match_parent"
                         android:layout_marginTop="5dp"
                         android:layout_marginBottom="5dp"
-                        android:layout_marginStart="8dp"
-                        android:layout_marginEnd="2dp"
-                        android:text="@string/ios_service"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="10dp"
+                        android:text="@string/app_name"
                         android:textColor="#fff"
                         android:textSize="20sp"
                         android:fontFamily="sans-serif-condensed"
-                        android:theme="@style/MaterialTheme"/>
+                        android:theme="@style/SwitchMaterialTheme"/>
             </android.support.v7.widget.CardView>
 
             <android.support.v7.widget.CardView
                     android:layout_gravity="center"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="46dp"
+                    android:layout_marginTop="8dp"
                     android:foreground="?android:attr/selectableItemBackground"
+                    card_view:cardCornerRadius="23dp"
+                    card_view:cardBackgroundColor="#0E3F66"
+                    card_view:cardElevation="0dp"
                     android:clickable="true"
-                    android:layout_marginTop="6dp"
-                    card_view:cardCornerRadius="6dp"
-                    card_view:cardBackgroundColor="#373737"
-                    android:onClick="goToSettings" android:visibility="gone">
+                    android:onClick="goToSettings"
+                    android:visibility="gone">
 
                 <TextView
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:gravity="start|center_vertical"
-                        android:layout_marginTop="7dp"
-                        android:layout_marginBottom="7dp"
-                        android:layout_marginStart="8dp"
-                        android:layout_marginEnd="8dp"
+                        android:gravity="center"
+                        android:layout_margin="6dp"
                         android:text="Settings"
                         android:textSize="20sp"
                         android:textColor="@color/white"/>

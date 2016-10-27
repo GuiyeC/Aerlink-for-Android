@@ -7,5 +7,6 @@ package com.codegy.aerlink.connection.characteristic;
 public interface CharacteristicSubscriber {
     void subscribeCharacteristic(CharacteristicIdentifier characteristicIdentifier);
     void onConnectionFailed();
+    void onSubscribingFailed();
     void onConnectionReady();
 }

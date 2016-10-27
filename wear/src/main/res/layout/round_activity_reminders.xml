@@ -5,7 +5,7 @@
               android:layout_height="match_parent"
               android:orientation="vertical"
               android:gravity="center_horizontal"
-              tools:context=".services.aerlink.reminders.RemindersActivity"
+              tools:context="com.codegy.aerlink.services.aerlink.reminders.RemindersActivity"
               tools:deviceIds="wear_round">
 
     <include layout="@layout/merge_disconnected_info"
@@ -14,30 +14,50 @@
              android:layout_margin="30dp"
              tools:visibility="gone" />
 
-    <TextView
-            android:id="@+id/titleTextView"
-            android:paddingLeft="38dp"
-            android:paddingRight="38dp"
-            android:paddingTop="30dp"
-            android:paddingBottom="4dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="26sp"
-            android:fontFamily="sans-serif-condensed-light"
-            tools:text="Test title"/>
+    <include layout="@layout/merge_connection_error"
+             android:layout_height="match_parent"
+             android:layout_width="match_parent"
+             android:layout_marginTop="12dp"
+             android:layout_marginRight="28dp"
+             android:layout_marginLeft="28dp"
+             android:layout_marginBottom="32dp"
+             android:visibility="gone" />
 
-    <View
-            android:layout_width="match_parent"
-            android:layout_height="1px"
-            android:background="#333333"/>
 
-    <ListView
-            android:id="@+id/listView"
+    <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_marginLeft="24dp"
-            android:layout_marginRight="12dp"
-            android:scrollbars="none"
-            android:divider="@null"/>
+            android:layout_height="match_parent">
+
+        <TextView
+                android:id="@+id/titleTextView"
+                android:layout_marginStart="38dp"
+                android:layout_marginEnd="38dp"
+                android:layout_marginTop="28dp"
+                android:layout_marginBottom="4dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="20sp"
+                android:fontFamily="sans-serif-condensed"
+                tools:text="Test title"/>
+
+        <ListView
+                android:id="@+id/listView"
+                android:layout_below="@id/titleTextView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingLeft="28dp"
+                android:paddingRight="28dp"
+                android:paddingBottom="32dp"
+                android:clipToPadding="false"
+                android:scrollbars="none"
+                android:divider="@null"
+                tools:listitem="@layout/list_item_reminder"/>
+
+        <include layout="@layout/merge_loading"
+                 android:layout_height="match_parent"
+                 android:layout_width="match_parent"
+                 android:visibility="gone" />
+
+    </RelativeLayout>
 
 </LinearLayout>

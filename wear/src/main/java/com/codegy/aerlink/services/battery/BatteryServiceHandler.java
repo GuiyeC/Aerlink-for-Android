@@ -50,6 +50,10 @@ public class BatteryServiceHandler extends ServiceHandler {
 
     public void setBatteryObserver(BatteryObserver batteryObserver) {
         this.batteryObserver = batteryObserver;
+
+        if (batteryObserver != null) {
+            batteryObserver.onBatteryLevelChanged(batteryLevel);
+        }
     }
 
     @Override

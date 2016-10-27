@@ -30,6 +30,7 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
 
     private Context mContext;
     private Callback mCallback;
+    private BluetoothDevice mDevice;
 
 
     private BluetoothAdapter mBluetoothAdapter;
@@ -80,7 +81,6 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
             return;
         }
 
-
         if (subscriberThread != null) {
             subscriberThread.kill();
             subscriberThread = null;
@@ -92,13 +92,14 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
             commandQueue.setReady(false);
         }
 
-        mCallback.onConnectionStateChange(ConnectionState.Disconnected);
+        // mCallback.onConnectionStateChange(ConnectionState.Disconnected);
     }
 
     private void disconnectDevice() {
         try {
             if (mBluetoothGatt != null) {
                 mBluetoothGatt.disconnect();
+                mBluetoothGatt.close();
             }
         }
         catch (Exception e) {
@@ -112,6 +113,8 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
     public void connectToDevice(final BluetoothDevice device) {
         disconnectDevice();
 
+        mDevice = device;
+
         if (subscriberThread == null) {
             subscriberThread = new CharacteristicSubscriberThread(this);
             subscriberThread.start();
@@ -121,7 +124,7 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
         }
 
         Handler handler = new Handler(mContext.getMainLooper());
-        handler.post(new Runnable() {
+        handler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 mBluetoothGatt = device.connectGatt(mContext, true, mBluetoothGattCallback);
@@ -129,9 +132,33 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
                 Log.i(LOG_TAG, "Connecting...: " + device.getName());
                 mCallback.onConnectionStateChange(ConnectionState.Connecting);
             }
-        });
+        }, 2000);
+    }
 
-        //scheduleConnectingTimeoutTask();
+    public void tryToReconnect() {
+        if (mCallback == null) {
+            return;
+        }
+
+        if (mDevice == null) {
+            mCallback.onConnectionStateChange(ConnectionState.Disconnected);
+            return;
+        }
+
+        Log.w(LOG_TAG, "Reconnecting");
+
+        connectToDevice(mDevice);
+    }
+
+    private boolean changeGattMtu(int mtu) {
+        int retry = 5;
+        boolean ok = false;
+        while (!ok && retry > 0) {
+            ok = mBluetoothGatt.requestMtu(mtu);
+            retry--;
+        }
+
+        return ok;
     }
 
     private BluetoothGatt mBluetoothGatt;
@@ -141,25 +168,25 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             super.onConnectionStateChange(gatt, status, newState);
             Log.d(LOG_TAG, "onConnectionStateChange: " + status + " -> " + newState);
-            // Check if already closed
-            if (mCallback == null) {
-                return;
-            }
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 switch (newState) {
                     case BluetoothProfile.STATE_CONNECTED:
-                        gatt.discoverServices();
+                        if (mCallback != null) {
+                            gatt.discoverServices();
 
-                        subscriberThread.setDiscovering();
+                            subscriberThread.setDiscovering();
+                        }
                         break;
                     case BluetoothProfile.STATE_DISCONNECTED:
                         Log.e(LOG_TAG, "Disconnected");
                         gatt.close();
-                        mBluetoothGatt = null;
+                        //mBluetoothGatt = null;
                         Log.w(LOG_TAG, "Closed");
 
                         reset();
+
+                        tryToReconnect();
                         break;
                 }
             }
@@ -167,12 +194,22 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
                 Log.wtf(LOG_TAG, "ON CONNECTION STATE CHANGED ERROR: " + status);
 
                 gatt.close();
-                mBluetoothGatt = null;
-                Log.w(LOG_TAG, "Closed");
+                //mBluetoothGatt = null;
 
                 //BluetoothUtils.resetBondedDevices(mBluetoothAdapter);
+                BluetoothUtils.disableBluetooth(mBluetoothAdapter);
 
                 reset();
+
+                mBluetoothAdapter.enable();
+
+                Handler handler = new Handler(mContext.getMainLooper());
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        tryToReconnect();
+                    }
+                }, 3000);
             }
         }
 
@@ -186,7 +223,9 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
             }
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                mCallback.onReadyToSubscribe(gatt);
+                if (!changeGattMtu(512)) {
+                    mCallback.onReadyToSubscribe(gatt);
+                }
             }
         }
 
@@ -194,7 +233,7 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
             super.onDescriptorWrite(gatt, descriptor, status);
             // Check if already closed
-            if (mCallback == null) {
+            if (mCallback == null || gatt != mBluetoothGatt) {
                 return;
             }
 
@@ -211,7 +250,10 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
                 BluetoothUtils.unpairDevice(gatt.getDevice());
                 //BluetoothUtils.disableBluetooth(mBluetoothAdapter);
 
-                reset();
+                disconnectDevice();
+
+//                reset();
+//                tryToReconnect();
             }
         }
 
@@ -264,6 +306,16 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
             
             mCallback.onCharacteristicChanged(characteristic);
         }
+
+        @Override
+        public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
+            super.onMtuChanged(gatt, mtu, status);
+            Log.d(LOG_TAG, "onMtuChanged: " + mtu + " status: " + status);
+
+            if (gatt == mBluetoothGatt) {
+                mCallback.onReadyToSubscribe(gatt);
+            }
+        }
     };
 
     private BluetoothGattCharacteristic findCharacteristic(UUID serviceUUID, UUID characteristicUUID) {
@@ -315,6 +367,7 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
                         // mBluetoothGattCharacteristic.setWriteType(command.getWriteType());
 
                         characteristic.setValue(finalCommand.getPacket());
+                        characteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
                         boolean result = mBluetoothGatt.writeCharacteristic(characteristic);
                         Log.d(LOG_TAG, "Started writing command: " + result);
                     }
@@ -382,6 +435,9 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
     @Override
     public void onConnectionFailed() {
         Log.w(LOG_TAG, "Connecting timed out");
+        if (mCallback == null) {
+            return;
+        }
 
         if (mBluetoothGatt != null && mBluetoothGatt.getDevice() != null) {
             BluetoothDevice device = mBluetoothGatt.getDevice();
@@ -392,8 +448,58 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
                 Log.w(LOG_TAG, "Waiting for bond...");
                 mBondsFailed++;
 
-                // If the bond is not successful do a connection hard reset
-                mConnectionsFailed = 10;
+                subscriberThread.setConnecting();
+            }
+            else {
+                mBondsFailed = 0;
+                mConnectionsFailed++;
+
+                BluetoothUtils.disableBluetooth(mBluetoothAdapter);
+
+                disconnectDevice();
+                reset();
+                mDevice = null;
+
+                Handler handler = new Handler(mContext.getMainLooper());
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        tryToReconnect();
+                    }
+                }, 2000);
+            }
+        }
+        else {
+            Log.w(LOG_TAG, "Start scanning again");
+
+            reset();
+            mDevice = null;
+
+            Handler handler = new Handler(mContext.getMainLooper());
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    tryToReconnect();
+                }
+            }, 2000);
+        }
+    }
+
+    @Override
+    public void onSubscribingFailed() {
+        Log.w(LOG_TAG, "Subscribing timed out");
+        if (mCallback == null) {
+            return;
+        }
+
+        if (mBluetoothGatt != null && mBluetoothGatt.getDevice() != null) {
+            BluetoothDevice device = mBluetoothGatt.getDevice();
+            int bondState = device.getBondState();
+
+            // Don't do anything while bonding
+            if (bondState == BluetoothDevice.BOND_BONDING && mBondsFailed < 30) {
+                Log.w(LOG_TAG, "Waiting for bond...");
+                mBondsFailed++;
 
                 subscriberThread.setConnecting();
             }
@@ -411,13 +517,32 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
 
                 BluetoothUtils.disableBluetooth(mBluetoothAdapter);
 
+                disconnectDevice();
                 reset();
+                mDevice = null;
+
+                Handler handler = new Handler(mContext.getMainLooper());
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        tryToReconnect();
+                    }
+                }, 2000);
             }
         }
         else {
             Log.w(LOG_TAG, "Start scanning again");
 
             reset();
+            mDevice = null;
+
+            Handler handler = new Handler(mContext.getMainLooper());
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    tryToReconnect();
+                }
+            }, 2000);
         }
     }
 

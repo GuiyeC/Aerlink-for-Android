@@ -15,20 +15,21 @@
 -->
 <resources>
 
-    <string name="app_name">Aerlink</string>
-    <string name="ios_service">Servicio iOS</string>
-
-
     <string name="general_connected">Conectado</string>
+    <string name="general_connecting">Conectando…</string>
     <string name="general_disconnected">Desconectado</string>
     <string name="general_disconnected_help">Conéctate con \"Aerlink\" en tu dispositivo iOS.</string>
+
+    <string name="general_connection_error">Error</string>
+    <string name="general_connection_error_help">Abre \"Aerlink\" en tu dispositivo iOS antes de reintentar.</string>
+    <string name="general_try_again">Reintentar</string>
+
     <string name="general_low_battery">Batería baja</string>
-    <string name="general_battery_level">Batería</string>
 
+    <string name="take_photo_title">Hacer una foto</string>
+    <string name="take_photo_text">Toca para empezar a capturar</string>
 
-    <string name="settings_black_notifications">Notificaciones negras</string>
     <string name="settings_battery_updates">Info de batería</string>
-
 
     <string name="help_title_no_bluetooth">Sin bluetooth</string>
     <string name="help_no_bluetooth">El Bluetooth no está disponible.</string>
@@ -38,7 +39,6 @@
 
     <string name="help">Ayuda</string>
     <string name="help_how_to">- Instala y abre \"Aerlink\" en tu dispositivo iOS.</string>
-
 
     <string name="camera_closed">Cámara cerrada.\nAbre la cámara en \"Aerlink\" en tu dispositivo iOS.</string>
 

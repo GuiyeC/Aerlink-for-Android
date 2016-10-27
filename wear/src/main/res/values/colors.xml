@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="low_battery">#dc3d35</color>
+    <color name="aerlink_blue">#2196f3</color>
+    <color name="low_battery">#DC3D35</color>
+    <color name="connected">#6EFF72</color>
+    <color name="connecting">#FFC107</color>
+    <color name="disconnected">#F44336</color>
 </resources>

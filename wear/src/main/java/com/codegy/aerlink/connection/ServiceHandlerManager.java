@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothGattService;
 import android.content.Context;
 import android.util.Log;
 import com.codegy.aerlink.services.aerlink.ALSConstants;
+import com.codegy.aerlink.services.aerlink.UtilsServiceHandler;
 import com.codegy.aerlink.services.battery.BASConstants;
 import com.codegy.aerlink.services.battery.BatteryServiceHandler;
 import com.codegy.aerlink.services.aerlink.cameraremote.CameraRemoteServiceHandler;
@@ -150,12 +151,16 @@ public class ServiceHandlerManager {
             if (!mServiceHandlers.containsKey(CameraRemoteServiceHandler.class)) {
                 mServiceHandlers.put(CameraRemoteServiceHandler.class, new CameraRemoteServiceHandler(mContext, mServiceUtils));
             }
+            if (!mServiceHandlers.containsKey(UtilsServiceHandler.class)) {
+                mServiceHandlers.put(UtilsServiceHandler.class, new UtilsServiceHandler(mContext, mServiceUtils));
+            }
         }
         else {
             Log.e(LOG_TAG, "Aerlink Service unavailable");
 
             mServiceHandlers.remove(ReminderServiceHandler.class);
             mServiceHandlers.remove(CameraRemoteServiceHandler.class);
+            mServiceHandlers.remove(UtilsServiceHandler.class);
         }
 
         Queue<CharacteristicIdentifier> requests = new LinkedList<>();
@@ -184,4 +189,5 @@ public class ServiceHandlerManager {
             }
         }
     }
+
 }

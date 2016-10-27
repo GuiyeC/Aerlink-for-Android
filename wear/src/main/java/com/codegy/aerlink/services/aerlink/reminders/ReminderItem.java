@@ -6,17 +6,22 @@ package com.codegy.aerlink.services.aerlink.reminders;
 public class ReminderItem {
 
     private String title;
+    private String identifier;
     private boolean completed;
     private int position;
 
-    public ReminderItem(String title, int position) {
-        this.completed = title.charAt(0) == 'X';
-        this.title = title.substring(1);
-        this.position = position;
+    public ReminderItem(int completed, String title, String identifier) {
+        this.completed = completed == 1;
+        this.title = title;
+        this.identifier = identifier;
     }
 
     public String getTitle() {
         return title;
+    }
+
+    public String getIdentifier() {
+        return identifier;
     }
 
     public boolean isCompleted() {

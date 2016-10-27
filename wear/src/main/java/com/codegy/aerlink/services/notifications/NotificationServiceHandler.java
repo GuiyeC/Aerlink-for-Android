@@ -3,10 +3,7 @@ package com.codegy.aerlink.services.notifications;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
+import android.content.*;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Icon;
@@ -14,10 +11,13 @@ import android.util.Log;
 import com.codegy.aerlink.Constants;
 import com.codegy.aerlink.R;
 import com.codegy.aerlink.connection.command.Command;
+import com.codegy.aerlink.services.aerlink.ALSConstants;
 import com.codegy.aerlink.utils.ScheduledTask;
 import com.codegy.aerlink.utils.ServiceHandler;
 import com.codegy.aerlink.utils.ServiceUtils;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,7 +30,7 @@ public class NotificationServiceHandler extends ServiceHandler {
 
     private static final String LOG_TAG = NotificationServiceHandler.class.getSimpleName();
 
-    private static final int NOTIFICATION_REGULAR = 1000;
+    public static final int NOTIFICATION_REGULAR = 1000;
     private static final long VIBRATION_PATTERN[] = { 100, 400, 200, 40, 40, 40, 70, 200 };
     private static final long SILENT_VIBRATION_PATTERN[] = { 200, 110 };
 
@@ -245,22 +245,10 @@ public class NotificationServiceHandler extends ServiceHandler {
     private void onNotificationReceived(NotificationData notificationData) {
         Log.d(LOG_TAG, "Notification received");
 
-        Bitmap background;
-        if (notificationData.getBackground() != -1) {
-            background = BitmapFactory.decodeResource(mContext.getResources(), notificationData.getBackground());
-        }
-        else {
-            background = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
-            background.eraseColor(notificationData.getBackgroundColor());
-        }
-
         // Build pending intent for when the user swipes the card away
         Intent deleteIntent = new Intent(Constants.IA_DELETE);
         deleteIntent.putExtra(Constants.IE_NOTIFICATION_UID, notificationData.getUID());
         PendingIntent deleteAction = PendingIntent.getBroadcast(mContext, mNotificationNumber, deleteIntent, 0);
-
-        Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
-                .setBackground(background);
 
         Notification.Builder notificationBuilder = new Notification.Builder(mContext)
                 .setContentTitle(notificationData.getTitle())
@@ -268,8 +256,44 @@ public class NotificationServiceHandler extends ServiceHandler {
                 .setSmallIcon(notificationData.getAppIcon())
                 .setGroup(notificationData.getAppId())
                 .setDeleteIntent(deleteAction)
-                .setPriority(Notification.PRIORITY_MAX)
-                .extend(wearableExtender);
+                .setPriority(Notification.PRIORITY_MAX);
+
+
+        if (notificationData.isUnknown() && !notificationData.getAppId().isEmpty()) {
+            Bitmap bitmap = loadImageFromStorage(notificationData.getAppId());
+            if (bitmap != null) {
+                Log.i(LOG_TAG, "Icon loaded");
+                Icon icon = Icon.createWithBitmap(bitmap);
+                notificationBuilder.setSmallIcon(icon);
+            }
+            else {
+                Bitmap background = BitmapFactory.decodeResource(mContext.getResources(), R.drawable.bg_notification);
+
+                Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
+                        .setBackground(background);
+                notificationBuilder.extend(wearableExtender);
+
+                Log.i(LOG_TAG, "Requesting icon");
+                String dataString = (char) 0x01 + notificationData.getAppId();
+                Command iconCommand = new Command(ALSConstants.SERVICE_UUID, ALSConstants.CHARACTERISTIC_UTILS_ACTION, dataString.getBytes());
+
+                mServiceUtils.addCommandToQueue(iconCommand);
+            }
+        }
+        else {
+            Bitmap background;
+            if (notificationData.getBackground() != -1) {
+                background = BitmapFactory.decodeResource(mContext.getResources(), notificationData.getBackground());
+            }
+            else {
+                background = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+                background.eraseColor(notificationData.getBackgroundColor());
+            }
+
+            Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
+                    .setBackground(background);
+            notificationBuilder.extend(wearableExtender);
+        }
 
         // Build positive action intent only if available
         if (notificationData.getPositiveAction() != null) {
@@ -324,7 +348,7 @@ public class NotificationServiceHandler extends ServiceHandler {
 
     private void scheduleClearOldNotificationsTask() {
         if (mClearOldNotificationsTask == null) {
-            mClearOldNotificationsTask = new ScheduledTask(700, mContext.getMainLooper(), new Runnable() {
+            mClearOldNotificationsTask = new ScheduledTask(1000, mContext.getMainLooper(), new Runnable() {
                 @Override
                 public void run() {
                     Log.i(LOG_TAG, "Clear old notifications");
@@ -344,6 +368,22 @@ public class NotificationServiceHandler extends ServiceHandler {
         if (mClearOldNotificationsTask != null) {
             mClearOldNotificationsTask.cancel();
         }
+    }
+
+    private Bitmap loadImageFromStorage(String bundleIdentifier) {
+        ContextWrapper cw = new ContextWrapper(mContext);
+        File directory = cw.getDir("AppIconDir", Context.MODE_PRIVATE);
+        File path = new File(directory, bundleIdentifier+".png");
+        Bitmap bitmap = null;
+
+        try {
+            bitmap = BitmapFactory.decodeStream(new FileInputStream(path));
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return bitmap;
     }
 
     private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {

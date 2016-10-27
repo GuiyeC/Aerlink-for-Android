@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- <string name="app_name">iOS Wear Connect</string> -->
-    <string name="app_name">Aerlink</string>
 
     <string name="title">시계에서 앱을 열어 주세요</string>
-    <string name="description">\"iOS 서비스\"를 시계에서 켜 주세요. 시계의 홈 화면에서 카드가 나타나 도움을 드릴 것입니다.</string>
-    <string name="twitter_help">Twitter: @GuiyeC</string>
+    <string name="description">\"Aerlink 서비스\"를 시계에서 켜 주세요. 시계의 홈 화면에서 카드가 나타나 도움을 드릴 것입니다.</string>
 </resources>

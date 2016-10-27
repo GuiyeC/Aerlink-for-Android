@@ -8,12 +8,13 @@
               android:gravity="center" >
 
     <TextView
+            android:id="@+id/connectionInfoTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
             android:text="@string/general_disconnected"
             android:textSize="22sp"
-            android:textColor="@color/red"/>
+            android:textColor="@color/disconnected"/>
 
     <TextView
             android:layout_width="wrap_content"

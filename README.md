@@ -1,8 +1,6 @@
 Aerlink: Wear Connect for iOS
 ===================================
 
-TODO: Update README.md
-
 This app uses BLE services available on iOS devices to manage notifications, control music playback and check the iOS device battery level, without jailbreaking the iOS device or rooting the Android Wear device. This app is not a hack and has zero risks on either device.
 
 - [Apple Notification Center Service (ANCS)](https://developer.apple.com/library/ios/documentation/CoreBluetooth/Reference/AppleNotificationCenterServiceSpecification/Introduction/Introduction.html)
@@ -18,7 +16,7 @@ Getting Started
 2. Install [Aerlink](https://itunes.apple.com/app/id995058068) on your iOS device.
 3. Launch the app on your iOS Device.
 4. Launch the app on your watch.
-5. Switch ON the iOS Service.
+5. Switch ON "Aerlink".
 6. The watch should connect to the iOS device.
 
 App install
@@ -52,6 +50,14 @@ Community Support
 
 Change log
 --------------
+
++ 3.0
+ - Major changes.
+ - Better connection and reconnection.
+ - Improved design.
+ - Reminders and Camera Remote greatly improved (Requires Aerlink on the iOS device).
+ - Shows correct color for every notification (Requires Aerlink on the iOS device).
+ - Time sync with the iOS device (Requires rooted watch).
 
 + 2.0
  - Built from scratch.

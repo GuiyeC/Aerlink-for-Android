@@ -1,9 +1,16 @@
 package com.codegy.aerlink.services.aerlink.cameraremote;
 
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.graphics.drawable.Icon;
 import android.util.Log;
+import com.codegy.aerlink.R;
 import com.codegy.aerlink.services.aerlink.ALSConstants;
 import com.codegy.aerlink.connection.command.Command;
 import com.codegy.aerlink.utils.PacketProcessor;
@@ -45,11 +52,21 @@ public class CameraRemoteServiceHandler extends ServiceHandler {
     }
 
 
-    public void takePicture() {
+    public void requestState(Runnable failure) {
         Command cameraCommand = new Command(ALSConstants.SERVICE_UUID, ALSConstants.CHARACTERISTIC_CAMERA_REMOTE_ACTION, new byte[] {
-                (byte) 0x01,
+                (byte) 0x02,
+        });
+        cameraCommand.setFailureBlock(failure);
+
+        mServiceUtils.addCommandToQueue(cameraCommand);
+    }
+
+    public void takePicture(Runnable failure) {
+        Command cameraCommand = new Command(ALSConstants.SERVICE_UUID, ALSConstants.CHARACTERISTIC_CAMERA_REMOTE_ACTION, new byte[] {
+                (byte) 0x03,
         });
         cameraCommand.setImportance(Command.IMPORTANCE_MIN);
+        cameraCommand.setFailureBlock(failure);
 
         mServiceUtils.addCommandToQueue(cameraCommand);
     }
@@ -67,42 +84,39 @@ public class CameraRemoteServiceHandler extends ServiceHandler {
             cameraRemoteCallback.onCameraChangedOpen(cameraOpen);
         }
 
-/*
         if (cameraOpen) {
-            Bitmap background = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
-            background.eraseColor(0);
-
-            Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
-                    .setBackground(background)
-                    .setContentAction(0);
+            Bitmap background = BitmapFactory.decodeResource(mContext.getResources(), R.drawable.bg_camera);
 
             Intent cameraIntent = new Intent(mContext, CameraRemoteActivity.class);
             cameraIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            PendingIntent cameraPendingIntent = PendingIntent.getBroadcast(mContext, 0, cameraIntent, 0);
+            PendingIntent cameraPendingIntent = PendingIntent.getActivity(mContext, 0, cameraIntent, 0);
 
+            Icon cameraIcon = Icon.createWithResource(mContext, R.drawable.nic_camera);
             Notification.Action cameraAction = new Notification.Action.Builder(
-                    R.mipmap.ic_launcher_camera,
+                    cameraIcon,
                     "Camera",
                     cameraPendingIntent
             ).build();
 
-            String title = "Hacer una foto";
-            String text = "Toca para empezar a capturar";
+            Notification.WearableExtender wearableExtender = new Notification.WearableExtender()
+                    .setBackground(background)
+                    .setContentIcon(R.drawable.nic_camera)
+                    .setHintHideIcon(true)
+                    .setContentAction(0)
+                    .addAction(cameraAction);
 
             Notification.Builder builder = new Notification.Builder(mContext)
-                    .setSmallIcon(R.mipmap.ic_launcher_camera)
-                    .setContentTitle(title)
-                    .setContentText(text)
+                    .setSmallIcon(cameraIcon)
+                    .setContentTitle(mContext.getString(R.string.take_photo_title))
+                    .setContentText(mContext.getString(R.string.take_photo_text))
                     .setPriority(Notification.PRIORITY_MAX)
-                    .extend(wearableExtender)
-                    .addAction(cameraAction);
+                    .extend(wearableExtender);
 
             mServiceUtils.notify(null, NOTIFICATION_CAMERA, builder.build());
         }
         else {
             mServiceUtils.cancelNotification(null, NOTIFICATION_CAMERA);
         }
-        */
     }
 
     public boolean isCameraOpen() {
@@ -112,6 +126,7 @@ public class CameraRemoteServiceHandler extends ServiceHandler {
 
     @Override
     public void reset() {
+        cameraOpen = false;
         mPacketProcessor = null;
     }
 
@@ -125,7 +140,6 @@ public class CameraRemoteServiceHandler extends ServiceHandler {
         List<String> characteristics = new ArrayList<>();
 
         characteristics.add(ALSConstants.CHARACTERISTIC_CAMERA_REMOTE_DATA);
-        characteristics.add(ALSConstants.CHARACTERISTIC_CAMERA_REMOTE_ACTION);
 
         return characteristics;
     }
@@ -133,59 +147,49 @@ public class CameraRemoteServiceHandler extends ServiceHandler {
     @Override
     public boolean canHandleCharacteristic(BluetoothGattCharacteristic characteristic) {
         String characteristicUUID = characteristic.getUuid().toString().toLowerCase();
-        return characteristicUUID.equals(ALSConstants.CHARACTERISTIC_CAMERA_REMOTE_DATA) | characteristicUUID.equals(ALSConstants.CHARACTERISTIC_CAMERA_REMOTE_ACTION);
+        return characteristicUUID.equals(ALSConstants.CHARACTERISTIC_CAMERA_REMOTE_DATA);
     }
 
     @Override
     public void handleCharacteristic(BluetoothGattCharacteristic characteristic) {
         byte[] packet = characteristic.getValue();
 
-        switch (characteristic.getUuid().toString().toLowerCase()) {
-            case ALSConstants.CHARACTERISTIC_CAMERA_REMOTE_DATA:
-                if (mPacketProcessor == null) {
-                    mPacketProcessor = new PacketProcessor(packet);
+        if (mPacketProcessor == null) {
+            mPacketProcessor = new PacketProcessor(packet);
 
+            switch (mPacketProcessor.getAction()) {
+                case 0x01:
                     if (mPacketProcessor.getStatus() != 0x01) {
                         mPacketProcessor = null;
                     }
                     else if (cameraRemoteCallback != null) {
                         cameraRemoteCallback.onImageTransferStarted();
                     }
-                }
-                else {
-                    mPacketProcessor.process(packet);
-                }
-
-                if (mPacketProcessor != null && mPacketProcessor.isFinished()) {
-                    Bitmap cameraImage = mPacketProcessor.getBitmapValue();
-
-                    if (cameraImage != null && cameraRemoteCallback != null) {
-                        cameraRemoteCallback.onImageTransferFinished(cameraImage);
-                    }
-
+                    break;
+                case 0x02:
+                    setCameraOpen(mPacketProcessor.getStatus() == 0x01);
                     mPacketProcessor = null;
-                }
-
-                break;
-            case ALSConstants.CHARACTERISTIC_CAMERA_REMOTE_ACTION:
-                try {
-                    switch (packet[0]) {
-                        case 0x01:
-                            setCameraOpen(packet[1] == 0x01);
-
-                            break;
-                        case 0x02:
-                            if (cameraRemoteCallback != null) {
-                                cameraRemoteCallback.onCountdownStarted(packet[1]);
-                            }
-                            break;
+                    return;
+                case 0x03:
+                    if (cameraRemoteCallback != null) {
+                        cameraRemoteCallback.onCountdownStarted(mPacketProcessor.getStatus());
                     }
-                }
-                catch (Exception e) {
-                    e.printStackTrace();
-                }
+                    mPacketProcessor = null;
+                    return;
+            }
+        }
+        else {
+            mPacketProcessor.process(packet);
+        }
 
-                break;
+        if (mPacketProcessor != null && mPacketProcessor.isFinished()) {
+            Bitmap cameraImage = mPacketProcessor.getBitmapValue();
+
+            if (cameraImage != null && cameraRemoteCallback != null) {
+                cameraRemoteCallback.onImageTransferFinished(cameraImage);
+            }
+
+            mPacketProcessor = null;
         }
     }
 

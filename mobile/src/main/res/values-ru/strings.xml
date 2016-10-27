@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Aerlink</string>
 
     <string name="title">Откройте приложение на Ваших часах</string>
-    <string name="description">Включите опцию \"iOS Service\". Карточка на домашнем экране поможет синхронизироваться с телефоном.</string>
-    <string name="twitter_help">Twitter: @GuiyeC</string>
+    <string name="description">Включите опцию \"Aerlink\". Карточка на домашнем экране поможет синхронизироваться с
+        телефоном.
+    </string>
 </resources>
