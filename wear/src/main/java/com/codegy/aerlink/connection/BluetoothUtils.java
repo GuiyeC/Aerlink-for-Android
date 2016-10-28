@@ -73,6 +73,22 @@ public class BluetoothUtils {
         }
     }
 
+    public static void restartBluetooth(BluetoothAdapter bluetoothAdapter) {
+        try {
+            if (bluetoothAdapter != null) {
+                if (bluetoothAdapter.isEnabled()) {
+                    bluetoothAdapter.disable();
+                }
+                bluetoothAdapter.enable();
+
+                Log.d(LOG_TAG, "Disabling bluetooth");
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void disableBluetooth(BluetoothAdapter bluetoothAdapter) {
         try {
             if (bluetoothAdapter != null && bluetoothAdapter.isEnabled()) {

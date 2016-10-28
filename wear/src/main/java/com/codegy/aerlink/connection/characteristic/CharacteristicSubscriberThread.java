@@ -18,6 +18,7 @@ public class CharacteristicSubscriberThread extends Thread {
         Connecting,
         Discovering,
         Subscribing,
+        Bonding,
         Ready
     }
 
@@ -59,6 +60,10 @@ public class CharacteristicSubscriberThread extends Thread {
                             state = State.ErrorSubscribing;
                             lock.wait(2000);
                             break;
+                        case Bonding:
+                            state = State.ErrorSubscribing;
+                            lock.wait(5000);
+                            break;
                         case Subscribing:
                             Log.d(LOG_TAG, "Subscribe Requests: " + (subscribeRequests == null ? -1 :subscribeRequests.size()));
 
@@ -67,7 +72,7 @@ public class CharacteristicSubscriberThread extends Thread {
                                 subscriber.subscribeCharacteristic(characteristic);
 
                                 state = State.ErrorSubscribing;
-                                lock.wait(2000);
+                                lock.wait(3000);
 
                                 break;
                             }
@@ -106,7 +111,7 @@ public class CharacteristicSubscriberThread extends Thread {
             state = State.Connecting;
 
             wait = false;
-            lock.notifyAll();
+            lock.notify();
         }
     }
 
@@ -115,7 +120,16 @@ public class CharacteristicSubscriberThread extends Thread {
             state = State.Discovering;
 
             wait = false;
-            lock.notifyAll();
+            lock.notify();
+        }
+    }
+
+    public void setBonding() {
+        synchronized(lock) {
+            state = State.Bonding;
+
+            wait = false;
+            lock.notify();
         }
     }
 
@@ -130,7 +144,7 @@ public class CharacteristicSubscriberThread extends Thread {
             }
 
             wait = false;
-            lock.notifyAll();
+            lock.notify();
         }
     }
 
@@ -151,7 +165,7 @@ public class CharacteristicSubscriberThread extends Thread {
             }
 
             wait = false;
-            lock.notifyAll();
+            lock.notify();
         }
     }
 

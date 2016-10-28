@@ -22,7 +22,7 @@
              android:layout_marginRight="@dimen/connection_error_margin_side"
              android:layout_marginLeft="@dimen/connection_error_margin_side"
              android:layout_marginBottom="@dimen/connection_error_margin_bottom"
-             android:visibility="visible" />
+             android:visibility="gone" />
 
     <RelativeLayout
             android:layout_width="match_parent"

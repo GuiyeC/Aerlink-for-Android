@@ -160,10 +160,10 @@ public class DiscoveryManager {
             BluetoothDevice device = result.getDevice();
             String deviceName = device != null ? device.getName() : null;
 
-            if (deviceName != null && mAllowedDevices.contains(deviceName)) {
+            if (mScanning && deviceName != null && mAllowedDevices.contains(deviceName)) {
                 mCallback.onDeviceDiscovery(device);
 
-                stopScanning();
+                stopDiscovery();
             }
         }
 
