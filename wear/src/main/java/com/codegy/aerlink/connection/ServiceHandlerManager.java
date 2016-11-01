@@ -142,7 +142,7 @@ public class ServiceHandlerManager {
         }
 
         BluetoothGattService aerlinkService = bluetoothGatt.getService(ALSConstants.SERVICE_UUID);
-        if (aerlinkService != null) {
+        if (aerlinkService != null && aerlinkService.getCharacteristics().size() == 6) {
             Log.i(LOG_TAG, "Aerlink Service available");
 
             if (!mServiceHandlers.containsKey(ReminderServiceHandler.class)) {

@@ -210,9 +210,7 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
 
                 // 8 means time out, don't restart bluetooth, just reconnect when possible
                 if (status != 8) {
-                    //BluetoothUtils.resetBondedDevices(mBluetoothAdapter);
                     mDevice = null;
-                    BluetoothUtils.disableBluetooth(mBluetoothAdapter);
                     return;
                 }
 
@@ -464,10 +462,10 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
                 mBondsFailed = 0;
                 mConnectionsFailed++;
 
-                BluetoothUtils.restartBluetooth(mBluetoothAdapter);
-
                 if (mConnectionsFailed%3 == 0) {
                     mDevice = null;
+
+                    BluetoothUtils.disableBluetooth(mBluetoothAdapter);
                 }
 
                 tryToReconnect();
@@ -512,10 +510,10 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
                     BluetoothUtils.resetBondedDevices(mBluetoothAdapter);
                 }
 
-                BluetoothUtils.restartBluetooth(mBluetoothAdapter);
-
                 if (mConnectionsFailed%3 == 0) {
                     mDevice = null;
+
+                    BluetoothUtils.disableBluetooth(mBluetoothAdapter);
                 }
 
                 tryToReconnect();
