@@ -96,7 +96,7 @@
                     android:layout_marginTop="8dp"
                     android:foreground="?android:attr/selectableItemBackground"
                     card_view:cardCornerRadius="23dp"
-                    card_view:cardBackgroundColor="#0E3F66"
+                    card_view:cardBackgroundColor="#003866"
                     card_view:cardElevation="0dp">
 
                 <Switch
@@ -142,7 +142,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:gravity="center"
-                    android:textColor="#44ffffff"
+                    android:textColor="#598ab3"
                     android:text="@string/app_version"/>
 
         </LinearLayout>

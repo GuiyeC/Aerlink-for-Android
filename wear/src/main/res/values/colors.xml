@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="aerlink_blue">#2196f3</color>
+    <color name="aerlink_blue">#0085F2</color>
     <color name="low_battery">#DC3D35</color>
     <color name="connected">#6EFF72</color>
     <color name="connecting">#FFC107</color>

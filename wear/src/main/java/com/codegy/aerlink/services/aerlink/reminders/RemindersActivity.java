@@ -136,6 +136,11 @@ public class RemindersActivity extends AerlinkActivity implements ReminderServic
     }
 
     @Override
+    protected int getTimeOutPeriod() {
+        return 6000;
+    }
+
+    @Override
     public void onDataTransferStarted() {
         cancelTimeOutTask();
     }

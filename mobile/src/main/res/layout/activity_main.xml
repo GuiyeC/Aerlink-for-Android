@@ -26,7 +26,7 @@
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceMedium"
             android:text="@string/title"
-            android:textColor="#8cc6ff"
+            android:textColor="#80c6ff"
             android:gravity="center"
             android:textSize="19sp"
             android:layout_below="@+id/imageView"
@@ -38,21 +38,20 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/description"
-                android:textColor="#628ab3"
+                android:textColor="#598ab3"
                 android:gravity="center"
                 android:textSize="16sp"
                 android:layout_below="@+id/textView"
                 android:layout_marginTop="10dp"
                 android:layout_centerHorizontal="true" />
 
-        <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/twitter_help"
-                android:textColor="#77a8d9"
-                android:gravity="center"
-                android:textSize="17sp"
-                android:layout_alignParentBottom="true"
-                android:layout_centerHorizontal="true" />
+    <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/twitter_help"
+            android:textColor="#6ca8d9"
+            android:gravity="center"
+            android:textSize="17sp"
+            android:layout_alignParentBottom="true" android:layout_centerHorizontal="true" android:id="@+id/textView2"/>
 
 </RelativeLayout>

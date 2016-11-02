@@ -99,6 +99,11 @@ public class CalendarsActivity extends AerlinkActivity implements ReminderServic
     }
 
     @Override
+    protected int getTimeOutPeriod() {
+        return 6000;
+    }
+
+    @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
         ReminderServiceHandler serviceHandler = (ReminderServiceHandler) getServiceHandler(ReminderServiceHandler.class);
 

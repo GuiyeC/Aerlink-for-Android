@@ -211,7 +211,6 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
                 // 8 means time out, don't restart bluetooth, just reconnect when possible
                 if (status != 8) {
                     mDevice = null;
-                    return;
                 }
 
                 tryToReconnect();
@@ -249,13 +248,12 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
             }
             else {
                 BluetoothDevice device = gatt.getDevice();
-                int bondState = device.getBondState();
 
                 // Don't do anything while bonding
-                if (bondState != BluetoothDevice.BOND_BONDED) {
+                if (device == null || device.getBondState() != BluetoothDevice.BOND_BONDING) {
                     Log.e(LOG_TAG, "Status: write not permitted");
 
-                    BluetoothUtils.unpairDevice(gatt.getDevice());
+                    BluetoothUtils.unpairDevice(device);
                     mDevice = null;
                     tryToReconnect();
                 }
@@ -462,7 +460,7 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
                 mBondsFailed = 0;
                 mConnectionsFailed++;
 
-                if (mConnectionsFailed%3 == 0) {
+                if (mConnectionsFailed > 0 && mConnectionsFailed%3 == 0) {
                     mDevice = null;
 
                     BluetoothUtils.disableBluetooth(mBluetoothAdapter);
@@ -502,7 +500,7 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
                 mBondsFailed = 0;
                 mConnectionsFailed++;
 
-                if (mConnectionsFailed >= 10) {
+                if (mConnectionsFailed >= 7) {
                     mConnectionsFailed = 0;
 
                     // Last resort to prepare for a new connection
@@ -510,7 +508,7 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
                     BluetoothUtils.resetBondedDevices(mBluetoothAdapter);
                 }
 
-                if (mConnectionsFailed%3 == 0) {
+                if (mConnectionsFailed > 0 && mConnectionsFailed%3 == 0) {
                     mDevice = null;
 
                     BluetoothUtils.disableBluetooth(mBluetoothAdapter);

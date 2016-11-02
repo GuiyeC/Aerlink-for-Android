@@ -327,9 +327,13 @@ public abstract class AerlinkActivity extends WearableActivity implements Servic
 
     private ScheduledTask mTimeOutTask;
 
+    protected int getTimeOutPeriod() {
+        return 3000;
+    }
+
     protected void scheduleTimeOutTask() {
         if (mTimeOutTask == null) {
-            mTimeOutTask = new ScheduledTask(3000, getMainLooper(), new Runnable() {
+            mTimeOutTask = new ScheduledTask(getTimeOutPeriod(), getMainLooper(), new Runnable() {
                 @Override
                 public void run() {
                     runOnUiThread(new Runnable() {
