@@ -8,8 +8,8 @@ android {
         applicationId "com.codegy.wearconnectforios"
         minSdkVersion 23
         targetSdkVersion 25
-        versionCode 28
-        versionName "3.0-RC3"
+        versionCode 30
+        versionName "3.0"
     }
     buildTypes {
         release {
