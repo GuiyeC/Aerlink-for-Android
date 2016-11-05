@@ -208,10 +208,40 @@ public class ConnectionManager implements CharacteristicSubscriber, CommandHandl
 
                 mBluetoothGatt = null;
 
-                // 8 means time out, don't restart bluetooth, just reconnect when possible
-                if (status != 8) {
-                    mDevice = null;
+                switch (status) {
+                    case 8: // GATT CONN TIMEOUT
+                        // just reconnect when possible
+                        break;
+                    case 133: // GATT ERROR
+                        BluetoothUtils.unpairDevice(gatt.getDevice());
+                    default:
+                        mDevice = null;
                 }
+
+                /*
+                switch (status) {
+                    case BluetoothGatt.GATT_SUCCESS:
+                        return "SUCCESS";
+                    case 0x01:
+                        return "GATT CONN L2C FAILURE";
+                    case 0x08:
+                        return "GATT CONN TIMEOUT";
+                    case 0x13:
+                        return "GATT CONN TERMINATE PEER USER";
+                    case 0x16:
+                        return "GATT CONN TERMINATE LOCAL HOST";
+                    case 0x3E:
+                        return "GATT CONN FAIL ESTABLISH";
+                    case 0x22:
+                        return "GATT CONN LMP TIMEOUT";
+                    case 0x0100:
+                        return "GATT CONN CANCEL ";
+                    case 0x0085:
+                        return "GATT ERROR"; // Device not reachable
+                    default:
+                        return "UNKNOWN (" + error + ")";
+                }
+                */
 
                 tryToReconnect();
             }

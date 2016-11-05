@@ -1,6 +1,5 @@
 package com.codegy.aerlink.services.notifications;
 
-import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -8,12 +7,13 @@ import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.os.Vibrator;
+import android.support.wearable.activity.WearableActivity;
 import android.view.View;
 import android.widget.TextView;
 import com.codegy.aerlink.Constants;
 import com.codegy.aerlink.R;
 
-public class PhoneActivity extends Activity {
+public class PhoneActivity extends WearableActivity {
 
     private static final long CALL_VIBRATION_PATTERN[] = { 600, 600 };
 
@@ -34,6 +34,7 @@ public class PhoneActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_phone);
+        setAmbientEnabled();
 
         Intent intent = getIntent();
 
