@@ -34,6 +34,7 @@ public class ServiceHandlerManager {
     private Context mContext;
     private ServiceUtils mServiceUtils;
     private Map<Class, ServiceHandler> mServiceHandlers;
+    private boolean aerlinkAvailable = false;
 
 
     public ServiceHandlerManager(Context context, ServiceUtils serviceUtils) {
@@ -52,6 +53,14 @@ public class ServiceHandlerManager {
         for (ServiceHandler serviceHandler : mServiceHandlers.values()) {
             serviceHandler.close();
         }
+    }
+
+    public boolean isAerlinkAvailable() {
+        return aerlinkAvailable;
+    }
+
+    public void setAerlinkAvailable(boolean aerlinkAvailable) {
+        this.aerlinkAvailable = aerlinkAvailable;
     }
 
     public Queue<CharacteristicIdentifier> subscribeToServices(BluetoothGatt bluetoothGatt) {
@@ -144,6 +153,7 @@ public class ServiceHandlerManager {
         BluetoothGattService aerlinkService = bluetoothGatt.getService(ALSConstants.SERVICE_UUID);
         if (aerlinkService != null && aerlinkService.getCharacteristics().size() >= 6) {
             Log.i(LOG_TAG, "Aerlink Service available");
+            aerlinkAvailable = true;
 
             if (!mServiceHandlers.containsKey(ReminderServiceHandler.class)) {
                 mServiceHandlers.put(ReminderServiceHandler.class, new ReminderServiceHandler(mContext, mServiceUtils));
@@ -157,6 +167,7 @@ public class ServiceHandlerManager {
         }
         else {
             Log.e(LOG_TAG, "Aerlink Service unavailable");
+            aerlinkAvailable = false;
 
             mServiceHandlers.remove(ReminderServiceHandler.class);
             mServiceHandlers.remove(CameraRemoteServiceHandler.class);

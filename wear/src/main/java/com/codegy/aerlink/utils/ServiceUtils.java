@@ -8,6 +8,7 @@ import com.codegy.aerlink.connection.command.Command;
  */
 public interface ServiceUtils {
 
+    boolean isAerlinkAvailable();
     void addCommandToQueue(Command command);
     void notify(String tag, int id, Notification notification);
     void cancelNotification(String tag, int id);

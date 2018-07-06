@@ -266,7 +266,7 @@ public class NotificationServiceHandler extends ServiceHandler {
                 Icon icon = Icon.createWithBitmap(bitmap);
                 notificationBuilder.setSmallIcon(icon);
             }
-            else {
+            else if (mServiceUtils.isAerlinkAvailable()) {
                 Bitmap background = BitmapFactory.decodeResource(mContext.getResources(), R.drawable.bg_notification);
 
                 Notification.WearableExtender wearableExtender = new Notification.WearableExtender()

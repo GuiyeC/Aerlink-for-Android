@@ -142,6 +142,10 @@ public class MainService extends Service implements ServiceUtils, ConnectionMana
             case Disconnected:
                 Log.i(LOG_TAG, "State: Disconnected");
 
+                if (serviceHandlerManager != null) {
+                    serviceHandlerManager.setAerlinkAvailable(false);
+                }
+
                 BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
                 BluetoothDevice device = BluetoothUtils.getBondedDevice(bluetoothManager.getAdapter());
 
@@ -200,6 +204,11 @@ public class MainService extends Service implements ServiceUtils, ConnectionMana
         }
 
         return notificationManager;
+    }
+
+    @Override
+    public boolean isAerlinkAvailable() {
+        return serviceHandlerManager != null && serviceHandlerManager.isAerlinkAvailable();
     }
 
     @Override
