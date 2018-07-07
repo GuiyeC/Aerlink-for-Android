@@ -1,4 +1,4 @@
-package com.codegy.wearconnectforios
+package com.codegy.aerlink
 
 import android.os.Bundle
 import android.support.wearable.activity.WearableActivity

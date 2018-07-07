@@ -1,4 +1,4 @@
-package com.codegy.wearconnectforios
+package com.codegy.aerlink
 
 import android.support.test.InstrumentationRegistry
 import android.support.test.runner.AndroidJUnit4
@@ -19,6 +19,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getTargetContext()
-        assertEquals("com.codegy.wearconnectforios", appContext.packageName)
+        assertEquals("com.codegy.aerlink", appContext.packageName)
     }
 }

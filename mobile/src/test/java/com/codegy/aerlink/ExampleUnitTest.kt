@@ -1,4 +1,4 @@
-package com.codegy.wearconnectforios
+package com.codegy.aerlink
 
 import org.junit.Test
 
