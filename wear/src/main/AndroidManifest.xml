@@ -3,12 +3,17 @@
     package="com.codegy.aerlink">
 
     <uses-feature android:name="android.hardware.type.watch" />
-    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true"/>
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
 
+    <!-- Needed to keep screen on -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Needed for vibrating on notifications -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
     <!-- Needed for Bluetooth connection -->
-    <uses-permission android:name="android.permission.BLUETOOTH"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <!-- Needed for Bluetooth discovery -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
     <application
         android:allowBackup="true"
@@ -36,6 +41,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".MainService"
+            android:enabled="true"
+            android:exported="false" />
     </application>
 
 </manifest>
