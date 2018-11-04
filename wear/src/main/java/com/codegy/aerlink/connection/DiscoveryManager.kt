@@ -19,7 +19,8 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
 
     private var isScanning: Boolean = false
     private val bluetoothAdapter: BluetoothAdapter = bluetoothManager.adapter
-    private var scanner: BluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
+    private val scanner: BluetoothLeScanner?
+        get() = bluetoothAdapter.bluetoothLeScanner
     private var scanSettings: ScanSettings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER).build()
     private val allowedDevices: List<String> = listOf("Aerlink", "BLE Utility", "Blank")
 
@@ -55,8 +56,9 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
     }
 
     fun startDiscovery() {
+        val scanner = this.scanner
         // If disabled -> enable bluetooth
-        if (!bluetoothAdapter.isEnabled) {
+        if (!bluetoothAdapter.isEnabled || scanner == null) {
             stopDiscovery()
 
             bluetoothAdapter.enable()
