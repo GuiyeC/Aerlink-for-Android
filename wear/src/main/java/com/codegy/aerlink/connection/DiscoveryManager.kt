@@ -10,6 +10,7 @@ import android.bluetooth.le.ScanSettings
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import java.util.*
 
 class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManager) {
 
@@ -76,7 +77,15 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
             return
         }
 
+        // Only allow to scan after 5 seconds
+        if (Calendar.getInstance().timeInMillis - lastScan < 6000) {
+            val handler = Handler(Looper.getMainLooper())
+            handler.postDelayed({ startDiscovery() }, SCAN_DELAY)
+            return
+        }
+
         try {
+            lastScan = Calendar.getInstance().timeInMillis
             scanner.startScan(null, scanSettings, scanCallback)
             isScanning = true
 
@@ -99,7 +108,7 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
 
         synchronized(this) {
             try {
-                scanner.stopScan(scanCallback)
+                scanner?.stopScan(scanCallback)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -108,9 +117,16 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
         }
     }
 
+    fun close() {
+        callback = null
+        stopDiscovery()
+    }
+
     companion object {
         private val LOG_TAG = DiscoveryManager::class.java.simpleName
         private const val RETRY_TIME: Long = 3000
+        private const val SCAN_DELAY: Long = 1000
+        private var lastScan: Long = 0
     }
 
 }
