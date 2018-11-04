@@ -15,7 +15,7 @@ import java.util.*
 class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManager) {
 
     interface Callback {
-        fun onDeviceDiscovery(device: BluetoothDevice)
+        fun onDeviceDiscovery(discoveryManager: DiscoveryManager, device: BluetoothDevice)
     }
 
     private var isScanning: Boolean = false
@@ -38,7 +38,7 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
             val deviceName = device.name ?: return
 
             if (allowedDevices.contains(deviceName)) {
-                callback?.onDeviceDiscovery(device)
+                callback?.onDeviceDiscovery(this@DiscoveryManager, device)
             }
         }
 

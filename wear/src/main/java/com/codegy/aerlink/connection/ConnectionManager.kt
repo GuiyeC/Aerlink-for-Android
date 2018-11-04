@@ -8,15 +8,12 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.codegy.aerlink.extensions.getCharacteristic
-import com.codegy.aerlink.extensions.resetBondedDevices
+import com.codegy.aerlink.extensions.stringFromStatus
 import com.codegy.aerlink.extensions.subscribeToCharacteristic
 import com.codegy.aerlink.extensions.unpair
 import com.codegy.aerlink.utils.ScheduledTask
@@ -24,140 +21,168 @@ import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
-class ConnectionManager(private val context: Context, var callback: Callback?, bluetoothManager: BluetoothManager) {
+class ConnectionManager(val device: BluetoothDevice, private val context: Context, var callback: Callback?, bluetoothManager: BluetoothManager) {
 
     interface Callback {
-        fun onConnectionStateChange(state: ConnectionState)
-        fun onBondingRequired(device: BluetoothDevice)
-        fun onReadyToSubscribe(): List<CharacteristicIdentifier>
-        fun onCharacteristicChanged(characteristic: BluetoothGattCharacteristic)
+        fun onReadyToSubscribe(connectionManager: ConnectionManager): List<CharacteristicIdentifier>
+        fun onConnectionReady(connectionManager: ConnectionManager)
+        fun onDisconnected(connectionManager: ConnectionManager)
+        fun onConnectionError(connectionManager: ConnectionManager)
+        fun onBondingRequired(connectionManager: ConnectionManager, device: BluetoothDevice)
+        fun onCharacteristicChanged(connectionManager: ConnectionManager, characteristic: BluetoothGattCharacteristic)
     }
 
-    var state: ConnectionState = ConnectionState.Disconnected
-        private set(value) {
-            if (field == value) {
-                return
-            }
-            field = value
-            callback?.onConnectionStateChange(value)
-        }
     private var atomicRunning = AtomicBoolean(true)
     var isRunning: Boolean
         get() = atomicRunning.get()
-        set(value) = atomicRunning.set(value)
+        private set(value) = atomicRunning.set(value)
 
-    private var bondsFailed = 0
     private var connectionsFailed = 0
     private val lock = Object()
     private val timeoutController: ScheduledTask = ScheduledTask(Looper.getMainLooper())
     private val characteristicsToSubscribe: Queue<CharacteristicIdentifier> = ConcurrentLinkedQueue()
+    private val commands: Queue<Command> = ConcurrentLinkedQueue()
 
     private val bluetoothAdapter: BluetoothAdapter = bluetoothManager.adapter
-    private val device: BluetoothDevice?
-        get() = bluetoothGatt?.device
     private var bluetoothGatt: BluetoothGatt? = null
     private val bluetoothGattCallback = object : BluetoothGattCallback() {
 
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             super.onConnectionStateChange(gatt, status, newState)
-            Log.d(LOG_TAG, "onConnectionStateChange: $status -> $newState")
 
-            val bondState = device?.bondState ?: 10
-            Log.d(LOG_TAG, "onConnectionStateChange BOND STATE: $bondState")
-            if (bondState == BluetoothDevice.BOND_NONE) {
-                device?.createBond()
-            }
+            timeoutController.cancel()
             if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.d(LOG_TAG, "Connection state changed :: State: $newState")
                 when (newState) {
                     BluetoothProfile.STATE_CONNECTED -> {
-                        gatt.requestMtu(DESIRED_MTU)
-                        timeoutController.schedule(MTU_CHANGE_TIMEOUT) {
-                            bluetoothGatt?.discoverServices()
-                        }
+                        Log.i(LOG_TAG, "Connected")
+                        requestMtu(gatt)
                     }
                     BluetoothProfile.STATE_DISCONNECTED -> {
-                        state = ConnectionState.Disconnected
-
-                        Log.e(LOG_TAG, "Disconnected")
+                        Log.i(LOG_TAG, "Disconnected")
                         gatt.close()
-                        Log.w(LOG_TAG, "Closed")
                         bluetoothGatt = null
 
-                        tryToReconnect()
+                        callback?.onDisconnected(this@ConnectionManager)
                     }
                 }
             } else {
-                state = ConnectionState.Disconnected
+                Log.e(LOG_TAG, "ERROR: Connection state changed :: Status: ${gatt.stringFromStatus(status)}")
+                onConnectionError()
+            }
+        }
 
-                Log.wtf(LOG_TAG, "ON CONNECTION STATE CHANGED ERROR: $status")
-                gatt.close()
-                Log.w(LOG_TAG, "Closed BluetoothGatt")
-                bluetoothGatt = null
-
-                when (status) {
-                    0x01 -> { /* GATT CONN L2C FAILURE */ }
-                    0x08 -> { /* GATT CONN TIMEOUT */ } // just reconnect when possible
-                    0x13 -> { /* GATT CONN TERMINATE PEER USER */
-                        gatt.device?.unpair() } // iPhone unbonded the watch?
-                    0x16 -> { /* GATT CONN TERMINATE LOCAL HOST */ }
-                    0x3E -> { /* GATT CONN FAIL ESTABLISH */ }
-                    0x22 -> { /* GATT CONN LMP TIMEOUT */ }
-                    0x0100 -> { /* GATT CONN CANCEL */ }
-                    0x0085 -> { /* GATT ERROR */
-                        gatt.device?.unpair()
-                    }
+        fun requestMtu(gatt: BluetoothGatt, numberOfTries: Int = 0) {
+            val success = gatt.requestMtu(DESIRED_MTU)
+            if (!success) {
+                if (numberOfTries < 3) {
+                    Log.w(LOG_TAG, "Error requesting MTU change: $numberOfTries")
+                    requestMtu(gatt, numberOfTries + 1)
+                } else {
+                    Log.e(LOG_TAG, "Too many errors requesting MTU change, will try to discover services")
+                    discoverServices(gatt)
                 }
+                return
+            }
+            Log.d(LOG_TAG, "Success requesting MTU change: $DESIRED_MTU")
 
-                tryToReconnect()
+            timeoutController.schedule(MTU_CHANGE_TIMEOUT) {
+                discoverServices(gatt)
             }
         }
 
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
             super.onMtuChanged(gatt, mtu, status)
-            Log.d(LOG_TAG, "onMtuChanged: $mtu status: $status")
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                gatt.discoverServices()
+                Log.d(LOG_TAG, "MTU changed :: MTU: $mtu")
+            } else {
+                Log.e(LOG_TAG, "ERROR: MTU changed :: Status: ${gatt.stringFromStatus(status)}")
+            }
 
-                timeoutController.schedule(SERVICE_DISCOVERY_TIMEOUT) {
-                    onSubscribingTimedOut()
+            timeoutController.cancel()
+            // Continue with connection even if the MTU change failed
+            discoverServices(gatt)
+        }
+
+        fun discoverServices(gatt: BluetoothGatt, numberOfTries: Int = 0) {
+            val success = gatt.discoverServices()
+            if (!success) {
+                if (numberOfTries < 3) {
+                    Log.w(LOG_TAG, "Error requesting service discovery: $numberOfTries")
+                    discoverServices(gatt, numberOfTries + 1)
+                } else {
+                    Log.e(LOG_TAG, "Too many errors requesting service discovery, giving up on connection")
+                    onConnectionError()
                 }
+                return
+            }
+            Log.d(LOG_TAG, "Success requesting service discovery: $DESIRED_MTU")
+
+            timeoutController.schedule(SERVICE_DISCOVERY_TIMEOUT) {
+                onConnectionTimedOut()
             }
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             super.onServicesDiscovered(gatt, status)
-            Log.d(LOG_TAG, "onServicesDiscovered: $status")
 
+            timeoutController.cancel()
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                timeoutController.cancel()
-                val characteristics = callback?.onReadyToSubscribe()
-                if (characteristics != null) {
+                Log.d(LOG_TAG, "Services Discovered: ${gatt.services}")
+                val characteristics = callback?.onReadyToSubscribe(this@ConnectionManager)
+                if (characteristics?.isNotEmpty() == true) {
                     characteristicsToSubscribe.addAll(characteristics)
+                    checkCharacteristicsToSubscribe()
+                } else {
+                    Log.wtf(LOG_TAG, "No services available, giving up on connection")
+                    onConnectionError()
                 }
+            } else {
+                Log.e(LOG_TAG, "ERROR: Services Discovered :: Status: ${gatt.stringFromStatus(status)}")
+                onConnectionError()
+            }
+        }
 
-                subscribeCharacteristic(CharacteristicIdentifier(UUID.fromString("0000180F-0000-1000-8000-00805f9b34fb"), UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb")))
+        fun checkCharacteristicsToSubscribe() {
+            if (characteristicsToSubscribe.size == 0) {
+                connectionsFailed = 0
+                callback?.onConnectionReady(this@ConnectionManager)
+                return
+            }
+
+            val characteristic = characteristicsToSubscribe.poll()
+            subscribeToCharacteristic(characteristic)
+        }
+
+        fun subscribeToCharacteristic(characteristicIdentifier: CharacteristicIdentifier, numberOfTries: Int = 0) {
+            val success = bluetoothGatt?.subscribeToCharacteristic(characteristicIdentifier) == true
+            if (!success) {
+                if (numberOfTries < 3) {
+                    subscribeToCharacteristic(characteristicIdentifier, numberOfTries + 1)
+                } else {
+                    onConnectionError()
+                }
+                return
+            }
+
+            timeoutController.schedule(SERVICE_SUBSCRIPTION_TIMEOUT) {
+                onConnectionTimedOut()
             }
         }
 
         override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
             super.onDescriptorWrite(gatt, descriptor, status)
 
+            timeoutController.cancel()
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                Log.d(LOG_TAG, "Descriptor write successful:  ${descriptor.characteristic.uuid}")
+                Log.d(LOG_TAG, "Descriptor write: ${descriptor.characteristic.uuid}")
 
-                // TODO callback: success on subscribing
                 checkCharacteristicsToSubscribe()
             } else {
-                val device2 = gatt.device
-
-                // Don't do anything while bonding
-                if (device2 == null || device2.bondState != BluetoothDevice.BOND_BONDING) {
-                    Log.e(LOG_TAG, "Status: write not permitted")
-
-                    device2.unpair()
-                    tryToReconnect()
-                }
+                Log.e(LOG_TAG, "ERROR: Descriptor write :: Status: ${gatt.stringFromStatus(status)}")
+                Log.d(LOG_TAG, "Descriptor: ${descriptor.characteristic.uuid}")
+                onConnectionError()
             }
         }
 
@@ -165,11 +190,12 @@ class ConnectionManager(private val context: Context, var callback: Callback?, b
             super.onCharacteristicWrite(gatt, characteristic, status)
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                Log.d(LOG_TAG, "Characteristic write successful: " + characteristic.uuid.toString())
+                Log.d(LOG_TAG, "Characteristic write: ${characteristic.uuid}")
 
                 // TODO callback: success on writing
             } else {
-                Log.w(LOG_TAG, "Characteristic write error: " + status + " :: " + characteristic.uuid.toString())
+                Log.e(LOG_TAG, "ERROR: Characteristic write :: Status: ${gatt.stringFromStatus(status)}")
+                Log.d(LOG_TAG, "Characteristic: ${characteristic.uuid}")
 
                 // TODO callback: error on writing
             }
@@ -179,10 +205,13 @@ class ConnectionManager(private val context: Context, var callback: Callback?, b
 
         override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
             super.onCharacteristicRead(gatt, characteristic, status)
-            Log.d(LOG_TAG, "onCharacteristicRead status:: $status")
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                callback?.onCharacteristicChanged(characteristic)
+                Log.d(LOG_TAG, "Characteristic read: ${characteristic.uuid}")
+                callback?.onCharacteristicChanged(this@ConnectionManager, characteristic)
+            } else {
+                Log.e(LOG_TAG, "ERROR: Characteristic read :: Status: ${gatt.stringFromStatus(status)}")
+                Log.d(LOG_TAG, "Characteristic: ${characteristic.uuid}")
             }
 
             // TODO callback: success on reading, ignore error?
@@ -190,41 +219,11 @@ class ConnectionManager(private val context: Context, var callback: Callback?, b
 
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
             super.onCharacteristicChanged(gatt, characteristic)
-            Log.d(LOG_TAG, "onCharacteristicChanged: " + characteristic.uuid.toString())
+            Log.d(LOG_TAG, "Characteristic changed: ${characteristic.uuid}")
 
-            callback?.onCharacteristicChanged(characteristic)
+            callback?.onCharacteristicChanged(this@ConnectionManager, characteristic)
         }
 
-    }
-
-    private val bondReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent == null || intent.action != BluetoothDevice.ACTION_BOND_STATE_CHANGED) {
-                return
-            }
-
-            val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
-            val state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)
-            val prevState = intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, BluetoothDevice.ERROR)
-
-            Log.d(LOG_TAG, "Bond state changed: state = $state prevState = $prevState")
-            if (state == BluetoothDevice.BOND_BONDED && prevState == BluetoothDevice.BOND_BONDING) {
-                Log.i(LOG_TAG, "Bond successful")
-
-                device?.let {
-                    connectToDevice(it)
-                }
-            } else if (state == BluetoothDevice.BOND_NONE && (prevState == BluetoothDevice.BOND_BONDING || prevState == BluetoothDevice.BOND_BONDED)) {
-                // TODO: Bond was rejected
-                Log.e(LOG_TAG, "Bond failed")
-
-                callback?.onConnectionStateChange(ConnectionState.Disconnected)
-            }
-        }
-    }
-
-    init {
-        context.registerReceiver(bondReceiver, IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED))
     }
 
     fun close() {
@@ -233,39 +232,39 @@ class ConnectionManager(private val context: Context, var callback: Callback?, b
             return
         }
 
-        Log.i(LOG_TAG, "ConnectionManager Closed")
         isRunning = false
-        context.unregisterReceiver(bondReceiver)
-        disconnectDevice()
+        callback = null
+        disconnect()
+        Log.i(LOG_TAG, "ConnectionManager Closed")
     }
 
-    fun connectToDevice(device: BluetoothDevice) {
-        if (bluetoothGatt != null) {
+    fun connect(autoConnect: Boolean = false) {
+        if (device.bondState != BluetoothDevice.BOND_BONDED) {
+            Log.w(LOG_TAG, "Trying to connect to an unbonded device")
+            callback?.onBondingRequired(this, device)
             return
         }
 
         Handler(Looper.getMainLooper()).post {
             synchronized(lock) {
-                val bondState = device.bondState
-                Log.d(LOG_TAG, "connectToDevice BOND STATE: $bondState")
-                if (bondState == BluetoothDevice.BOND_NONE) {
-                    device.createBond()
-                    return@post
-                }
-
-                bluetoothGatt = device.connectGatt(context, false, bluetoothGattCallback)
-                timeoutController.schedule(CONNECTION_TIMEOUT) {
-                    onConnectionTimedOut()
-                }
+                characteristicsToSubscribe.clear()
+                bluetoothGatt?.close()
 
                 Log.i(LOG_TAG, "Connecting...: " + device.name)
-                callback?.onConnectionStateChange(ConnectionState.Connecting)
+                bluetoothGatt = device.connectGatt(context, autoConnect, bluetoothGattCallback)
+                if (!autoConnect) {
+                    timeoutController.schedule(CONNECTION_TIMEOUT) {
+                        onConnectionTimedOut()
+                    }
+                }
             }
         }
     }
 
-    fun disconnectDevice() {
+    fun disconnect() {
         synchronized(lock) {
+            callback?.onDisconnected(this)
+
             try {
                 bluetoothGatt?.close()
             } catch (e: Exception) {
@@ -274,24 +273,6 @@ class ConnectionManager(private val context: Context, var callback: Callback?, b
                 bluetoothGatt = null
             }
         }
-    }
-
-    @Synchronized
-    fun tryToReconnect() {
-        if (!isRunning) {
-            return
-        }
-
-        val currentDevice = device
-        disconnectDevice()
-
-        if (currentDevice == null) {
-            callback?.onConnectionStateChange(ConnectionState.Disconnected)
-            return
-        }
-
-        Log.w(LOG_TAG, "Reconnecting")
-        connectToDevice(currentDevice)
     }
 
     fun checkServiceAvailability(serviceUuid: UUID): Boolean {
@@ -326,108 +307,30 @@ class ConnectionManager(private val context: Context, var callback: Callback?, b
         })
     }
 
-    private fun checkCharacteristicsToSubscribe() {
-        if (characteristicsToSubscribe.size == 0) {
-            state = ConnectionState.Ready
-            return
+    private fun onConnectionError(unpairDevice: Boolean = false) {
+        bluetoothGatt?.close()
+        Log.w(LOG_TAG, "Closed BluetoothGatt")
+        bluetoothGatt = null
+
+        if (unpairDevice) {
+            device.unpair()
         }
 
-        val characteristic = characteristicsToSubscribe.poll()
-        subscribeCharacteristic(characteristic)
+        callback?.onConnectionError(this@ConnectionManager)
     }
 
-    fun subscribeCharacteristic(characteristicIdentifier: CharacteristicIdentifier) {
-        if (bluetoothGatt == null) {
-            return
-        }
-
-        val handler = Handler(Looper.getMainLooper())
-        handler.post {
-            val success = bluetoothGatt?.subscribeToCharacteristic(characteristicIdentifier)
-        }
-    }
-
-    fun onConnectionReady() {
-        Log.i(LOG_TAG, "Ready")
-
-        callback?.onConnectionStateChange(ConnectionState.Ready)
-
-        bondsFailed = 0
-        connectionsFailed = 0
-    }
-
-    fun onConnectionTimedOut() {
+    private fun onConnectionTimedOut() {
         Log.w(LOG_TAG, "Connecting timed out")
         if (!isRunning) {
             return
         }
 
-        if (device != null) {
-            val bondState = device!!.bondState
-
-            // Don't do anything while bonding
-            if (bondState == BluetoothDevice.BOND_BONDING && bondsFailed < 30) {
-                Log.w(LOG_TAG, "Waiting for bond...")
-                bondsFailed++
-
-                timeoutController.schedule(CONNECTION_TIMEOUT) {
-                    onConnectionTimedOut()
-                }
-            } else {
-                bondsFailed = 0
-                connectionsFailed++
-
-                if (connectionsFailed > 0 && connectionsFailed % 3 == 0) {
-                    bluetoothAdapter.disable()
-                }
-
-                tryToReconnect()
-            }
+        connectionsFailed++
+        if (connectionsFailed > 0 && connectionsFailed % 3 == 0) {
+            bluetoothAdapter.disable()
+            onConnectionError()
         } else {
-            Log.w(LOG_TAG, "Start scanning again")
-
-            tryToReconnect()
-        }
-    }
-
-    fun onSubscribingTimedOut() {
-        Log.w(LOG_TAG, "Subscribing timed out")
-        if (callback == null) {
-            return
-        }
-
-        if (device != null) {
-            val bondState = device!!.bondState
-
-            // Don't do anything while bonding
-            if (bondState == BluetoothDevice.BOND_BONDING && bondsFailed < 30) {
-                Log.w(LOG_TAG, "Waiting for bond...")
-                bondsFailed++
-
-                timeoutController.schedule(BONDING_TIMEOUT) {
-                    onSubscribingTimedOut()
-                }
-            } else {
-                bondsFailed = 0
-                connectionsFailed++
-
-                if (connectionsFailed >= 7) {
-                    connectionsFailed = 0
-
-                    // Last resort to prepare for a new connection
-                    bluetoothAdapter.resetBondedDevices()
-                }
-
-                if (connectionsFailed > 0 && connectionsFailed % 3 == 0) {
-                    bluetoothAdapter.disable()
-                }
-
-                tryToReconnect()
-            }
-        } else {
-            Log.w(LOG_TAG, "Start scanning again")
-
-            tryToReconnect()
+            disconnect()
         }
     }
 
@@ -437,7 +340,6 @@ class ConnectionManager(private val context: Context, var callback: Callback?, b
         private const val CONNECTION_TIMEOUT: Long = 5000
         private const val MTU_CHANGE_TIMEOUT: Long = 1000
         private const val SERVICE_DISCOVERY_TIMEOUT: Long = 2000
-        private const val BONDING_TIMEOUT: Long = 5000
         private const val SERVICE_SUBSCRIPTION_TIMEOUT: Long = 3000
     }
 

@@ -10,6 +10,7 @@ import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
 import android.util.Log
+import com.codegy.aerlink.connection.BondManager
 import com.codegy.aerlink.connection.CharacteristicIdentifier
 import com.codegy.aerlink.connection.Command
 import com.codegy.aerlink.connection.ConnectionManager
@@ -21,14 +22,18 @@ import com.codegy.aerlink.service.notifications.ANCSContract
 import com.codegy.aerlink.utils.ServiceUtils
 import kotlin.reflect.KClass
 
-class MainService : Service(), ServiceUtils, DiscoveryManager.Callback, ConnectionManager.Callback {
+class MainService : Service(), ServiceUtils, DiscoveryManager.Callback, BondManager.Callback, ConnectionManager.Callback {
 
-    val state: ConnectionState
-        get() = connectionManager.state
+    var state: ConnectionState = ConnectionState.Disconnected
+        set(value) {
+            if (field == ConnectionState.Stopped || field == value) return
+            field = value
+        }
     private val bluetoothManager: BluetoothManager by lazy { getSystemService(BluetoothManager::class.java) }
     private val notificationManager: NotificationManager by lazy { getSystemService(NotificationManager::class.java) }
-    private val discoveryManager: DiscoveryManager by lazy { DiscoveryManager(this, bluetoothManager) }
-    private val connectionManager: ConnectionManager by lazy { ConnectionManager(this, this, bluetoothManager) }
+    private var discoveryManager: DiscoveryManager? = null
+    private var bondManager: BondManager? = null
+    private var connectionManager: ConnectionManager? = null
     private val serviceManagers: MutableMap<KClass<out ServiceManager>, ServiceManager> = mutableMapOf()
 
     override fun onCreate() {
@@ -36,54 +41,81 @@ class MainService : Service(), ServiceUtils, DiscoveryManager.Callback, Connecti
 
         Log.i(LOG_TAG, "-=-=-=-=-=-=-=-=-=  Service created  =-=-=-=-=-=-=-=-=-")
 
-        discoveryManager.startDiscovery()
+        startDiscovery()
     }
 
     override fun onDestroy() {
         super.onDestroy()
 
+        state = ConnectionState.Stopped
+
         notificationManager.cancelAll()
 
-        discoveryManager.callback = null
-        discoveryManager.stopDiscovery()
-
-        connectionManager.close()
+        discoveryManager?.close()
+        bondManager?.close()
+        connectionManager?.close()
 
         Log.i(LOG_TAG, "xXxXxXxXxXxXxXxXxX Service destroyed XxXxXxXxXxXxXxXxXx")
     }
 
     override fun onBind(intent: Intent): IBinder = ServiceBinder()
 
-    override fun onDeviceDiscovery(device: BluetoothDevice) {
-        Log.v(LOG_TAG, "Device discovered: $device")
-
-        discoveryManager.stopDiscovery()
-        connectionManager.connectToDevice(device)
+    private fun startDiscovery() {
+        Log.d(LOG_TAG, "startDiscovery")
+        val discoveryManager = DiscoveryManager(this, bluetoothManager)
+        discoveryManager.startDiscovery()
+        this.discoveryManager = discoveryManager
     }
 
-    override fun onConnectionStateChange(state: ConnectionState) {
-        when (state) {
-//            ConnectionState.Stopped -> TODO()
-//            ConnectionState.Disconnected -> TODO()
-//            ConnectionState.Bonding -> TODO()
-//            ConnectionState.Connecting -> TODO()
-            ConnectionState.Ready -> {
-                val initializingCommands = mutableListOf<Command>()
-                for (serviceManager in serviceManagers.values) {
-                    val commands = serviceManager.initialize()
-                    if (commands != null) {
-                        initializingCommands.addAll(commands)
-                    }
-                }
+    override fun onDeviceDiscovery(discoveryManager: DiscoveryManager, device: BluetoothDevice) {
+        Log.d(LOG_TAG, "onDeviceDiscovery :: Device: $device")
 
-                for (command in initializingCommands) {
-                    connectionManager.handleCommand(command)
-                }
-            }
+        discoveryManager.stopDiscovery()
+        this.discoveryManager = null
+
+        connectToDevice(device)
+    }
+
+    private fun bondToDevice(device: BluetoothDevice) {
+        Log.d(LOG_TAG, "bondToDevice :: Device: $device")
+        state = ConnectionState.Bonding
+
+        val bondManager = BondManager(device, this, this)
+        bondManager.createBond()
+        this.bondManager = bondManager
+    }
+
+    override fun onBondSuccessful(bondManager: BondManager, device: BluetoothDevice) {
+        Log.d(LOG_TAG, "onBondSuccessful :: Device: $device")
+        bondManager.close()
+        this.bondManager = null
+
+        connectToDevice(device)
+    }
+
+    override fun onBondFailed(bondManager: BondManager, device: BluetoothDevice) {
+        Log.w(LOG_TAG, "onBondSuccessful :: Device: $device")
+        bondManager.close()
+        this.bondManager = null
+
+        startDiscovery()
+    }
+
+    private fun connectToDevice(device: BluetoothDevice) {
+        Log.d(LOG_TAG, "connectToDevice :: Device: $device")
+        if (device.bondState != BluetoothDevice.BOND_BONDED) {
+            bondToDevice(device)
+        } else {
+            state = ConnectionState.Connecting
+
+            val connectionManager = ConnectionManager(device, this, this, bluetoothManager)
+            connectionManager.connect()
+            this.connectionManager = connectionManager
         }
     }
 
-    override fun onReadyToSubscribe(): List<CharacteristicIdentifier> {
+    override fun onReadyToSubscribe(connectionManager: ConnectionManager): List<CharacteristicIdentifier> {
+        Log.d(LOG_TAG, "oReady To Subscribe")
         val serviceContracts = listOf<ServiceContract>(
 //                ALSContract,
 //                BASContract,
@@ -103,29 +135,75 @@ class MainService : Service(), ServiceUtils, DiscoveryManager.Callback, Connecti
         return characteristicsToSubscribe
     }
 
-    override fun onBondingRequired(device: BluetoothDevice) {
-//        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+    override fun onConnectionReady(connectionManager: ConnectionManager) {
+        Log.d(LOG_TAG, "Connection Ready")
+        state = ConnectionState.Ready
 
-    override fun onCharacteristicChanged(characteristic: BluetoothGattCharacteristic) {
+        val initializingCommands = mutableListOf<Command>()
         for (serviceManager in serviceManagers.values) {
-            if (serviceManager.canHandleCharacteristic(characteristic)) {
-                serviceManager.handleCharacteristic(characteristic)
-                break
+            val commands = serviceManager.initialize()
+            if (commands != null) {
+                initializingCommands.addAll(commands)
             }
+        }
+
+        for (command in initializingCommands) {
+            connectionManager.handleCommand(command)
         }
     }
 
+    override fun onDisconnected(connectionManager: ConnectionManager) {
+        Log.w(LOG_TAG, "Disconnected")
+        state = ConnectionState.Disconnected
+
+//        notificationManager.cancelAll()
+//        connectionManager.connect(true)
+
+        connectionManager.close()
+        this.connectionManager = null
+        notificationManager.cancelAll()
+
+        startDiscovery()
+    }
+
+    override fun onConnectionError(connectionManager: ConnectionManager) {
+        Log.e(LOG_TAG, "Connection Error")
+        state = ConnectionState.Disconnected
+
+        connectionManager.close()
+        this.connectionManager = null
+        notificationManager.cancelAll()
+
+        startDiscovery()
+    }
+
+    override fun onBondingRequired(connectionManager: ConnectionManager, device: BluetoothDevice) {
+        Log.d(LOG_TAG, "onBondingRequired :: Device: $device")
+        connectionManager.close()
+        this.connectionManager = null
+        notificationManager.cancelAll()
+
+        bondToDevice(device)
+    }
+
+    override fun onCharacteristicChanged(connectionManager: ConnectionManager, characteristic: BluetoothGattCharacteristic) {
+        Log.d(LOG_TAG, "onCharacteristicChanged :: Characteristic: $characteristic")
+        val serviceManager = serviceManagers.values.firstOrNull { it.canHandleCharacteristic(characteristic) } ?: return
+        serviceManager.handleCharacteristic(characteristic)
+    }
 
     override fun addCommandToQueue(command: Command) {
-        connectionManager.handleCommand(command)
+        Log.d(LOG_TAG, "addCommandToQueue :: Command: $command")
+        connectionManager?.handleCommand(command)
     }
 
     override fun notify(tag: String?, id: Int, notification: Notification) {
+        Log.d(LOG_TAG, "notify :: tag: $tag, id: $id, notification: $notification")
         notificationManager.notify(tag, id, notification)
     }
 
     override fun cancelNotification(tag: String?, id: Int) {
+        Log.d(LOG_TAG, "cancelNotification :: tag: $tag, id: $id")
         notificationManager.cancel(tag, id)
     }
 
