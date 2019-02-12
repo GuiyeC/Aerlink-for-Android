@@ -6,18 +6,16 @@ data class Command(val serviceUUID: UUID, val characteristicUUID: UUID, val pack
 
     var isWriteCommand: Boolean = packet != null
     private var retryCount = 0
-//    var writeType: Int? = null
     var importance = IMPORTANCE_NORMAL
-    var successBlock: Runnable? = null
-    var failureBlock: Runnable? = null
-    //private int writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
+    var successBlock: (() -> Unit)? = null
+    var failureBlock: (() -> Unit)? = null
 
     fun completeWithSuccess() {
-        successBlock?.run()
+        successBlock?.invoke()
     }
 
     fun completeWithFailure() {
-        failureBlock?.run()
+        failureBlock?.invoke()
     }
 
     fun shouldRetryAgain(): Boolean {

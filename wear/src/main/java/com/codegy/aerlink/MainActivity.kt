@@ -5,7 +5,7 @@ import android.bluetooth.BluetoothManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.support.v4.app.ActivityCompat
+import androidx.core.app.ActivityCompat
 import android.support.wearable.activity.WearableActivity
 import com.codegy.aerlink.extensions.resetBondedDevices
 import kotlinx.android.synthetic.main.activity_main.*
