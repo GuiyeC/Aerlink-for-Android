@@ -9,10 +9,10 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.Context
-import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.codegy.aerlink.extensions.getCharacteristic
+import com.codegy.aerlink.extensions.stringFromConnectionError
 import com.codegy.aerlink.extensions.stringFromStatus
 import com.codegy.aerlink.extensions.subscribeToCharacteristic
 import com.codegy.aerlink.extensions.unpair
@@ -37,10 +37,10 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
         get() = atomicRunning.get()
         private set(value) = atomicRunning.set(value)
 
-    private var connectionsFailed = 0
     private val lock = Object()
     private val timeoutController: ScheduledTask = ScheduledTask(Looper.getMainLooper())
     private val characteristicsToSubscribe: Queue<CharacteristicIdentifier> = ConcurrentLinkedQueue()
+    private var currentCommand: Command? = null
     private val commands: Queue<Command> = ConcurrentLinkedQueue()
 
     private val bluetoothAdapter: BluetoothAdapter = bluetoothManager.adapter
@@ -67,7 +67,7 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
                     }
                 }
             } else {
-                Log.e(LOG_TAG, "ERROR: Connection state changed :: Status: ${gatt.stringFromStatus(status)}")
+                Log.e(LOG_TAG, "ERROR: Connection state changed :: Status: ${stringFromConnectionError(status)}")
                 onConnectionError()
             }
         }
@@ -87,6 +87,7 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
             Log.d(LOG_TAG, "Success requesting MTU change: $DESIRED_MTU")
 
             timeoutController.schedule(MTU_CHANGE_TIMEOUT) {
+                if (!isRunning) { return@schedule }
                 discoverServices(gatt)
             }
         }
@@ -97,7 +98,7 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.d(LOG_TAG, "MTU changed :: MTU: $mtu")
             } else {
-                Log.e(LOG_TAG, "ERROR: MTU changed :: Status: ${gatt.stringFromStatus(status)}")
+                Log.e(LOG_TAG, "ERROR: MTU changed :: Status: ${stringFromStatus(status)}")
             }
 
             timeoutController.cancel()
@@ -120,6 +121,7 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
             Log.d(LOG_TAG, "Success requesting service discovery: $DESIRED_MTU")
 
             timeoutController.schedule(SERVICE_DISCOVERY_TIMEOUT) {
+                if (!isRunning) { return@schedule }
                 onConnectionTimedOut()
             }
         }
@@ -139,7 +141,7 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
                     onConnectionError()
                 }
             } else {
-                Log.e(LOG_TAG, "ERROR: Services Discovered :: Status: ${gatt.stringFromStatus(status)}")
+                Log.e(LOG_TAG, "ERROR: Services Discovered :: Status: ${stringFromStatus(status)}")
                 onConnectionError()
             }
         }
@@ -167,6 +169,7 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
             }
 
             timeoutController.schedule(SERVICE_SUBSCRIPTION_TIMEOUT) {
+                if (!isRunning) { return@schedule }
                 onConnectionTimedOut()
             }
         }
@@ -180,8 +183,48 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
 
                 checkCharacteristicsToSubscribe()
             } else {
-                Log.e(LOG_TAG, "ERROR: Descriptor write :: Status: ${gatt.stringFromStatus(status)}")
+                Log.e(LOG_TAG, "ERROR: Descriptor write :: Status: ${stringFromStatus(status)}")
                 Log.d(LOG_TAG, "Descriptor: ${descriptor.characteristic.uuid}")
+                onConnectionError()
+            }
+        }
+
+        fun checkCommands() {
+            if (currentCommand != null || commands.isEmpty()) {
+                return
+            }
+
+            commands.poll()?.let {
+                currentCommand = it
+                handleCommand(it)
+            }
+        }
+
+        fun handleCommand(command: Command, numberOfTries: Int = 0) {
+            val characteristic = bluetoothGatt?.getCharacteristic(command.serviceUUID, command.characteristicUUID) ?: return
+
+            val success: Boolean
+            if (command.isWriteCommand) {
+                characteristic.value = command.packet
+                characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                success = bluetoothGatt?.writeCharacteristic(characteristic) == true
+                Log.d(LOG_TAG, "Started writing command: $success")
+            } else {
+                success = bluetoothGatt?.readCharacteristic(characteristic) == true
+                Log.d(LOG_TAG, "Started reading command: $success")
+            }
+
+            if (!success) {
+                if (numberOfTries < 3) {
+                    handleCommand(command, numberOfTries + 1)
+                } else {
+                    onConnectionError()
+                }
+                return
+            }
+
+            timeoutController.schedule(COMMAND_TIMEOUT) {
+                if (!isRunning) { return@schedule }
                 onConnectionError()
             }
         }
@@ -189,32 +232,52 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
         override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
             super.onCharacteristicWrite(gatt, characteristic, status)
 
+            timeoutController.cancel()
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.d(LOG_TAG, "Characteristic write: ${characteristic.uuid}")
 
-                // TODO callback: success on writing
+                currentCommand?.completeWithSuccess()
             } else {
-                Log.e(LOG_TAG, "ERROR: Characteristic write :: Status: ${gatt.stringFromStatus(status)}")
+                Log.e(LOG_TAG, "ERROR: Characteristic write :: Status: ${stringFromStatus(status)}")
                 Log.d(LOG_TAG, "Characteristic: ${characteristic.uuid}")
 
-                // TODO callback: error on writing
+                currentCommand?.let {
+                    it.completeWithFailure()
+                    if (it.shouldRetryAgain()) {
+                        commands.add(it)
+                    }
+                }
             }
+            Log.d(LOG_TAG, "Characteristic value: ${characteristic.value}")
 
-            Log.d(LOG_TAG, "Characteristic value: " + String(characteristic.value))
+            currentCommand = null
+            checkCommands()
         }
 
         override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
             super.onCharacteristicRead(gatt, characteristic, status)
 
+            timeoutController.cancel()
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.d(LOG_TAG, "Characteristic read: ${characteristic.uuid}")
                 callback?.onCharacteristicChanged(this@ConnectionManager, characteristic)
-            } else {
-                Log.e(LOG_TAG, "ERROR: Characteristic read :: Status: ${gatt.stringFromStatus(status)}")
-                Log.d(LOG_TAG, "Characteristic: ${characteristic.uuid}")
-            }
 
-            // TODO callback: success on reading, ignore error?
+                currentCommand?.completeWithSuccess()
+            } else {
+                Log.e(LOG_TAG, "ERROR: Characteristic read :: Status: ${stringFromStatus(status)}")
+                Log.d(LOG_TAG, "Characteristic: ${characteristic.uuid}")
+
+                currentCommand?.let {
+                    it.completeWithFailure()
+                    if (it.shouldRetryAgain()) {
+                        commands.add(it)
+                    }
+                }
+            }
+            Log.d(LOG_TAG, "Characteristic value: ${characteristic.value}")
+
+            currentCommand = null
+            checkCommands()
         }
 
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
@@ -245,17 +308,16 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
             return
         }
 
-        Handler(Looper.getMainLooper()).post {
-            synchronized(lock) {
-                characteristicsToSubscribe.clear()
-                bluetoothGatt?.close()
+        synchronized(lock) {
+            characteristicsToSubscribe.clear()
+            bluetoothGatt?.close()
 
-                Log.i(LOG_TAG, "Connecting...: " + device.name)
-                bluetoothGatt = device.connectGatt(context, autoConnect, bluetoothGattCallback)
-                if (!autoConnect) {
-                    timeoutController.schedule(CONNECTION_TIMEOUT) {
-                        onConnectionTimedOut()
-                    }
+            Log.i(LOG_TAG, "Connecting...: " + device.name)
+            bluetoothGatt = device.connectGatt(context, autoConnect, bluetoothGattCallback)
+            if (!autoConnect) {
+                timeoutController.schedule(CONNECTION_TIMEOUT) {
+                    if (!isRunning) { return@schedule }
+                    onConnectionTimedOut()
                 }
             }
         }
@@ -284,27 +346,8 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
             return
         }
 
-        Handler(Looper.getMainLooper()).post(Runnable {
-            try {
-                val characteristic = bluetoothGatt?.getCharacteristic(command.serviceUUID, command.characteristicUUID)
-                        ?: return@Runnable
-
-                if (command.isWriteCommand) {
-                    // not being used
-                    // mBluetoothGattCharacteristic.setWriteType(command.getWriteType());
-
-                    characteristic.value = command.packet
-                    characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                    val result = bluetoothGatt?.writeCharacteristic(characteristic)
-                    Log.d(LOG_TAG, "Started writing command: $result")
-                } else {
-                    val result = bluetoothGatt?.readCharacteristic(characteristic)
-                    Log.d(LOG_TAG, "Started reading command: $result")
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        })
+        commands.add(command)
+        bluetoothGattCallback.checkCommands()
     }
 
     private fun onConnectionError(unpairDevice: Boolean = false) {
@@ -316,15 +359,14 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
             device.unpair()
         }
 
+        connectionsFailed = 0
+        bluetoothAdapter.disable()
+
         callback?.onConnectionError(this@ConnectionManager)
     }
 
     private fun onConnectionTimedOut() {
         Log.w(LOG_TAG, "Connecting timed out")
-        if (!isRunning) {
-            return
-        }
-
         connectionsFailed++
         if (connectionsFailed > 0 && connectionsFailed % 3 == 0) {
             bluetoothAdapter.disable()
@@ -335,12 +377,14 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
     }
 
     companion object {
+        private var connectionsFailed = 0
         private val LOG_TAG = ConnectionManager::class.java.simpleName
         private const val DESIRED_MTU: Int = 512
         private const val CONNECTION_TIMEOUT: Long = 5000
         private const val MTU_CHANGE_TIMEOUT: Long = 1000
         private const val SERVICE_DISCOVERY_TIMEOUT: Long = 2000
         private const val SERVICE_SUBSCRIPTION_TIMEOUT: Long = 3000
+        private const val COMMAND_TIMEOUT: Long = 2000
     }
 
 }

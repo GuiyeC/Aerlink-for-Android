@@ -11,6 +11,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import java.util.*
+import java.util.concurrent.atomic.AtomicBoolean
 
 class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManager) {
 
@@ -18,6 +19,10 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
         fun onDeviceDiscovery(discoveryManager: DiscoveryManager, device: BluetoothDevice)
     }
 
+    private var atomicRunning = AtomicBoolean(true)
+    var isRunning: Boolean
+        get() = atomicRunning.get()
+        private set(value) = atomicRunning.set(value)
     private var isScanning: Boolean = false
     private val bluetoothAdapter: BluetoothAdapter = bluetoothManager.adapter
     private val scanner: BluetoothLeScanner?
@@ -57,6 +62,10 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
     }
 
     fun startDiscovery() {
+        if (!isRunning) {
+            return
+        }
+
         val scanner = this.scanner
         // If disabled -> enable bluetooth
         if (!bluetoothAdapter.isEnabled || scanner == null) {
@@ -118,6 +127,12 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
     }
 
     fun close() {
+        // Check if already closed
+        if (!isRunning) {
+            return
+        }
+
+        isRunning = false
         callback = null
         stopDiscovery()
     }

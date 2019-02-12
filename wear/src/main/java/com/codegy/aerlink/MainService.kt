@@ -51,6 +51,9 @@ class MainService : Service(), CommandHandler, DiscoveryManager.Callback, BondMa
 
         notificationManager.cancelAll()
 
+        serviceManagers.values.forEach { it.close() }
+        serviceManagers.clear()
+
         discoveryManager?.close()
         bondManager?.close()
         connectionManager?.close()
@@ -94,7 +97,7 @@ class MainService : Service(), CommandHandler, DiscoveryManager.Callback, BondMa
     }
 
     override fun onBondFailed(bondManager: BondManager, device: BluetoothDevice) {
-        Log.w(LOG_TAG, "onBondSuccessful :: Device: $device")
+        Log.w(LOG_TAG, "onBondFailed :: Device: $device")
         bondManager.close()
         this.bondManager = null
 
@@ -170,6 +173,8 @@ class MainService : Service(), CommandHandler, DiscoveryManager.Callback, BondMa
         Log.e(LOG_TAG, "Connection Error")
         state = ConnectionState.Disconnected
 
+        serviceManagers.values.forEach { it.close() }
+        serviceManagers.clear()
         connectionManager.close()
         this.connectionManager = null
         notificationManager.cancelAll()

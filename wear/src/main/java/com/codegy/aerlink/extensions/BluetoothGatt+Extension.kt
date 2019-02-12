@@ -57,7 +57,7 @@ fun BluetoothGatt.subscribeToCharacteristic(characteristicIdentifier: Characteri
 }
 
 // Status: https://android.googlesource.com/platform/external/bluetooth/bluedroid/+/5738f83aeb59361a0a2eda2460113f6dc9194271/stack/include/gatt_api.h
-fun BluetoothGatt.stringFromConnectionError(error: Int): String {
+fun stringFromConnectionError(error: Int): String {
     when (error) {
         BluetoothGatt.GATT_SUCCESS -> return "SUCCESS"
         /** GATT CONN L2C FAILURE **/
@@ -80,7 +80,7 @@ fun BluetoothGatt.stringFromConnectionError(error: Int): String {
     }
 }
 
-fun BluetoothGatt.stringFromStatus(status: Int): String {
+fun stringFromStatus(status: Int): String {
     when (status) {
         BluetoothGatt.GATT_SUCCESS -> return "SUCCESS"
         0x0001 -> return "GATT INVALID HANDLE"
