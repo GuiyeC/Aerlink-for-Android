@@ -1,23 +1,33 @@
 package com.codegy.aerlink.service.notifications
 
 import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.bluetooth.BluetoothGattCharacteristic
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.drawable.Icon
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.codegy.aerlink.R
 import com.codegy.aerlink.connection.Command
 import com.codegy.aerlink.service.ServiceManager
 import com.codegy.aerlink.service.notifications.model.NotificationAttribute
 import com.codegy.aerlink.service.notifications.model.NotificationDataReader
 import com.codegy.aerlink.service.notifications.model.NotificationEvent
-import com.codegy.aerlink.utils.ServiceUtils
+import com.codegy.aerlink.utils.CommandHandler
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 
-class NotificationServiceManager(private val context: Context, private val utils: ServiceUtils): ServiceManager {
+class NotificationServiceManager(private val context: Context, private val commandHandler: CommandHandler): ServiceManager {
 
+    private val notificationManager: NotificationManagerCompat by lazy { NotificationManagerCompat.from(context) }
     private var notificationDataReader: NotificationDataReader? = null
     private val eventQueue: Queue<NotificationEvent> = ConcurrentLinkedQueue()
     private val notificationCache: MutableMap<String, Notification> = mutableMapOf()
@@ -96,7 +106,7 @@ class NotificationServiceManager(private val context: Context, private val utils
                 notificationDataReader = NotificationDataReader(event, attributesToRead)
 
                 val command = buildNotificationAttributesCommand(event.uid, attributesToRead)
-                utils.addCommandToQueue(command)
+                commandHandler.handleCommand(command)
             }
             NotificationEvent.Type.Modified -> {
                 val attributesToRead = mutableListOf(
@@ -113,10 +123,10 @@ class NotificationServiceManager(private val context: Context, private val utils
                 notificationDataReader = NotificationDataReader(event, attributesToRead)
 
                 val command = buildNotificationAttributesCommand(event.uid, attributesToRead)
-                utils.addCommandToQueue(command)
+                commandHandler.handleCommand(command)
             }
             NotificationEvent.Type.Removed -> {
-                utils.cancelNotification(event.uid.toString(), 1000)
+                notificationManager.cancel(event.uidString, NOTIFICATION_ID)
             }
             NotificationEvent.Type.Reserved -> {
 //                Log.wtf()
@@ -184,10 +194,10 @@ class NotificationServiceManager(private val context: Context, private val utils
                         .setBackground(background)
                 notificationBuilder.extend(wearableExtender)
 
-                utils.notify(event.uid.toString(), 1000, notificationBuilder.build())
+                notificationManager.notify(event.uidString, NOTIFICATION_ID, notificationBuilder.build())
             }
             NotificationEvent.Type.Removed -> {
-                utils.cancelNotification(event.uid.toString(), 1000)
+                notificationManager.cancel(event.uidString, NOTIFICATION_ID)
             }
             NotificationEvent.Type.Reserved -> TODO()
         }

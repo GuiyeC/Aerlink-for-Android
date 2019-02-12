@@ -4,7 +4,7 @@ import android.content.Context
 import com.codegy.aerlink.connection.CharacteristicIdentifier
 import com.codegy.aerlink.service.ServiceContract
 import com.codegy.aerlink.service.ServiceManager
-import com.codegy.aerlink.utils.ServiceUtils
+import com.codegy.aerlink.utils.CommandHandler
 import java.util.*
 
 object BASContract: ServiceContract {
@@ -15,8 +15,8 @@ object BASContract: ServiceContract {
 
     override val characteristicsToSubscribe: List<CharacteristicIdentifier> = listOf(CharacteristicIdentifier(serviceUuid, batteryLevelCharacteristicUuid))
 
-    override fun createManager(context: Context, utils: ServiceUtils): ServiceManager {
-        return BatteryServiceManager()
+    override fun createManager(context: Context, commandHandler: CommandHandler): ServiceManager {
+        return BatteryServiceManager(context)
     }
 
 }

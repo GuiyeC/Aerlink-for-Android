@@ -4,7 +4,7 @@ import android.content.Context
 import com.codegy.aerlink.connection.CharacteristicIdentifier
 import com.codegy.aerlink.service.ServiceContract
 import com.codegy.aerlink.service.ServiceManager
-import com.codegy.aerlink.utils.ServiceUtils
+import com.codegy.aerlink.utils.CommandHandler
 import java.util.*
 
 object ALSContract: ServiceContract {
@@ -24,7 +24,7 @@ object ALSContract: ServiceContract {
             CharacteristicIdentifier(serviceUuid, cameraRemoteDataCharacteristicUuid)
     )
 
-    override fun createManager(context: Context, utils: ServiceUtils): ServiceManager {
+    override fun createManager(context: Context, commandHandler: CommandHandler): ServiceManager {
         return UtilsServiceManager()
     }
     

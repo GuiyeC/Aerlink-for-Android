@@ -1,6 +1,5 @@
 package com.codegy.aerlink
 
-import android.app.Notification
 import android.app.NotificationManager
 import android.app.Service
 import android.bluetooth.BluetoothDevice
@@ -19,10 +18,11 @@ import com.codegy.aerlink.connection.DiscoveryManager
 import com.codegy.aerlink.service.ServiceContract
 import com.codegy.aerlink.service.ServiceManager
 import com.codegy.aerlink.service.notifications.ANCSContract
-import com.codegy.aerlink.utils.ServiceUtils
+import com.codegy.aerlink.utils.CommandHandler
 import kotlin.reflect.KClass
 
-class MainService : Service(), ServiceUtils, DiscoveryManager.Callback, BondManager.Callback, ConnectionManager.Callback {
+
+class MainService : Service(), CommandHandler, DiscoveryManager.Callback, BondManager.Callback, ConnectionManager.Callback {
 
     var state: ConnectionState = ConnectionState.Disconnected
         set(value) {
@@ -192,19 +192,9 @@ class MainService : Service(), ServiceUtils, DiscoveryManager.Callback, BondMana
         serviceManager.handleCharacteristic(characteristic)
     }
 
-    override fun addCommandToQueue(command: Command) {
-        Log.d(LOG_TAG, "addCommandToQueue :: Command: $command")
+    override fun handleCommand(command: Command) {
+        Log.d(LOG_TAG, "handleCommand :: Command: $command")
         connectionManager?.handleCommand(command)
-    }
-
-    override fun notify(tag: String?, id: Int, notification: Notification) {
-        Log.d(LOG_TAG, "notify :: tag: $tag, id: $id, notification: $notification")
-        notificationManager.notify(tag, id, notification)
-    }
-
-    override fun cancelNotification(tag: String?, id: Int) {
-        Log.d(LOG_TAG, "cancelNotification :: tag: $tag, id: $id")
-        notificationManager.cancel(tag, id)
     }
 
 

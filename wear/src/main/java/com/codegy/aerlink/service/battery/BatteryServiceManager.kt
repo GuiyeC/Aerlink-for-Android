@@ -1,11 +1,12 @@
 package com.codegy.aerlink.service.battery
 
 import android.bluetooth.BluetoothGattCharacteristic
+import android.content.Context
 import android.util.Log
 import com.codegy.aerlink.connection.Command
 import com.codegy.aerlink.service.ServiceManager
 
-class BatteryServiceManager: ServiceManager {
+class BatteryServiceManager(private val context: Context): ServiceManager {
 
     interface Observer {
         fun onBatteryLevelChanged(batteryLevel: Int)

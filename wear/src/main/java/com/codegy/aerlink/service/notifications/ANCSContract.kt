@@ -20,8 +20,8 @@ object ANCSContract: ServiceContract {
             CharacteristicIdentifier(serviceUuid, dataSourceCharacteristicUuid)
     )
 
-    override fun createManager(context: Context, utils: ServiceUtils): ServiceManager {
-        return NotificationServiceManager(context, utils)
+    override fun createManager(context: Context, commandHandler: CommandHandler): ServiceManager {
+        return NotificationServiceManager(context, commandHandler)
     }
 
 }
