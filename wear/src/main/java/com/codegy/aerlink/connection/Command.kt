@@ -2,11 +2,10 @@ package com.codegy.aerlink.connection
 
 import java.util.*
 
-data class Command(val serviceUUID: UUID, val characteristicUUID: UUID, val packet: ByteArray? = null) {
+data class Command(val serviceUUID: UUID, val characteristicUUID: UUID, val packet: ByteArray? = null, var importance: Int = IMPORTANCE_NORMAL) {
 
     var isWriteCommand: Boolean = packet != null
     private var retryCount = 0
-    var importance = IMPORTANCE_NORMAL
     var successBlock: (() -> Unit)? = null
     var failureBlock: (() -> Unit)? = null
 
