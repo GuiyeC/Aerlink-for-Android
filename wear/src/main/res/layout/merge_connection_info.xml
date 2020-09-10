@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/connectionInfoView"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="8dp" >
+
+    <TextView
+        android:id="@+id/connectionInfoTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="@string/connection_state_disconnected"
+        android:textSize="22sp"
+        android:textColor="@color/connection_state_disconnected"/>
+
+    <TextView
+        android:id="@+id/connectionInfoHelpTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:text="@string/connection_state_disconnected_help"
+        android:textSize="19sp"
+        android:textColor="@color/white"/>
+
+</LinearLayout>
