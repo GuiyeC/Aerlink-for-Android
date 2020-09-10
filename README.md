@@ -51,6 +51,14 @@ Community Support
 Change log
 --------------
 
++ 4.0
+- Rewritten app from scratch
+- Improved discovery, bonding and connection.
+- Add compatibility with iOS Aerlink 4.0
+- Improve compatibility with newer Wear OS versions
+- Add option to unbond from previously bonded Aerlink devices
+- Improve notification management
+
 + 3.0
  - Major changes.
  - Better connection and reconnection.
