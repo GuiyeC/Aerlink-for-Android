@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black"
+    tools:context=".ui.cameraremote.CameraRemoteActivity"
+    tools:deviceIds="wear">
+
+    <FrameLayout
+        android:id="@+id/shutterRelativeLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="20dp"
+        android:layout_margin="20dp"
+        android:background="@drawable/button_shutter_back"
+        android:clickable="true"
+        android:focusable="true">
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/button_shutter_front"
+            android:clickable="false"
+            tools:ignore="ContentDescription" />
+
+        <ImageView
+            android:id="@+id/shutterImageView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_shutter"
+            android:clickable="false"
+            android:scaleType="center"
+            tools:ignore="ContentDescription" />
+
+        <TextView
+            android:id="@+id/countdownTextView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:clickable="false"
+            android:textSize="60sp"
+            android:textColor="@color/white"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/cameraClosedTextView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="20dp"
+        android:gravity="center"
+        android:text="@string/camera_remote_closed"
+        android:textSize="19sp"
+        android:textColor="@color/white"
+        android:background="@color/black"
+        tools:visibility="gone" />
+
+    <include layout="@layout/merge_loading"
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        android:visibility="gone" />
+
+    <include layout="@layout/merge_error"
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        android:visibility="gone" />
+
+    <include layout="@layout/merge_connection_info"
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        tools:visibility="gone" />
+
+</FrameLayout>
