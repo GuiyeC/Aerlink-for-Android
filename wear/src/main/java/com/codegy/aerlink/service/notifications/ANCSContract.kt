@@ -5,13 +5,12 @@ import com.codegy.aerlink.connection.CharacteristicIdentifier
 import com.codegy.aerlink.service.ServiceContract
 import com.codegy.aerlink.service.ServiceManager
 import com.codegy.aerlink.utils.CommandHandler
-import java.util.*
+import java.util.UUID
 
 /**
  * https://developer.apple.com/library/archive/documentation/CoreBluetooth/Reference/AppleNotificationCenterServiceSpecification/Introduction/Introduction.html
  */
 object ANCSContract: ServiceContract {
-
     // ANCS - Apple Notification Center Service Profile
     override val serviceUuid: UUID = UUID.fromString("7905f431-b5ce-4e99-a40f-4b1e122d00d0")
     val notificationSourceCharacteristicUuid: UUID = UUID.fromString("9fbf120d-6301-42d9-8c58-25e699a21dbd")
@@ -26,5 +25,4 @@ object ANCSContract: ServiceContract {
     override fun createManager(context: Context, commandHandler: CommandHandler): ServiceManager {
         return NotificationServiceManager(context, commandHandler)
     }
-
 }

@@ -13,11 +13,7 @@ enum class NotificationAttribute(val value: Byte) {
 
     companion object {
         fun fromRaw(eventId: Int): NotificationAttribute {
-            if (eventId >= NotificationAttribute.values().size) {
-                return NotificationAttribute.Reserved
-            }
-
-            return NotificationAttribute.values()[eventId]
+            return values().getOrNull(eventId) ?: Reserved
         }
     }
 
@@ -27,5 +23,4 @@ enum class NotificationAttribute(val value: Byte) {
             else -> false
         }
     }
-
 }

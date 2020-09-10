@@ -1,11 +1,10 @@
 package com.codegy.aerlink.service.notifications.model
 
+import android.util.Log
 import java.io.ByteArrayOutputStream
 import java.nio.charset.Charset
-import java.util.*
 
 class NotificationDataReader(val event: NotificationEvent, attributesToRead: List<NotificationAttribute>) {
-
     private var firstPacket = true
     private var attributesToRead: MutableList<NotificationAttribute> = attributesToRead.toMutableList()
     private var leftoverBytes: ByteArray? = null
@@ -17,28 +16,33 @@ class NotificationDataReader(val event: NotificationEvent, attributesToRead: Lis
         get() = attributesToRead.isEmpty()
 
     fun readPacket(packet: ByteArray) {
-        val offset = if (firstPacket) {
+        if (firstPacket) {
             firstPacket = false
-            5
-            // TODO: check uid
+            val packetUid: ByteArray = packet.copyOfRange(1, 5)
+            if (!packetUid.contentEquals(event.uid)) {
+                Log.i(LOG_TAG, "readPacket :: Unexpected UID")
+                // Something went wrong, this is not the packet we were expecting
+                // Stop reading and clear expected attributes
+                attributesToRead.clear()
+                return
+            }
+            readNextAttribute(packet, 5)
         } else {
-            0
-        }
+            val bytesFromPreviousPacket = leftoverBytes
+            val packetWithLeftover = if (bytesFromPreviousPacket != null) {
+                bytesFromPreviousPacket + packet
+            } else {
+                packet
+            }
+            leftoverBytes = null
 
-        val bytesFromPreviousPacket = leftoverBytes
-        val packetWithLeftover = if (bytesFromPreviousPacket != null) {
-            bytesFromPreviousPacket + packet
-        } else {
-            packet
-        }
-        leftoverBytes = null
-
-        val currentAttribute = this.currentAttribute
-        val bytesLeftFromCurrentAttribute = this.bytesLeftFromCurrentAttribute
-        if (currentAttribute == null || bytesLeftFromCurrentAttribute == null) {
-            readNextAttribute(packetWithLeftover, offset)
-        } else {
-            readData(packetWithLeftover, offset, currentAttribute, bytesLeftFromCurrentAttribute)
+            val currentAttribute = this.currentAttribute
+            val bytesLeftFromCurrentAttribute = this.bytesLeftFromCurrentAttribute
+            if (currentAttribute == null || bytesLeftFromCurrentAttribute == null) {
+                readNextAttribute(packetWithLeftover, 0)
+            } else {
+                readData(packetWithLeftover, 0, currentAttribute, bytesLeftFromCurrentAttribute)
+            }
         }
     }
 
@@ -49,7 +53,7 @@ class NotificationDataReader(val event: NotificationEvent, attributesToRead: Lis
                 readNextAttribute(packet, offset)
             } else {
                 // We don't have enough bytes to read the next attribute, save for the next packet
-                leftoverBytes = Arrays.copyOfRange(packet, offset, packet.size)
+                leftoverBytes = packet.copyOfRange(offset, packet.size)
             }
         }
     }
@@ -96,4 +100,7 @@ class NotificationDataReader(val event: NotificationEvent, attributesToRead: Lis
         currentAttributeData.reset()
     }
 
+    companion object {
+        private val LOG_TAG = NotificationDataReader::class.java.simpleName
+    }
 }
