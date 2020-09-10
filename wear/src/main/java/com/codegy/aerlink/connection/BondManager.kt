@@ -8,7 +8,6 @@ import android.content.IntentFilter
 import android.util.Log
 
 class BondManager(private val device: BluetoothDevice, private val context: Context, var callback: Callback?) {
-
     interface Callback {
         fun onBondSuccessful(bondManager: BondManager, device: BluetoothDevice)
         fun onBondFailed(bondManager: BondManager, device: BluetoothDevice)
@@ -40,17 +39,16 @@ class BondManager(private val device: BluetoothDevice, private val context: Cont
         context.registerReceiver(bondReceiver, IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED))
     }
 
+    fun createBond() {
+        device.createBond()
+    }
+
     fun close() {
         callback = null
         context.unregisterReceiver(bondReceiver)
     }
 
-    fun createBond() {
-        device.createBond()
-    }
-
     companion object {
         private val LOG_TAG = BondManager::class.java.simpleName
     }
-
 }

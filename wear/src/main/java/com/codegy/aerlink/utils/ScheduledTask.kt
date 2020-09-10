@@ -14,5 +14,4 @@ class ScheduledTask(looper: Looper) {
     fun cancel() {
         handler.removeCallbacksAndMessages(null)
     }
-
 }

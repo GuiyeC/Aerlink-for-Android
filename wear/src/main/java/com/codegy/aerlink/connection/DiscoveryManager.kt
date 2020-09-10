@@ -14,7 +14,6 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 
 class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManager) {
-
     interface Callback {
         fun onDeviceDiscovery(discoveryManager: DiscoveryManager, device: BluetoothDevice)
     }
@@ -31,7 +30,6 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
     private val allowedDevices: List<String> = listOf("Aerlink", "BLE Utility", "Blank")
 
     private val scanCallback = object : ScanCallback() {
-
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             if (!isScanning) {
                 return
@@ -40,7 +38,7 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
             Log.d(LOG_TAG, "Scan Result: $result")
 
             val device = result.device ?: return
-            val deviceName = device.name ?: return
+            val deviceName = device.name ?: result.scanRecord?.deviceName ?: return
 
             if (allowedDevices.contains(deviceName)) {
                 callback?.onDeviceDiscovery(this@DiscoveryManager, device)
@@ -58,7 +56,6 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
             stopDiscovery()
             startDiscovery()
         }
-
     }
 
     fun startDiscovery() {
@@ -86,7 +83,7 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
             return
         }
 
-        // Only allow to scan after 5 seconds
+        // Only allow scanning 5 seconds after last scan
         if (Calendar.getInstance().timeInMillis - lastScan < 6000) {
             val handler = Handler(Looper.getMainLooper())
             handler.postDelayed({ startDiscovery() }, SCAN_DELAY)
@@ -114,14 +111,12 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
 
     fun stopDiscovery() {
         isScanning = false
-
         synchronized(this) {
             try {
                 scanner?.stopScan(scanCallback)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-
             Log.d(LOG_TAG, "Scanning stopped")
         }
     }
@@ -143,5 +138,4 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
         private const val SCAN_DELAY: Long = 1000
         private var lastScan: Long = 0
     }
-
 }

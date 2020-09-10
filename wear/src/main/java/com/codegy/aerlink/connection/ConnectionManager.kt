@@ -22,7 +22,6 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
 class ConnectionManager(val device: BluetoothDevice, private val context: Context, var callback: Callback?, bluetoothManager: BluetoothManager) {
-
     interface Callback {
         fun onReadyToSubscribe(connectionManager: ConnectionManager): List<CharacteristicIdentifier>
         fun onConnectionReady(connectionManager: ConnectionManager)
@@ -147,13 +146,11 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
         }
 
         fun checkCharacteristicsToSubscribe() {
-            if (characteristicsToSubscribe.size == 0) {
+            val characteristic = characteristicsToSubscribe.poll() ?: run {
                 connectionsFailed = 0
                 callback?.onConnectionReady(this@ConnectionManager)
                 return
             }
-
-            val characteristic = characteristicsToSubscribe.poll()
             subscribeToCharacteristic(characteristic)
         }
 
@@ -190,10 +187,9 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
         }
 
         fun checkCommands() {
-            if (currentCommand != null || commands.isEmpty()) {
+            if (currentCommand != null) {
                 return
             }
-
             commands.poll()?.let {
                 currentCommand = it
                 handleCommand(it)
@@ -289,18 +285,6 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
 
     }
 
-    fun close() {
-        // Check if already closed
-        if (!isRunning) {
-            return
-        }
-
-        isRunning = false
-        callback = null
-        disconnect()
-        Log.i(LOG_TAG, "ConnectionManager Closed")
-    }
-
     fun connect(autoConnect: Boolean = false) {
         if (device.bondState != BluetoothDevice.BOND_BONDED) {
             Log.w(LOG_TAG, "Trying to connect to an unbonded device")
@@ -376,6 +360,18 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
         }
     }
 
+    fun close() {
+        // Check if already closed
+        if (!isRunning) {
+            return
+        }
+
+        isRunning = false
+        callback = null
+        disconnect()
+        Log.i(LOG_TAG, "ConnectionManager Closed")
+    }
+
     companion object {
         private var connectionsFailed = 0
         private val LOG_TAG = ConnectionManager::class.java.simpleName
@@ -386,5 +382,4 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
         private const val SERVICE_SUBSCRIPTION_TIMEOUT: Long = 3000
         private const val COMMAND_TIMEOUT: Long = 2000
     }
-
 }

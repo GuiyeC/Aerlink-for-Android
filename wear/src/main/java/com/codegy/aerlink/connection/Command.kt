@@ -1,10 +1,17 @@
 package com.codegy.aerlink.connection
 
-import java.util.*
+import java.util.UUID
+import java.util.Arrays
+import java.util.Objects
 
-data class Command(val serviceUUID: UUID, val characteristicUUID: UUID, val packet: ByteArray? = null, var importance: Int = IMPORTANCE_NORMAL) {
-
-    var isWriteCommand: Boolean = packet != null
+data class Command(
+        val serviceUUID: UUID,
+        val characteristicUUID: UUID,
+        val packet: ByteArray? = null,
+        var importance: Int = IMPORTANCE_NORMAL
+) {
+    val isWriteCommand: Boolean
+        get() = packet != null
     private var retryCount = 0
     var successBlock: (() -> Unit)? = null
     var failureBlock: (() -> Unit)? = null
@@ -21,11 +28,9 @@ data class Command(val serviceUUID: UUID, val characteristicUUID: UUID, val pack
         if (retryCount >= importance) {
             return false
         }
-
         if (importance <= IMPORTANCE_MAX) {
             retryCount++
         }
-
         return true
     }
 
@@ -33,15 +38,12 @@ data class Command(val serviceUUID: UUID, val characteristicUUID: UUID, val pack
         if (other == null || other !is Command) {
             return false
         }
-
         return serviceUUID == other.serviceUUID &&
                 characteristicUUID == other.characteristicUUID &&
                 Arrays.equals(packet, other.packet)
     }
 
-    override fun hashCode(): Int {
-        return Objects.hash(serviceUUID, characteristicUUID, packet)
-    }
+    override fun hashCode(): Int = Objects.hash(serviceUUID, characteristicUUID, packet)
 
     companion object {
         const val IMPORTANCE_MIN = 1
