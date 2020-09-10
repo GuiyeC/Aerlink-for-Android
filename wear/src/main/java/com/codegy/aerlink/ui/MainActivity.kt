@@ -1,8 +1,10 @@
 package com.codegy.aerlink.ui
 
 import android.bluetooth.BluetoothManager
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import androidx.wear.activity.ConfirmationActivity
 import com.codegy.aerlink.R
 import com.codegy.aerlink.connection.ConnectionState
 import com.codegy.aerlink.extensions.resetBondedDevices
@@ -30,12 +32,33 @@ class MainActivity : ServiceActivity(), BatteryServiceManager.Observer {
         }
 
         unbondButton.setOnClickListener {
-            if (isServiceRunning) {
-                stopService()
-                serviceSwitch.isChecked = false
+            unbondProgress.apply {
+                totalTime = 3000
+                startTimer()
             }
+            unbondButton.visibility = View.GONE
+            unbondProgress.visibility = View.VISIBLE
+        }
 
-            getSystemService(BluetoothManager::class.java)?.adapter?.resetBondedDevices()
+        unbondProgress.setOnTimerFinishedListener {
+            unbondDevices()
+
+            runOnUiThread {
+                unbondProgress.visibility = View.GONE
+                unbondButton.visibility = View.VISIBLE
+
+                val intent = Intent(this, ConfirmationActivity::class.java).apply {
+                    putExtra(ConfirmationActivity.EXTRA_ANIMATION_TYPE, ConfirmationActivity.SUCCESS_ANIMATION)
+                    putExtra(ConfirmationActivity.EXTRA_MESSAGE, getString(R.string.general_unbond_confirmation))
+                }
+                startActivity(intent)
+            }
+        }
+
+        unbondProgress.setOnClickListener {
+            unbondProgress.stopTimer()
+            unbondProgress.visibility = View.GONE
+            unbondButton.visibility = View.VISIBLE
         }
     }
 
@@ -54,7 +77,7 @@ class MainActivity : ServiceActivity(), BatteryServiceManager.Observer {
     }
 
     override fun onConnectedToDevice() {
-        batteryServiceManager = getServiceManager(BatteryServiceManager::class) as? BatteryServiceManager
+        batteryServiceManager = getServiceManager(BatteryServiceManager::class)
         batteryServiceManager?.observer = this
     }
 
@@ -105,5 +128,14 @@ class MainActivity : ServiceActivity(), BatteryServiceManager.Observer {
                 }
             }
         }
+    }
+
+    private fun unbondDevices() {
+        if (isServiceRunning) {
+            stopService()
+            serviceSwitch.isChecked = false
+        }
+
+        getSystemService(BluetoothManager::class.java)?.adapter?.resetBondedDevices()
     }
 }

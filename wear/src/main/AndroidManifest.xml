@@ -44,6 +44,8 @@
             </intent-filter>
         </activity>
 
+        <activity android:name="androidx.wear.activity.ConfirmationActivity" />
+
         <activity android:name=".ui.PhoneActivity" />
 
         <activity

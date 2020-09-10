@@ -18,6 +18,7 @@
     <string name="general_connection_error_help">Open \"Aerlink\" on your iOS device before retrying.</string>
     <string name="general_try_again">Try again</string>
     <string name="general_unbond">Unbond</string>
+    <string name="general_unbond_confirmation">Aerlink devices unbonded</string>
 
     <string name="service_notification_channel">Aerlink Service</string>
 

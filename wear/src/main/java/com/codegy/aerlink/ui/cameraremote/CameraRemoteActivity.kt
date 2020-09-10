@@ -88,7 +88,7 @@ class CameraRemoteActivity : AerlinkActivity(), CameraRemoteServiceManager.Callb
     }
 
     private fun takePicture() {
-        val serviceManager = getServiceManager(CameraRemoteServiceManager::class) as? CameraRemoteServiceManager
+        val serviceManager = getServiceManager(CameraRemoteServiceManager::class)
         if (serviceManager?.isCameraOpen == true) {
             showLoading(true)
             serviceManager.takePicture()
