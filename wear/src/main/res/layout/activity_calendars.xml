@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/black"
+    tools:context="com.codegy.aerlink.ui.reminders.CalendarsActivity"
+    tools:deviceIds="wear">
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        tools:listitem="@layout/list_item_calendar"
+        android:divider="@null"/>
+
+    <include layout="@layout/merge_loading"
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        android:visibility="gone" />
+
+    <include layout="@layout/merge_error"
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        android:visibility="gone" />
+
+    <include layout="@layout/merge_connection_info"
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        tools:visibility="gone" />
+
+</FrameLayout>
