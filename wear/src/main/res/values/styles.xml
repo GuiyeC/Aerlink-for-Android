@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="@android:style/Theme.DeviceDefault">
+        <!-- Customize your theme here. -->
+        <item name="android:colorPrimary">@color/primary</item>
+        <item name="android:colorPrimaryDark">@color/primary_variant</item>
+        <item name="android:colorAccent">@color/secondary</item>
+        <item name="android:textColor">@color/on_background</item>
+        <item name="android:textColorPrimary">@color/on_primary</item>
+        <item name="android:textColorSecondary">@color/on_secondary</item>
+    </style>
+</resources>

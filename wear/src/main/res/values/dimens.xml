@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <dimen name="connection_error_margin_top">8dp</dimen>
+    <dimen name="connection_error_margin_side">8dp</dimen>
+    <dimen name="connection_error_margin_bottom">8dp</dimen>
+
     <!--
     Because the window insets on round devices are larger than 15dp, this padding only applies
     to square screens.

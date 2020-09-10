@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="aerlink_blue">#0085F2</color>
+    <color name="low_battery">#DC3D35</color>
+    
+    <color name="connection_state_stopped">#EA4E3D</color>
+    <color name="connection_state_disconnected">#EA4E3D</color>
+    <color name="connection_state_bonding">#FFC107</color>
+    <color name="connection_state_connecting">#FFC107</color>
+    <color name="connection_state_ready">#65DA7C</color>
+
+    <color name="primary">#0085F2</color>
+    <color name="primary_variant">#0059bf</color>
+    <color name="secondary">#f26d00</color>
+    <color name="secondary_variant">#b83d00</color>
+    <color name="background">#000000</color>
+    <color name="surface">#202023</color>
+    <color name="error">#B00020</color>
+    <color name="on_primary">#0A0A0F</color>
+    <color name="on_secondary">#0A0A0F</color>
+    <color name="on_background">#FFFFFF</color>
+    <color name="on_surface">#F0F0FA</color>
+    <color name="on_error">#FFFFFF</color>
+</resources>
