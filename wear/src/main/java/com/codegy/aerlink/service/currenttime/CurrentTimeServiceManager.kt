@@ -9,7 +9,6 @@ import java.io.IOException
 import java.util.*
 
 class CurrentTimeServiceManager: ServiceManager {
-
     private val currentTime: Calendar = Calendar.getInstance()
 
     override fun initialize(): List<Command>? {
@@ -71,5 +70,4 @@ class CurrentTimeServiceManager: ServiceManager {
     companion object {
         private val LOG_TAG: String = CurrentTimeServiceManager::class.java.simpleName
     }
-
 }
