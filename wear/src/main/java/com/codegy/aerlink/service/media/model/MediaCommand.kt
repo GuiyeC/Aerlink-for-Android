@@ -29,11 +29,7 @@ enum class MediaCommand(val value: Byte) {
 
     companion object {
         fun fromRaw(commandId: Int): MediaCommand {
-            if (commandId >= MediaCommand.values().size) {
-                return MediaCommand.Reserved
-            }
-
-            return MediaCommand.values()[commandId]
+            return values().getOrNull(commandId) ?: Reserved
         }
     }
 }

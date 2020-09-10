@@ -4,12 +4,13 @@ import android.content.Context
 import com.codegy.aerlink.connection.CharacteristicIdentifier
 import com.codegy.aerlink.service.ServiceContract
 import com.codegy.aerlink.service.ServiceManager
-import com.codegy.aerlink.service.battery.BatteryServiceManager
 import com.codegy.aerlink.utils.CommandHandler
-import java.util.*
+import java.util.UUID
 
+/**
+ * https://developer.apple.com/library/archive/documentation/CoreBluetooth/Reference/AppleMediaService_Reference/Introduction/Introduction.html
+ */
 object AMSContract: ServiceContract {
-
     // AMS - Apple Media Service Profile
     override val serviceUuid: UUID = UUID.fromString("89d3502b-0f36-433a-8ef4-c502ad55f8dc")
     val remoteCommandCharacteristicUuid: UUID = UUID.fromString("9b3c81d8-57b1-4a8a-b8df-0e56f7ca51c2")
@@ -18,11 +19,9 @@ object AMSContract: ServiceContract {
 
     override val characteristicsToSubscribe: List<CharacteristicIdentifier> = listOf(
             CharacteristicIdentifier(serviceUuid, entityUpdateCharacteristicUuid)
-//            CharacteristicIdentifier(serviceUuid, entityAttributeCharacteristicUuid)
     )
 
     override fun createManager(context: Context, commandHandler: CommandHandler): ServiceManager {
         return MediaServiceManager(context, commandHandler)
     }
-
 }

@@ -1,7 +1,5 @@
 package com.codegy.aerlink.service.media
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.bluetooth.BluetoothGattCharacteristic
 import android.content.BroadcastReceiver
@@ -9,7 +7,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.graphics.Color
+import android.graphics.BitmapFactory
 import android.media.VolumeProvider
 import android.media.session.PlaybackState
 import android.os.Handler
@@ -17,12 +15,15 @@ import android.os.Looper
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.media.VolumeProviderCompat
 import androidx.media.session.MediaButtonReceiver
 import com.codegy.aerlink.R
 import com.codegy.aerlink.connection.Command
+import com.codegy.aerlink.extensions.NotificationChannelImportance
+import com.codegy.aerlink.extensions.createChannelIfNeeded
 import com.codegy.aerlink.service.ServiceManager
 import com.codegy.aerlink.service.media.model.MediaCommand
 import com.codegy.aerlink.service.media.model.MediaEntity
@@ -30,7 +31,6 @@ import com.codegy.aerlink.utils.CommandHandler
 import kotlin.experimental.and
 
 class MediaServiceManager(private val context: Context, private val commandHandler: CommandHandler): ServiceManager {
-
     private val notificationManager: NotificationManagerCompat by lazy { NotificationManagerCompat.from(context) }
     private val broadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -41,30 +41,63 @@ class MediaServiceManager(private val context: Context, private val commandHandl
         }
     }
     private lateinit var session: MediaSessionCompat
+    private var showMedia: Boolean = false
     private val metadataBuilder: MediaMetadataCompat.Builder = MediaMetadataCompat.Builder()
     private val playbackStateBuilder: PlaybackStateCompat.Builder = PlaybackStateCompat.Builder()
-    private var mediaPlaying: Boolean = false
-    private var showMedia: Boolean = false
-    private var mediaTitle: String? = null
-    private var mediaArtist: String? = null
-
-    init {
-        // Since android Oreo notification channel is needed.
-        // Check if notification channel exists and if not create one
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            var notificationChannel = notificationManager.getNotificationChannel(NOTIFICATION_CHANNEL_ID)
-            if (notificationChannel == null) {
-                val channelDescription = "Aerlink Media"
-                val importance = NotificationManager.IMPORTANCE_HIGH
-                notificationChannel = NotificationChannel(NOTIFICATION_CHANNEL_ID, channelDescription, importance)
-                notificationChannel.enableVibration(true)
-// TODO:                notificationChannel.vibrationPattern = SILENT_VIBRATION_PATTERN
-                notificationManager.createNotificationChannel(notificationChannel)
+    private val mediaPlaying: Boolean
+        get() {
+            val state = mediaState ?: 0
+            return state >= 1
+        }
+    private var mediaState: Int? = null
+        set(value) {
+            if (value == field) return
+            field = value
+            val state: Int
+            val position = PlaybackState.PLAYBACK_POSITION_UNKNOWN
+            if (value == null) {
+                mediaArtist = null
+                mediaTitle = null
+                session.isActive = false
+                state = PlaybackStateCompat.STATE_NONE
+            } else {
+                session.isActive = true
+                state = when (mediaState) {
+                    0 -> PlaybackStateCompat.STATE_PAUSED
+                    1 -> PlaybackStateCompat.STATE_PLAYING
+                    2 -> PlaybackStateCompat.STATE_REWINDING
+                    3 -> PlaybackStateCompat.STATE_FAST_FORWARDING
+                    else -> PlaybackStateCompat.STATE_NONE
+                }
             }
+            playbackStateBuilder.setState(state, position, 1f)
+            session.setPlaybackState(playbackStateBuilder.build())
+        }
+    private var mediaTitle: String? = null
+        set(value) {
+            if (value == field) return
+            field = value
+            if (value != null && mediaArtist == null) {
+                metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, context.getString(R.string.media_no_info))
+            } else {
+                metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, value)
+            }
+            session.setMetadata(metadataBuilder.build())
+        }
+    private var mediaArtist: String? = null
+        set(value) {
+            if (value == field) return
+            field = value
+            metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, value)
+            session.setMetadata(metadataBuilder.build())
         }
 
-        val intentFilter = IntentFilter()
-        intentFilter.addAction(IA_HIDE_MEDIA)
+    init {
+        val channelDescription = context.getString(R.string.media_notification_channel)
+        val importance = NotificationChannelImportance.High
+        notificationManager.createChannelIfNeeded(NOTIFICATION_CHANNEL_ID, channelDescription, importance)
+
+        val intentFilter = IntentFilter(IA_HIDE_MEDIA)
         context.registerReceiver(broadcastReceiver, intentFilter)
 
         Handler(Looper.getMainLooper()).post {
@@ -95,8 +128,7 @@ class MediaServiceManager(private val context: Context, private val commandHandl
 
     private fun initializeSession() {
         session.isActive = true
-        session.setFlags(MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS or MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS)
-        session.setPlaybackToRemote(object : VolumeProviderCompat(VolumeProvider.VOLUME_CONTROL_RELATIVE, 100, 50) {
+        session.setPlaybackToRemote(object : VolumeProviderCompat(VolumeProvider.VOLUME_CONTROL_ABSOLUTE, 100, 50) {
             override fun onAdjustVolume(direction: Int) {
                 super.onAdjustVolume(direction)
                 if (direction == 1) {
@@ -121,12 +153,18 @@ class MediaServiceManager(private val context: Context, private val commandHandl
             }
         })
 
-        updatePlaybackState()
-        updateMetadata()
+        playbackStateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE
+                or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+                or PlaybackStateCompat.ACTION_SKIP_TO_NEXT)
+        session.setPlaybackState(playbackStateBuilder.build())
+        session.setMetadata(metadataBuilder.build())
     }
 
     override fun close() {
+        Log.i(LOG_TAG, "Close")
         context.unregisterReceiver(broadcastReceiver)
+        session.setCallback(null)
+        session.isActive = false
         session.release()
     }
 
@@ -138,9 +176,6 @@ class MediaServiceManager(private val context: Context, private val commandHandl
         when (characteristic.uuid) {
             AMSContract.entityUpdateCharacteristicUuid -> {
                 handleEntityUpdatePacket(characteristic)
-            }
-            AMSContract.entityAttributeCharacteristicUuid -> {
-                handleEntityAttributePacket(characteristic)
             }
         }
 
@@ -159,102 +194,79 @@ class MediaServiceManager(private val context: Context, private val commandHandl
                 when (attribute) {
                     MediaEntity.Player.Attribute.PlaybackInfo -> {
                         if (value.isNotEmpty()) {
-                            mediaPlaying = value.substring(0, 1) != "0"
-
                             if (value == "0,,") {
                                 showMedia = false
-                                notificationManager.cancel(null, NOTIFICATION_ID)
+                                mediaState = null
+                                notificationManager.cancel(NOTIFICATION_ID)
+                            } else {
+                                mediaState = value.substringBefore(",").toInt()
                             }
                         }
                     }
-                    MediaEntity.Player.Attribute.Name -> TODO()
-                    MediaEntity.Player.Attribute.Volume -> TODO()
-                    MediaEntity.Player.Attribute.Reserved -> TODO()
+                    MediaEntity.Player.Attribute.Name,
+                    MediaEntity.Player.Attribute.Volume,
+                    MediaEntity.Player.Attribute.Reserved -> {
+                        Log.wtf(LOG_TAG, "Unexpected player attribute: $attribute $value")
+                    }
                 }
-                updatePlaybackState()
             }
-            MediaEntity.Queue -> {
-                TODO()
+            MediaEntity.Queue ->  {
+                Log.wtf(LOG_TAG, "Unexpected queue attribute: $value")
             }
             MediaEntity.Track  -> {
                 val attribute = MediaEntity.Track.Attribute.fromRaw(packet[1])
                 val truncated = (packet[2] and 1) != 0.toByte()
                 when (attribute) {
                     MediaEntity.Track.Attribute.Artist -> {
-                        if (value.isEmpty()) {
-                            mediaArtist = null
-                        } else {
-                            mediaArtist = value
-                            if (truncated) {
-                                mediaArtist += "..."
-                            }
-                        }
+                        mediaArtist = parseTrackAttribute(value, truncated)
                     }
                     MediaEntity.Track.Attribute.Title -> {
-                        if (value.isEmpty()) {
-                            mediaTitle = null
-                        } else {
-                            mediaTitle = value
-                            if (truncated) {
-                                mediaTitle += "..."
-                            }
-                        }
+                        mediaTitle = parseTrackAttribute(value, truncated)
                     }
-                    MediaEntity.Track.Attribute.Album -> TODO()
-                    MediaEntity.Track.Attribute.Duration -> TODO()
-                    MediaEntity.Track.Attribute.Reserved -> TODO()
+                    MediaEntity.Track.Attribute.Album,
+                    MediaEntity.Track.Attribute.Duration,
+                    MediaEntity.Track.Attribute.Reserved -> {
+                        Log.wtf(LOG_TAG, "Unexpected track attribute: $attribute $value")
+                    }
                 }
-                updateMetadata()
             }
         }
     }
 
-    private fun handleEntityAttributePacket(characteristic: BluetoothGattCharacteristic) {
-        val packet = characteristic.value
-        val value = characteristic.getStringValue(3)
-    }
-
-    private fun updatePlaybackState() {
-        val position = PlaybackState.PLAYBACK_POSITION_UNKNOWN
-        playbackStateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE
-                        or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
-                        or PlaybackStateCompat.ACTION_SKIP_TO_NEXT)
-        playbackStateBuilder.setState(if (mediaPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED, position, 1.0f)
-        session.setPlaybackState(playbackStateBuilder.build())
-    }
-
-    private fun updateMetadata() {
-        if (mediaTitle == null && mediaArtist == null) {
-            metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "No info")
-        } else {
-            metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, mediaTitle)
-            metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, mediaArtist)
+    private fun parseTrackAttribute(value: String, truncated: Boolean): String? {
+        return if (value.isEmpty()) {
+            null
+        } else if (!truncated) {
+            value
+        } else  {
+            "$value..."
         }
-        session.setMetadata(metadataBuilder.build())
     }
 
     private fun buildNotification() {
         showMedia = true
-
         // Build pending intent for when the user swipes the card away
         val deleteIntent = Intent(IA_HIDE_MEDIA)
         val deleteAction = PendingIntent.getBroadcast(context, 0, deleteIntent, PendingIntent.FLAG_CANCEL_CURRENT)
+
+        val background = BitmapFactory.decodeResource(context.resources, R.drawable.bg_media)
+        val wearableExtender = NotificationCompat.WearableExtender()
+                .setBackground(background)
+                .setHintHideIcon(true)
         val builder = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
-                .setSmallIcon(R.drawable.nic_low_battery)
+                .setSmallIcon(R.drawable.nic_music)
                 .setDeleteIntent(deleteAction)
-                .setColor(Color.BLUE)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(mediaPlaying)
+                .extend(wearableExtender)
                 .setStyle(androidx.media.app.NotificationCompat.MediaStyle()
-                        .setMediaSession(session.sessionToken)
-                        .setShowActionsInCompactView(0))
-
-        notificationManager.notify(null, NOTIFICATION_ID, builder.build())
+                        .setMediaSession(session.sessionToken))
+        notificationManager.notify(NOTIFICATION_ID, builder.build())
     }
 
     companion object {
         private val LOG_TAG: String = MediaServiceManager::class.java.simpleName
-        private const val NOTIFICATION_ID: Int = 1001
+        private const val NOTIFICATION_ID: Int = 1002
         private const val NOTIFICATION_CHANNEL_ID: String = "com.codegy.aerlink.service.media"
         private const val IA_HIDE_MEDIA: String = "com.codegy.aerlink.service.media.IA_HIDE_MEDIA"
     }

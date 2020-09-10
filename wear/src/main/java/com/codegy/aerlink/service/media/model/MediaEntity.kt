@@ -10,10 +10,7 @@ sealed class MediaEntity(val value: Byte) {
 
             companion object {
                 fun fromRaw(attributeId: Byte): Attribute {
-                    if (attributeId >= Attribute.values().size) {
-                        return Attribute.Reserved
-                    }
-                    return Attribute.values()[attributeId.toInt()]
+                    return values().getOrNull(attributeId.toInt()) ?: Reserved
                 }
             }
         }
@@ -28,10 +25,7 @@ sealed class MediaEntity(val value: Byte) {
 
             companion object {
                 fun fromRaw(attributeId: Byte): Attribute {
-                    if (attributeId >= Attribute.values().size) {
-                        return Attribute.Reserved
-                    }
-                    return Attribute.values()[attributeId.toInt()]
+                    return values().getOrNull(attributeId.toInt()) ?: Reserved
                 }
             }
         }
@@ -46,10 +40,7 @@ sealed class MediaEntity(val value: Byte) {
 
             companion object {
                 fun fromRaw(attributeId: Byte): Attribute {
-                    if (attributeId >= Attribute.values().size) {
-                        return Attribute.Reserved
-                    }
-                    return Attribute.values()[attributeId.toInt()]
+                    return values().getOrNull(attributeId.toInt()) ?: Reserved
                 }
             }
         }
@@ -58,8 +49,8 @@ sealed class MediaEntity(val value: Byte) {
 
     companion object {
         fun fromRaw(entityId: Byte): MediaEntity {
-            if (entityId >= MediaEntity.Reserved.value) {
-                return MediaEntity.Reserved
+            if (entityId >= Reserved.value) {
+                return Reserved
             }
             return listOf(Player, Queue, Track, Reserved)[entityId.toInt()]
         }
