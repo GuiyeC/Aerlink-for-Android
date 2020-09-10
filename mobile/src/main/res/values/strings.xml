@@ -1,3 +1,8 @@
 <resources>
-    <string name="app_name">Aerlink</string>
+    <string name="app_name" translatable="false">Aerlink</string>
+
+    <string name="title">Open on your watch</string>
+    <string name="description">Switch ON \"Aerlink\" from your watch. A card with help will appear on your watch\'s home screen.</string>
+
+    <string name="twitter_help" translatable="false">Twitter: @GuiyeC</string>
 </resources>
