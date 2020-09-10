@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#3F51B5</color>
-    <color name="colorPrimaryDark">#303F9F</color>
-    <color name="colorAccent">#FF4081</color>
+    <color name="aerlink_blue">#0085F2</color>
+
+    <color name="primary">#003866</color>
+    <color name="primary_variant">#001c33</color>
+    <color name="secondary">#f26d00</color>
+    <color name="secondary_variant">#b83d00</color>
+    <color name="background">#002A4F</color>
+    <color name="surface">#202023</color>
+    <color name="error">#B00020</color>
+    <color name="on_primary">#0A0A0F</color>
+    <color name="on_secondary">#0A0A0F</color>
+    <color name="on_background">#FFFFFF</color>
+    <color name="on_surface">#F0F0FA</color>
+    <color name="on_error">#FFFFFF</color>
 </resources>
