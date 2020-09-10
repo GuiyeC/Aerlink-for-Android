@@ -5,7 +5,7 @@ import com.codegy.aerlink.connection.Command
 
 interface ServiceManager {
     fun initialize(): List<Command>?
-    fun close()
     fun canHandleCharacteristic(characteristic: BluetoothGattCharacteristic): Boolean
     fun handleCharacteristic(characteristic: BluetoothGattCharacteristic)
+    fun close()
 }
