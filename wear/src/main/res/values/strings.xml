@@ -1,5 +1,37 @@
 <resources>
-    <string name="app_name">Aerlink</string>
+    <string name="app_name" translatable="false">Aerlink</string>
+    <string name="app_version" translatable="false">4.0</string>
 
-    <string name="general_low_battery">Low battery</string>
+    <string name="camera_remote_app_name">Camera</string>
+    <string name="reminders_app_name">Reminders</string>
+
+    <string name="connection_state_ready">Connected</string>
+    <string name="connection_state_connecting">Connecting…</string>
+    <string name="connection_state_bonding">Bonding…</string>
+    <string name="connection_state_disconnected">Disconnected</string>
+    <string name="connection_state_stopped">Disabled</string>
+    <string name="connection_state_ready_help">Aerlink is ready and running in the background.</string>
+    <string name="connection_state_disconnected_help">Make sure to have \"Aerlink\" open on your iOS device.</string>
+    <string name="connection_state_stopped_help">Enable the Aerlink Service in the main app.</string>
+
+    <string name="general_connection_error">Error</string>
+    <string name="general_connection_error_help">Open \"Aerlink\" on your iOS device before retrying.</string>
+    <string name="general_try_again">Try again</string>
+    <string name="general_unbond">Unbond</string>
+
+    <string name="service_notification_channel">Aerlink Service</string>
+
+    <string name="notifications_notification_channel">Aerlink Notifications</string>
+
+    <string name="media_notification_channel">Aerlink Media</string>
+    <string name="media_no_info">No info</string>
+
+    <string name="battery_notification_channel">Aerlink Battery</string>
+    <string name="battery_low_battery">Low battery</string>
+
+    <string name="camera_remote_notification_channel">Aerlink Camera</string>
+    <string name="camera_remote_notification_title">Camera remote</string>
+    <string name="camera_remote_notification_action">Take photo</string>
+    <string name="camera_remote_notification_text">Camera is ready</string>
+    <string name="camera_remote_closed">Camera closed.\nOpen the camera on \"Aerlink\" on your iOS device.</string>
 </resources>

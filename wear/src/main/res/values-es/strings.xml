@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="camera_remote_app_name">Cámara</string>
+    <string name="reminders_app_name">Recordatorios</string>
+
+    <string name="connection_state_ready">Conectado</string>
+    <string name="connection_state_connecting">Conectando…</string>
+    <string name="connection_state_bonding">Enlazando…</string>
+    <string name="connection_state_disconnected">Desconectado</string>
+    <string name="connection_state_stopped">No activo</string>
+    <string name="connection_state_ready_help">Aerlink está listo y ejecutandose en segundo plano.</string>
+    <string name="connection_state_disconnected_help">Asegurate de que \"Aerlink\" está abierto en tu dipositivo iOS.</string>
+    <string name="connection_state_stopped_help">Activa el Servicio Aerlink en la app principal.</string>
+
+    <string name="general_connection_error">Error</string>
+    <string name="general_connection_error_help">Abre \"Aerlink\" en tu dispositivo iOS antes de reintentar.</string>
+    <string name="general_try_again">Reintentar</string>
+    <string name="general_unbond">Desenlazar</string>
+
+    <string name="service_notification_channel">Servicio Aerlink</string>
+
+    <string name="notifications_notification_channel">Notificaciones Aerlink</string>
+
+    <string name="media_notification_channel">Media Aerlink</string>
+    <string name="media_no_info">No info</string>
+
+    <string name="battery_notification_channel">Batería Aerlink</string>
+    <string name="battery_low_battery">Batería baja</string>
+
+    <string name="camera_remote_notification_channel">Cámara Aerlink</string>
+    <string name="camera_remote_notification_title">Control remoto</string>
+    <string name="camera_remote_notification_action">Tomar foto</string>
+    <string name="camera_remote_notification_text">La cámara está lista</string>
+    <string name="camera_remote_closed">Cámara cerrada.\nAbre la cámara en \"Aerlink\" en tu dispositivo iOS.</string>
+</resources>
