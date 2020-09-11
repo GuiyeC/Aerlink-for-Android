@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.wear.activity.ConfirmationActivity
+import com.codegy.aerlink.BuildConfig
 import com.codegy.aerlink.R
 import com.codegy.aerlink.connection.ConnectionState
 import com.codegy.aerlink.extensions.resetBondedDevices
@@ -17,6 +18,8 @@ class MainActivity : ServiceActivity(), BatteryServiceManager.Observer {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        versionTextView.text = getString(R.string.app_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE)
 
         // Enables Always-on
         setAmbientEnabled()

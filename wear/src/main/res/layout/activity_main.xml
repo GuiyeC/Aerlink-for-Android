@@ -128,12 +128,13 @@
             </androidx.wear.widget.CircularProgressLayout>
 
             <TextView
+                android:id="@+id/versionTextView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:gravity="center"
                 android:textColor="@color/on_background"
-                android:text="@string/app_version"/>
+                tools:text="4.0"/>
         </LinearLayout>
 
     </ScrollView>
