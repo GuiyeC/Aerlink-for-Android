@@ -29,6 +29,7 @@
 
     <string name="battery_notification_channel">Aerlink Battery</string>
     <string name="battery_low_battery">Low battery</string>
+    <string name="battery_level" translatable="false">%d%%</string>
 
     <string name="camera_remote_notification_channel">Aerlink Camera</string>
     <string name="camera_remote_notification_title">Camera remote</string>

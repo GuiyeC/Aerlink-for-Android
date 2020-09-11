@@ -112,7 +112,7 @@ class BatteryServiceManager(private val context: Context): ServiceManager {
                 .setLargeIcon(BitmapFactory.decodeResource(context.resources, R.drawable.nic_low_battery))
                 .setDeleteIntent(deleteAction)
                 .setContentTitle(context.getString(R.string.battery_low_battery))
-                .setContentText("$batteryLevel%")
+                .setContentText(context.getString(R.string.battery_level, batteryLevel))
                 .setColor(context.getColor(R.color.error))
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .extend(wearableExtender)

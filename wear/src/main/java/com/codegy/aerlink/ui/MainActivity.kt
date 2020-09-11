@@ -88,7 +88,7 @@ class MainActivity : ServiceActivity(), BatteryServiceManager.Observer {
         runOnUiThread {
             batteryInfoTextView.visibility = View.VISIBLE
             batteryInfoTextView.setTextColor(getColor(if (batteryLevel > 20) R.color.connection_state_ready else R.color.connection_state_disconnected))
-            batteryInfoTextView.text = "$batteryLevel%"
+            batteryInfoTextView.text = getString(R.string.battery_level, batteryLevel)
         }
     }
 
