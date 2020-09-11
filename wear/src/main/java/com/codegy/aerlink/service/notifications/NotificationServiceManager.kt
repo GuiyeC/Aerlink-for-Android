@@ -21,6 +21,7 @@ import com.codegy.aerlink.service.notifications.model.NotificationDataReader
 import com.codegy.aerlink.service.notifications.model.NotificationEvent
 import com.codegy.aerlink.ui.PhoneActivity
 import com.codegy.aerlink.utils.CommandHandler
+import java.lang.Exception
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -211,9 +212,13 @@ class NotificationServiceManager(private val context: Context, private val comma
                     notificationBuilder.setContentText(it)
                 }
                 attributes[NotificationAttribute.Date]?.let {
-                    val date = dateFormat.parse(it) ?: return@let
-                    notificationBuilder.setWhen(date.time)
-                    notificationBuilder.setShowWhen(true)
+                    try {
+                        val date = dateFormat.parse(it) ?: return@let
+                        notificationBuilder.setWhen(date.time)
+                        notificationBuilder.setShowWhen(true)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
                 attributes[NotificationAttribute.AppIdentifier]?.let {
                     notificationBuilder.setGroup(it)
