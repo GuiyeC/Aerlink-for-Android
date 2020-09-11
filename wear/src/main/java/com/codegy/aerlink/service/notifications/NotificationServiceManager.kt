@@ -16,7 +16,6 @@ import com.codegy.aerlink.connection.Command
 import com.codegy.aerlink.extensions.NotificationChannelImportance
 import com.codegy.aerlink.extensions.createChannelIfNeeded
 import com.codegy.aerlink.service.ServiceManager
-import com.codegy.aerlink.service.media.MediaServiceManager
 import com.codegy.aerlink.service.notifications.model.NotificationAttribute
 import com.codegy.aerlink.service.notifications.model.NotificationDataReader
 import com.codegy.aerlink.service.notifications.model.NotificationEvent
@@ -59,6 +58,8 @@ class NotificationServiceManager(private val context: Context, private val comma
     }
 
     override fun close() {
+        // Send in case there is an ongoing call
+        context.sendBroadcast(Intent(IA_CALL_ENDED))
         context.unregisterReceiver(broadcastReceiver)
     }
 
