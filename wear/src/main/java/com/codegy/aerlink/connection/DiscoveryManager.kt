@@ -10,6 +10,7 @@ import android.bluetooth.le.ScanSettings
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.codegy.aerlink.utils.ScheduledTask
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -28,12 +29,14 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
         get() = bluetoothAdapter.bluetoothLeScanner
     private var scanSettings: ScanSettings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER).build()
     private val allowedDevices: List<String> = listOf("Aerlink", "BLE Utility", "Blank")
+    private val timeoutController: ScheduledTask = ScheduledTask(Looper.getMainLooper())
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             if (!isScanning) {
                 return
             }
+            timeoutController.cancel()
 
             Log.d(LOG_TAG, "Scan Result: $result")
 
@@ -52,6 +55,7 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
         override fun onScanFailed(errorCode: Int) {
             super.onScanFailed(errorCode)
             Log.d(LOG_TAG, "Scan Failed: $errorCode")
+            timeoutController.cancel()
 
             stopDiscovery()
             startDiscovery()
@@ -106,11 +110,19 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
             // Scanning did not work, try again in a moment
             val handler = Handler(Looper.getMainLooper())
             handler.postDelayed({ startDiscovery() }, RETRY_TIME)
+        } else {
+            timeoutController.schedule(SCAN_TIMEOUT) {
+                if (!isRunning) { return@schedule }
+                stopDiscovery()
+                bluetoothAdapter.disable()
+                startDiscovery()
+            }
         }
     }
 
     fun stopDiscovery() {
         isScanning = false
+        timeoutController.cancel()
         synchronized(this) {
             try {
                 scanner?.stopScan(scanCallback)
@@ -129,6 +141,7 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
 
         isRunning = false
         callback = null
+        timeoutController.cancel()
         stopDiscovery()
     }
 
@@ -136,6 +149,7 @@ class DiscoveryManager(var callback: Callback?, bluetoothManager: BluetoothManag
         private val LOG_TAG = DiscoveryManager::class.java.simpleName
         private const val RETRY_TIME: Long = 3000
         private const val SCAN_DELAY: Long = 1000
+        private const val SCAN_TIMEOUT: Long = 3000
         private var lastScan: Long = 0
     }
 }
