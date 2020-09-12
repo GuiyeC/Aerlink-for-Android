@@ -55,7 +55,10 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
                 when (newState) {
                     BluetoothProfile.STATE_CONNECTED -> {
                         Log.i(LOG_TAG, "Connected")
-                        requestMtu(gatt)
+                        timeoutController.schedule(OPERATION_DELAY) {
+                            if (!isRunning) { return@schedule }
+                            requestMtu(gatt)
+                        }
                     }
                     BluetoothProfile.STATE_DISCONNECTED -> {
                         Log.i(LOG_TAG, "Disconnected")
@@ -102,7 +105,10 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
 
             timeoutController.cancel()
             // Continue with connection even if the MTU change failed
-            discoverServices(gatt)
+            timeoutController.schedule(OPERATION_DELAY) {
+                if (!isRunning) { return@schedule }
+                discoverServices(gatt)
+            }
         }
 
         fun discoverServices(gatt: BluetoothGatt, numberOfTries: Int = 0) {
@@ -134,7 +140,10 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
                 val characteristics = callback?.onReadyToSubscribe(this@ConnectionManager)
                 if (characteristics?.isNotEmpty() == true) {
                     characteristicsToSubscribe.addAll(characteristics)
-                    checkCharacteristicsToSubscribe()
+                    timeoutController.schedule(OPERATION_DELAY) {
+                        if (!isRunning) { return@schedule }
+                        checkCharacteristicsToSubscribe()
+                    }
                 } else {
                     Log.wtf(LOG_TAG, "No services available, giving up on connection")
                     onConnectionError()
@@ -178,7 +187,10 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.d(LOG_TAG, "Descriptor write: ${descriptor.characteristic.uuid}")
 
-                checkCharacteristicsToSubscribe()
+                timeoutController.schedule(OPERATION_DELAY) {
+                    if (!isRunning) { return@schedule }
+                    checkCharacteristicsToSubscribe()
+                }
             } else {
                 Log.e(LOG_TAG, "ERROR: Descriptor write :: Status: ${stringFromStatus(status)}")
                 Log.d(LOG_TAG, "Descriptor: ${descriptor.characteristic.uuid}")
@@ -247,7 +259,10 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
             Log.d(LOG_TAG, "Characteristic value: ${characteristic.value}")
 
             currentCommand = null
-            checkCommands()
+            timeoutController.schedule(OPERATION_DELAY) {
+                if (!isRunning) { return@schedule }
+                checkCommands()
+            }
         }
 
         override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
@@ -273,7 +288,10 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
             Log.d(LOG_TAG, "Characteristic value: ${characteristic.value}")
 
             currentCommand = null
-            checkCommands()
+            timeoutController.schedule(OPERATION_DELAY) {
+                if (!isRunning) { return@schedule }
+                checkCommands()
+            }
         }
 
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
@@ -282,7 +300,6 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
 
             callback?.onCharacteristicChanged(this@ConnectionManager, characteristic)
         }
-
     }
 
     fun connect(autoConnect: Boolean = false) {
@@ -341,9 +358,9 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
 
         if (unpairDevice) {
             device.unpair()
+            connectionsFailed = 0
         }
 
-        connectionsFailed = 0
         bluetoothAdapter.disable()
 
         callback?.onConnectionError(this@ConnectionManager)
@@ -353,8 +370,7 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
         Log.w(LOG_TAG, "Connecting timed out")
         connectionsFailed++
         if (connectionsFailed > 0 && connectionsFailed % 3 == 0) {
-            bluetoothAdapter.disable()
-            onConnectionError()
+            onConnectionError(connectionsFailed % 9 == 0)
         } else {
             disconnect()
         }
@@ -376,6 +392,7 @@ class ConnectionManager(val device: BluetoothDevice, private val context: Contex
         private var connectionsFailed = 0
         private val LOG_TAG = ConnectionManager::class.java.simpleName
         private const val DESIRED_MTU: Int = 512
+        private const val OPERATION_DELAY: Long = 180
         private const val CONNECTION_TIMEOUT: Long = 5000
         private const val MTU_CHANGE_TIMEOUT: Long = 1000
         private const val SERVICE_DISCOVERY_TIMEOUT: Long = 2000
