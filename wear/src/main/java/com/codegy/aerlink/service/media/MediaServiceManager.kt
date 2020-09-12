@@ -264,6 +264,10 @@ class MediaServiceManager(private val context: Context, private val commandHandl
         notificationManager.notify(NOTIFICATION_ID, builder.build())
     }
 
+    fun sendPlay() {
+        commandHandler.handleCommand(MediaCommand.Play.command)
+    }
+
     companion object {
         private val LOG_TAG: String = MediaServiceManager::class.java.simpleName
         private const val NOTIFICATION_ID: Int = 1002

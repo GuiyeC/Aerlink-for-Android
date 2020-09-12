@@ -95,6 +95,28 @@
             </androidx.cardview.widget.CardView>
 
             <androidx.cardview.widget.CardView
+                android:id="@+id/playMediaButton"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="8dp"
+                android:foreground="?android:attr/selectableItemBackground"
+                app:cardCornerRadius="23dp"
+                app:cardBackgroundColor="@color/aerlink_blue"
+                android:visibility="gone"
+                tools:visibility="visible"
+                app:cardElevation="0dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:paddingBottom="4dp"
+                    android:gravity="center"
+                    android:text="▶"
+                    android:textSize="26sp"
+                    android:textColor="@color/on_surface"/>
+            </androidx.cardview.widget.CardView>
+
+            <androidx.cardview.widget.CardView
                 android:id="@+id/unbondButton"
                 android:layout_width="match_parent"
                 android:layout_height="46dp"

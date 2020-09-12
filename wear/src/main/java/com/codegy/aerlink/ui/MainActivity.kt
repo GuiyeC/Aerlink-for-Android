@@ -10,6 +10,7 @@ import com.codegy.aerlink.R
 import com.codegy.aerlink.connection.ConnectionState
 import com.codegy.aerlink.extensions.resetBondedDevices
 import com.codegy.aerlink.service.battery.BatteryServiceManager
+import com.codegy.aerlink.service.media.MediaServiceManager
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : ServiceActivity(), BatteryServiceManager.Observer {
@@ -24,14 +25,31 @@ class MainActivity : ServiceActivity(), BatteryServiceManager.Observer {
         // Enables Always-on
         setAmbientEnabled()
         serviceSwitch.setOnCheckedChangeListener { switch, checked ->
+            if (checked) {
+                playMediaButton.visibility = View.VISIBLE
+                unbondButton.visibility = View.GONE
+                unbondProgress.visibility = View.GONE
+                unbondProgress.stopTimer()
+            } else {
+                unbondButton.visibility = View.VISIBLE
+                playMediaButton.visibility = View.GONE
+                playMediaButton.alpha = 0.4f
+            }
             if (!switch.isPressed) {
                 return@setOnCheckedChangeListener
             }
-            if (checked) {
-                startService()
-            } else {
-                stopService()
+            serviceSwitch.postOnAnimation {
+                if (checked) {
+                    startService()
+                } else {
+                    stopService()
+                }
             }
+        }
+
+        playMediaButton.setOnClickListener {
+            val serviceManager = getServiceManager(MediaServiceManager::class) ?: return@setOnClickListener
+            serviceManager.sendPlay()
         }
 
         unbondButton.setOnClickListener {
@@ -94,6 +112,8 @@ class MainActivity : ServiceActivity(), BatteryServiceManager.Observer {
 
     override fun updateInterfaceForState(state: ConnectionState) {
         runOnUiThread {
+            playMediaButton.isEnabled = state == ConnectionState.Ready
+            playMediaButton.alpha = if (state == ConnectionState.Ready) 1f else 0.4f
             when (state) {
                 ConnectionState.Ready -> {
                     connectionInfoTextView.setTextColor(getColor(R.color.connection_state_ready))
