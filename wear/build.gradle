@@ -8,7 +8,7 @@ android {
         applicationId "com.codegy.wearconnectforios"
         minSdkVersion 23
         targetSdkVersion 29
-        versionCode 40
+        versionCode 47
         versionName "4.0"
         vectorDrawables {
             useSupportLibrary = true
@@ -29,13 +29,7 @@ dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation 'com.google.android.support:wearable:2.7.0'
-    implementation 'com.google.android.gms:play-services-wearable:17.0.0'
-    implementation 'androidx.legacy:legacy-support-v4:1.0.0'
-    implementation 'androidx.legacy:legacy-support-core-utils:1.0.0'
-    implementation 'androidx.legacy:legacy-support-core-ui:1.0.0'
-    implementation 'androidx.recyclerview:recyclerview:1.2.0-alpha05'
     implementation 'androidx.cardview:cardview:1.0.0'
-    implementation 'androidx.media:media:1.2.0-rc01'
     implementation "androidx.preference:preference-ktx:1.1.1"
     implementation 'androidx.wear:wear:1.0.0'
     implementation 'androidx.core:core:1.3.1'
